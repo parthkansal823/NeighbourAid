@@ -1,6 +1,6 @@
 # NeighbourAid — Hyperlocal Crisis & Help Network
 
-[![CI](https://img.shields.io/github/actions/workflow/status/pk23nk21/NeighbourAid/ci.yml?branch=main&label=CI&logo=github)](https://github.com/pk23nk21/NeighbourAid/actions/workflows/ci.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/pk23nk21/NeighbourAid/ci.yml?branch=main&label=CI&logo=github)](https://github.com/parthkansal823/NeighbourAid/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/badge/tests-143_passing-brightgreen)](docs/08-testing.md)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](backend/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)](backend/)
