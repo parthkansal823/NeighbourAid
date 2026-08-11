@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
+from pymongo.errors import DuplicateKeyError
 from ..db.client import get_db
 from ..models.user import UserCreate, UserLogin
 from ..core.security import hash_password, verify_password, create_token
@@ -24,7 +25,14 @@ async def register(user: UserCreate):
         "emergency_contacts": [c.model_dump() for c in user.emergency_contacts],
         "created_at": datetime.now(timezone.utc),
     }
-    result = await db.users.insert_one(doc)
+    # The find_one above is a friendly fast path, not a guarantee — two
+    # signups racing on the same address both pass it. The unique index on
+    # `email` is the real check, so translate its error into the same 400
+    # rather than letting it surface as a 500.
+    try:
+        result = await db.users.insert_one(doc)
+    except DuplicateKeyError:
+        raise HTTPException(400, "Email already registered")
     token = create_token({"sub": str(result.inserted_id), "role": user.role.value})
     return {"token": token, "role": user.role.value, "name": user.name}
 

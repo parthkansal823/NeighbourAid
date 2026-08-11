@@ -2,6 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
+import {
+  ArrowRight,
+  CategoryIcon,
+  Compass,
+  Link2,
+  MapPin,
+  PhoneCall,
+} from '../components/icons'
 
 const URGENCY_BADGE = {
   CRITICAL: 'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm shadow-red-500/40',
@@ -10,14 +18,6 @@ const URGENCY_BADGE = {
   LOW: 'bg-gradient-to-b from-green-500 to-green-600 text-white shadow-sm shadow-green-500/30',
 }
 
-const CATEGORY_ICON = {
-  medical: '🏥',
-  flood: '🌊',
-  fire: '🔥',
-  missing: '🔍',
-  power: '⚡',
-  other: '⚠️',
-}
 
 export default function AlertShare() {
   const { id } = useParams()
@@ -56,11 +56,11 @@ export default function AlertShare() {
   if (error || !alert) {
     return (
       <div className="max-w-lg mx-auto px-4 py-12 text-center reveal-up">
-        <div className="text-5xl mb-4" aria-hidden>🔗</div>
+        <Link2 className="h-12 w-12 mx-auto mb-4 text-gray-500" aria-hidden />
         <h1 className="text-xl font-bold text-white mb-2">Alert unavailable</h1>
         <p className="text-gray-400 text-sm mb-6">{error || 'The link may have expired.'}</p>
         <Link to="/" className="text-orange-400 hover:text-orange-300 underline-offset-2 hover:underline">
-          Go to NeighbourAid →
+          Go to NeighbourAid <ArrowRight className="h-4 w-4 inline-block ml-1 -mt-0.5" aria-hidden />
         </Link>
       </div>
     )
@@ -78,7 +78,7 @@ export default function AlertShare() {
         />
         <div className="relative flex items-center justify-between gap-2 mb-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{CATEGORY_ICON[alert.category] ?? '⚠️'}</span>
+            <CategoryIcon category={alert.category} className="h-6 w-6 shrink-0" />
             <span className="font-semibold capitalize text-white text-lg">{alert.category}</span>
           </div>
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${URGENCY_BADGE[alert.urgency]}`}>
@@ -88,7 +88,7 @@ export default function AlertShare() {
         <p className="relative text-gray-200 whitespace-pre-wrap">{alert.description}</p>
         {alert.address && (
           <p className="relative text-gray-500 text-sm mt-3 flex items-start gap-1">
-            <span aria-hidden className="shrink-0">📍</span>
+            <MapPin className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
             <span>{alert.address}</span>
           </p>
         )}
@@ -101,19 +101,19 @@ export default function AlertShare() {
               aria-hidden
               className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
             />
-            <span className="relative">🧭 Directions</span>
+            <span className="relative inline-flex items-center gap-1.5"><Compass className="h-4 w-4" aria-hidden />Directions</span>
           </Link>
           <a
             href="tel:112"
             className="bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
           >
-            📞 112 Emergency
+            <PhoneCall className="h-4 w-4 inline-block mr-1.5 -mt-0.5" aria-hidden />112 Emergency
           </a>
           <Link
             to="/register"
             className="border border-orange-500/60 text-orange-300 hover:text-orange-200 hover:bg-orange-500/10 text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
           >
-            Join NeighbourAid →
+            Join NeighbourAid <ArrowRight className="h-4 w-4 inline-block ml-1 -mt-0.5" aria-hidden />
           </Link>
         </div>
       </section>

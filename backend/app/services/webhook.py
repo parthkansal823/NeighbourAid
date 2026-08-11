@@ -20,6 +20,13 @@ from ..core.config import settings
 
 log = logging.getLogger(__name__)
 
+# asyncio only holds a *weak* reference to a running task. A bare
+# `create_task(...)` whose result nobody keeps can therefore be collected
+# mid-flight, so the webhook silently never fires — the classic
+# fire-and-forget footgun. Holding a strong reference until the task
+# completes is the documented fix.
+_pending: set[asyncio.Task] = set()
+
 
 def _webhook_payload(alert: dict[str, Any]) -> dict[str, Any]:
     """Trim the alert doc to what an automation actually needs. Keeps the
@@ -62,7 +69,10 @@ def fire_alert_created(alert: dict[str, Any]) -> None:
         return
     payload = _webhook_payload(alert)
     try:
-        asyncio.get_running_loop().create_task(_post(payload))
+        task = asyncio.get_running_loop().create_task(_post(payload))
     except RuntimeError:
         # No running loop — caller is likely in a sync context; just skip
         log.debug("no running loop for webhook dispatch")
+        return
+    _pending.add(task)
+    task.add_done_callback(_pending.discard)

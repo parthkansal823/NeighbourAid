@@ -1,6 +1,18 @@
-from pymongo.errors import ConfigurationError
+"""MongoDB connection handling.
 
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+Uses PyMongo's native async driver (`AsyncMongoClient`, added in PyMongo 4.9)
+rather than Motor. MongoDB deprecated Motor in May 2025 and it reaches
+end-of-life in May 2026; the async API now lives in PyMongo itself. The call
+surface is the same — `db.collection.find_one(...)` and friends — so the
+routes needed no changes. The one real difference is that `close()` is a
+coroutine here, where Motor's was synchronous.
+"""
+
+from __future__ import annotations
+
+from pymongo import AsyncMongoClient
+from pymongo.asynchronous.database import AsyncDatabase
+from pymongo.errors import ConfigurationError
 
 from ..core.config import settings
 
@@ -12,13 +24,13 @@ from ..core.config import settings
 # and keeps deploys forgiving.
 _DEFAULT_DB_NAME = "neighbouraid"
 
-_client: AsyncIOMotorClient = None
-_db: AsyncIOMotorDatabase = None
+_client: AsyncMongoClient | None = None
+_db: AsyncDatabase | None = None
 
 
 async def connect():
     global _client, _db
-    _client = AsyncIOMotorClient(settings.MONGO_URL)
+    _client = AsyncMongoClient(settings.MONGO_URL)
     try:
         _db = _client.get_default_database()
     except ConfigurationError:
@@ -31,9 +43,14 @@ async def connect():
 
 
 async def disconnect():
-    if _client:
-        _client.close()
+    # Clear the globals too, so a second lifespan cycle (tests, reload) can't
+    # hand out a handle to an already-closed client.
+    global _client, _db
+    if _client is not None:
+        await _client.close()
+    _client = None
+    _db = None
 
 
-def get_db() -> AsyncIOMotorDatabase:
+def get_db() -> AsyncDatabase:
     return _db

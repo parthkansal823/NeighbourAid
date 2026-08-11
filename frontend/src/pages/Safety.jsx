@@ -4,6 +4,8 @@ import api from '../utils/api'
 import { apiError } from '../utils/error'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
+import { getBrowseLocation } from '../utils/geo'
+import { AlertTriangle, MapPin } from '../components/icons'
 import BuddyPing from '../components/BuddyPing'
 
 const STATUS_STYLE = {
@@ -70,15 +72,20 @@ export default function Safety() {
   const [refreshing, setRefreshing] = useState(false)
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
+  const [usingFallbackArea, setUsingFallbackArea] = useState(false)
 
   const deferredSearch = useDeferredValue(search.trim().toLowerCase())
 
   useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      ({ coords: c }) => setCoords([c.longitude, c.latitude]),
-      () => setCoords([76.7794, 30.7333]),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    )
+    let cancelled = false
+    getBrowseLocation().then(({ coords: c, isFallback }) => {
+      if (cancelled) return
+      setCoords(c)
+      setUsingFallbackArea(isFallback)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const load = useCallback(async ({ silent = false } = {}) => {
@@ -185,9 +192,19 @@ export default function Safety() {
         </div>
       </div>
 
+      {usingFallbackArea && (
+        <div className="bg-amber-950/60 border border-amber-800/70 text-amber-300 text-xs rounded-lg px-4 py-2.5 mb-4 flex items-start gap-2">
+          <MapPin className="h-4 w-4 shrink-0 mt-px" aria-hidden />
+          <span>
+            Showing a default area — we could not read your location. Enable
+            location access to see check-ins around you.
+          </span>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
-          <span aria-hidden className="text-base shrink-0 mt-px">!</span>
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>
       )}

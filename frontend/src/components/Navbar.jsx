@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Globe, LifeBuoy, Siren } from './icons'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
@@ -41,7 +42,7 @@ function LanguageMenu() {
         aria-label="Change language"
         title="Change language"
       >
-        <span aria-hidden>🌐</span>
+        <Globe className="h-3.5 w-3.5" aria-hidden />
         <span>{current.short}</span>
         <svg
           aria-hidden
@@ -120,12 +121,10 @@ export default function Navbar() {
           onClick={closeMenu}
           className="group flex items-center gap-2 text-lg sm:text-xl font-bold tracking-tight"
         >
-          <span
+          <LifeBuoy
             aria-hidden
-            className="inline-block transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6"
-          >
-            🛟
-          </span>
+            className="h-6 w-6 text-orange-400 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6"
+          />
           <span className="text-gradient-brand">NeighbourAid</span>
         </Link>
 
@@ -148,9 +147,18 @@ export default function Navbar() {
               <NavLink to="/login" className={navLink}>
                 {t('nav_login')}
               </NavLink>
+              {/* Reporting works without an account, so the red action is
+                  reachable from every page — not buried behind signup. */}
+              <Link
+                to="/post-alert"
+                className="bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 inline-flex items-center gap-1.5"
+              >
+                <Siren className="h-4 w-4" aria-hidden />
+                {t('nav_report')}
+              </Link>
               <Link
                 to="/register"
-                className="bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5"
+                className="border border-gray-700 hover:border-orange-500/60 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-all duration-200"
               >
                 {t('nav_join')}
               </Link>
@@ -268,8 +276,16 @@ export default function Navbar() {
               </NavLink>
               <Link
                 onClick={closeMenu}
+                to="/post-alert"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-center font-semibold shadow-md shadow-red-500/20 transition-all"
+              >
+                <Siren className="h-4 w-4" aria-hidden />
+                {t('nav_report')}
+              </Link>
+              <Link
+                onClick={closeMenu}
                 to="/register"
-                className="block px-3 py-2 rounded-lg bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white text-center font-semibold shadow-md shadow-orange-500/20 transition-all"
+                className="block px-3 py-2 rounded-lg border border-gray-700 hover:border-orange-500/60 text-gray-300 hover:text-white text-center transition-all"
               >
                 {t('nav_join')}
               </Link>

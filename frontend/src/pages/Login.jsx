@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
+import { AlertTriangle } from '../components/icons'
 import { apiError } from '../utils/error'
 
 export default function Login() {
@@ -44,7 +45,7 @@ export default function Login() {
 
         {error && (
           <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
-            <span aria-hidden className="text-base shrink-0 mt-px">⚠️</span>
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
             <span>{error}</span>
           </div>
         )}

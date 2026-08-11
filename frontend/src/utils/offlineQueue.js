@@ -17,6 +17,10 @@ const STORE = 'pending-alerts'
 
 export const OFFLINE_QUEUE_EVENT = 'offline-queue:changed'
 
+// After this many failed delivery attempts a queued alert is dropped, so a
+// permanently-rejected payload can't block the queue behind it forever.
+const MAX_ATTEMPTS = 10
+
 let dbPromise = null
 let flushPromise = null
 
@@ -94,16 +98,19 @@ export async function removePending(id) {
   })
 }
 
+/** Increment a row's failure counter. Resolves with the new count (or 0 if
+ *  the row is already gone) so callers can act on the fresh value rather
+ *  than the stale one they read before the attempt. */
 export async function bumpAttempts(id) {
   const store = await tx('readwrite')
   return new Promise((resolve, reject) => {
     const getReq = store.get(id)
     getReq.onsuccess = () => {
       const row = getReq.result
-      if (!row) return resolve()
+      if (!row) return resolve(0)
       row.attempts = (row.attempts ?? 0) + 1
       const putReq = store.put(row)
-      putReq.onsuccess = () => resolve()
+      putReq.onsuccess = () => resolve(row.attempts)
       putReq.onerror = () => reject(putReq.error)
     }
     getReq.onerror = () => reject(getReq.error)
@@ -129,11 +136,13 @@ export async function flushQueue(postFn) {
         await removePending(row.id)
         sent += 1
       } catch {
-        await bumpAttempts(row.id)
         failed += 1
         // Give up on irrecoverable rows so one bad payload cannot block the
-        // entire queue forever.
-        if ((row.attempts ?? 0) >= 10) {
+        // entire queue forever. Count the attempt we just made — `row` was
+        // read before the POST, so its `attempts` is one behind and would
+        // buy every poison payload an extra retry.
+        const attempts = await bumpAttempts(row.id)
+        if (attempts >= MAX_ATTEMPTS) {
           await removePending(row.id).catch(() => {})
         }
       }

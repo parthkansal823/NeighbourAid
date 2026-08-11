@@ -36,7 +36,10 @@ function OfflineQueueFlusher() {
   const { push: toast } = useToast()
 
   useEffect(() => {
-    if (!user) return undefined
+    // Runs for signed-out visitors too: /post-alert is public, so an anonymous
+    // reporter can queue an alert while offline. Gating this on `user` left
+    // those alerts stranded in IndexedDB forever.
+    const endpoint = user ? '/api/alerts/' : '/api/alerts/anonymous'
 
     const tryFlush = async () => {
       if (!navigator.onLine) return
@@ -44,7 +47,7 @@ function OfflineQueueFlusher() {
         const pending = await listPending()
         if (!pending.length) return
         const { sent } = await flushQueue((payload) =>
-          api.post('/api/alerts/', payload)
+          api.post(endpoint, payload)
         )
         if (sent > 0) {
           toast({
@@ -82,14 +85,14 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/map" element={<MapDashboard />} />
-            <Route
-              path="/post-alert"
-              element={
-                <PrivateRoute role="reporter">
-                  <PostAlert />
-                </PrivateRoute>
-              }
-            />
+            {/*
+              Deliberately public. Someone standing over a collapsed stranger
+              should not have to create an account first — the backend already
+              exposes POST /api/alerts/anonymous for exactly this, and
+              PostAlert picks that endpoint when there's no session. Logged-in
+              reporters still post attributed alerts through the same form.
+            */}
+            <Route path="/post-alert" element={<PostAlert />} />
             <Route
               path="/my-alerts"
               element={

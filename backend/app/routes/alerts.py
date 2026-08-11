@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from ..core.limits import limit_write
 from ..core.security import decode_token_safe, get_current_user, require_role
 from ..db.client import get_db
-from ..models.alert import AlertCreate, ETAUpdate
-from ..services.ai import generate_headline, similarity, triage as ai_triage
+from ..models.alert import AlertCreate, AlertUpdateCreate, ETAUpdate
+from ..services.ai import generate_headline, triage as ai_triage
 from ..services.geocode import reverse_geocode
 from ..services.photo import analyze_photos
 from ..services.ratelimit import anonymous_alert_limiter
@@ -18,6 +18,7 @@ from ..services.verification import (
     WITNESS_RADIUS_M,
     bump_witness,
     compute_verified_score,
+    filter_corroborating,
     find_corroborating_alerts,
 )
 from ..services.weather import current_weather, supports_category
@@ -155,7 +156,15 @@ async def _auto_escalate_unaccepted(db) -> list[dict]:
 
     Two ladders run independently: HIGH → CRITICAL fires faster than
     MEDIUM → HIGH, on the assumption that already-HIGH alerts have less
-    margin for delay than already-MEDIUM ones."""
+    margin for delay than already-MEDIUM ones.
+
+    Each rung is timed from when the alert *entered* its current urgency
+    (`urgency_since`, falling back to `created_at` for docs written before
+    that field existed) rather than from creation. Without that, an alert
+    that sat at MEDIUM for an hour would climb MEDIUM → HIGH → CRITICAL on
+    two consecutive reads seconds apart, because its `created_at` already
+    satisfies both windows — which is not an escalation *ladder*, just a
+    slow jump straight to CRITICAL."""
     now = datetime.now(timezone.utc)
     bumped: list[dict] = []
 
@@ -166,21 +175,29 @@ async def _auto_escalate_unaccepted(db) -> list[dict]:
     ]
     try:
         for from_u, to_u, after in ladders:
+            cutoff = now - after
+            stale_at_current_urgency = {
+                "$expr": {
+                    "$lt": [{"$ifNull": ["$urgency_since", "$created_at"]}, cutoff]
+                }
+            }
             cursor = db.alerts.find(
                 {
                     "status": "open",
                     "accepted_by": None,
                     "urgency": from_u,
-                    "created_at": {"$lt": now - after},
-                    "auto_escalated": {"$ne": True},
+                    **stale_at_current_urgency,
                 }
             )
             async for doc in cursor:
                 updated = await db.alerts.find_one_and_update(
-                    {"_id": doc["_id"], "auto_escalated": {"$ne": True}},
+                    # Re-assert the urgency inside the update filter so two
+                    # concurrent /nearby reads can't both bump the same alert.
+                    {"_id": doc["_id"], "urgency": from_u},
                     {
                         "$set": {
                             "urgency": to_u,
+                            "urgency_since": now,
                             "auto_escalated": True,
                             "auto_escalated_at": now,
                             "urgency_reason": (
@@ -296,7 +313,11 @@ async def heatmap(lat: float, lng: float, km: float = 25.0, hours: int = 72):
     alerts in the window. Used by the map dashboard to render a density
     overlay. Weight is a 0..1 normalisation of urgency + verification."""
     db = get_db()
-    since = datetime.now(timezone.utc) - timedelta(hours=max(1, min(hours, 168)))
+    # Clamp once and report the clamped value back — echoing the caller's raw
+    # `hours` would tell a client asking for 999 h that it got a 999 h window
+    # when the query actually covered 168.
+    hours = max(1, min(hours, 168))
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
     cursor = db.alerts.find(
         {
             "location": {
@@ -349,24 +370,14 @@ async def create_alert(
     weather_match = supports_category(alert.category.value, weather)
     # Keep only corroborating alerts whose text is semantically close —
     # avoids same-category-same-area-but-different-incident false positives.
-    corroborating = [
-        c
-        for c in corroborating
-        if similarity(alert.description, c.get("description", "")) >= 0.25
-        or c.get("_id") is not None  # allow all if similarity is weak (fallback)
-    ]
+    corroborating = filter_corroborating(alert.description, corroborating)
     corroborating_ids = [doc["_id"] for doc in corroborating]
-    duplicate_count = sum(
-        1
-        for c in corroborating
-        if similarity(alert.description, c.get("description", "")) >= 0.55
-    )
     # Photos are optional; when supplied we validate each one and let the
     # visual evidence bump the overall verified_score.
     photo_analysis = analyze_photos(alert.photos)
     verified_score = compute_verified_score(
         witnesses=1,
-        corroborating_alerts=len(corroborating_ids) + duplicate_count,
+        corroborating_alerts=len(corroborating_ids),
         weather_match=weather_match,
     )
     verified_score = min(100, verified_score + photo_analysis["photo_evidence_score"])
@@ -469,11 +480,7 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
         return_exceptions=False,
     )
     weather_match = supports_category(alert.category.value, weather)
-    corroborating = [
-        c for c in corroborating
-        if similarity(alert.description, c.get("description", "")) >= 0.25
-        or c.get("_id") is not None
-    ]
+    corroborating = filter_corroborating(alert.description, corroborating)
     corroborating_ids = [c["_id"] for c in corroborating]
     photo_analysis = analyze_photos(alert.photos)
     verified_score = compute_verified_score(
@@ -607,14 +614,14 @@ async def get_responder_position(
     coords = manager.coords_for(str(accepted_by))
     live = coords is not None
 
-    if not live:
-        # Fall back to the volunteer's saved home location — better than
-        # nothing, but mark it stale so the UI doesn't show "live" dot.
-        user = await db.users.find_one({"_id": accepted_by}, {"location": 1, "name": 1})
-        if user and isinstance(user.get("location"), dict):
-            coords = user["location"].get("coordinates") or None
+    # One lookup covers both needs: the responder's display name always, and
+    # their saved home location only when the live socket has nothing.
+    user = await db.users.find_one({"_id": accepted_by}, {"location": 1, "name": 1})
+    if not live and user and isinstance(user.get("location"), dict):
+        # Better than nothing, but stays marked stale so the UI doesn't
+        # render a "live" dot over a location that may be hours old.
+        coords = user["location"].get("coordinates") or None
 
-    user = await db.users.find_one({"_id": accepted_by}, {"name": 1})
     return {
         "responder_id": str(accepted_by),
         "responder_name": (user or {}).get("name") or "Volunteer",
@@ -660,14 +667,12 @@ async def list_updates(
 )
 async def add_update(
     alert_id: str,
-    body: dict,
+    body: AlertUpdateCreate,
     payload: dict = Depends(get_current_user),
 ):
     """Post a short situational update. Min 3, max 500 chars. Any authenticated user can post."""
     db = get_db()
-    text = (body.get("body") or "").strip()
-    if len(text) < 3 or len(text) > 500:
-        raise HTTPException(400, "Update body must be 3-500 characters")
+    text = body.body
 
     oid = _oid(alert_id)
     alert = await db.alerts.find_one({"_id": oid}, {"_id": 1})
@@ -724,8 +729,18 @@ async def witness_alert(
     if not user:
         raise HTTPException(404, "User not found")
 
+    # A user who never shared a location can't prove locality. Returning 400
+    # here (rather than letting the KeyError below become a 500) also tells
+    # the client exactly what to do about it.
+    user_coords = (user.get("location") or {}).get("coordinates")
+    if not (isinstance(user_coords, list) and len(user_coords) == 2):
+        raise HTTPException(
+            400,
+            "Set your location in your profile before confirming an incident",
+        )
+
     a_lng, a_lat = alert["location"]["coordinates"]
-    u_lng, u_lat = user["location"]["coordinates"]
+    u_lng, u_lat = user_coords
     if _haversine_m(a_lat, a_lng, u_lat, u_lng) > WITNESS_RADIUS_M:
         raise HTTPException(
             403,

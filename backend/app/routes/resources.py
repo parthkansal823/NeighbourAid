@@ -41,12 +41,24 @@ def _serialize(doc: dict) -> dict:
     }
 
 
+_indexes_ready = False
+
+
 async def _ensure_indexes(db) -> None:
-    """Idempotent — Motor's create_index is a no-op when the index exists.
-    Done lazily on first call rather than at startup so the lifespan path
-    stays minimal."""
+    """Create the indexes once per process, lazily on first use, rather than
+    at startup so the lifespan path stays minimal.
+
+    `create_index` is idempotent but *not* free — it's a round trip to Mongo
+    on every call. Doing it unconditionally meant two extra round trips on
+    every single read of a public endpoint, which is the kind of overhead
+    that shows up immediately on a free-tier database.
+    """
+    global _indexes_ready
+    if _indexes_ready:
+        return
     await db.resources.create_index([("location", "2dsphere")])
     await db.resources.create_index("expires_at", expireAfterSeconds=0)
+    _indexes_ready = True
 
 
 @router.post("/", status_code=201)

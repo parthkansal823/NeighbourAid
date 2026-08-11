@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
+import { AlertTriangle, CheckCircle2 } from '../components/icons'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import {
@@ -184,13 +185,13 @@ export default function Profile() {
 
       {error && (
         <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 flex items-start gap-2 pop-in">
-          <span aria-hidden className="text-base shrink-0 mt-px">⚠️</span>
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>
       )}
       {message && (
         <div className="bg-emerald-950/70 border border-emerald-700 text-emerald-300 text-sm rounded-lg px-4 py-3 flex items-start gap-2 pop-in">
-          <span aria-hidden className="text-base shrink-0 mt-px">✅</span>
+          <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{message}</span>
         </div>
       )}

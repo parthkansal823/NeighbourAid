@@ -4,6 +4,9 @@ import MapView from '../components/MapView'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import { useI18n } from '../utils/i18n'
+// `Map` is aliased: the bare name collides with the JS built-in, which also
+// means ESLint's no-undef would NOT have caught it going missing.
+import { Map as MapIcon, MapPin, Flame, X } from '../components/icons'
 
 const URGENCY_FILTERS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 const CATEGORIES = ['all', 'medical', 'flood', 'fire', 'missing', 'power', 'other']
@@ -193,7 +196,7 @@ export default function MapDashboard() {
       <div className="glass border-b border-gray-800 px-3 sm:px-6 py-2 sm:py-3 space-y-2 shadow-md shadow-black/30">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-white font-semibold text-sm sm:text-base inline-flex items-center gap-2">
-            <span aria-hidden className="text-base">🗺️</span>
+            <MapIcon className="h-4 w-4" aria-hidden />
             {t('map_title')}
           </span>
           <div className="flex gap-1.5 flex-wrap">
@@ -252,7 +255,7 @@ export default function MapDashboard() {
         <div className="flex items-center justify-between gap-2 text-[11px] text-gray-500">
           <span className="truncate flex items-center gap-1.5">
             <span className="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
-            <span className="truncate tabular-nums">📍 {locStatus}</span>
+            <span className="truncate tabular-nums inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />{locStatus}</span>
           </span>
           <div className="flex items-center gap-2 shrink-0">
             {destination && (
@@ -261,7 +264,7 @@ export default function MapDashboard() {
                 className="text-xs border border-orange-700/60 bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 hover:text-orange-200 px-2 py-0.5 rounded-md transition-all duration-200"
                 title="Clear destination"
               >
-                ✕ Clear route
+                <><X className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />Clear route</>
               </button>
             )}
             <button
@@ -273,7 +276,7 @@ export default function MapDashboard() {
               }`}
               title="Toggle 72-hour heatmap overlay"
             >
-              {showHeat ? '🔥 Heat on' : '🔥 Heat'}
+              <><Flame className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />{showHeat ? 'Heat on' : 'Heat'}</>
             </button>
             <button
               onClick={recenterNow}

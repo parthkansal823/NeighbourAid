@@ -99,7 +99,11 @@ async def leaderboard(limit: int = 5, days: int = 30):
     Each row also carries a trust score (resolved ÷ accepted with sample-
     size smoothing) so the UI can show "trusted / reliable / new / unproven"."""
     db = get_db()
-    since = datetime.now(timezone.utc) - timedelta(days=max(1, min(days, 365)))
+    # Clamp once, then report the clamped values back so the response never
+    # claims a wider window (or longer list) than was actually queried.
+    days = max(1, min(days, 365))
+    limit = max(1, min(limit, 50))
+    since = datetime.now(timezone.utc) - timedelta(days=days)
     pipeline = [
         {"$match": {"accepted_by": {"$ne": None}, "created_at": {"$gte": since}}},
         {
@@ -112,7 +116,7 @@ async def leaderboard(limit: int = 5, days: int = 30):
             }
         },
         {"$sort": {"resolved": -1, "accepted": -1}},
-        {"$limit": max(1, min(limit, 50))},
+        {"$limit": limit},
     ]
     top = []
     try:

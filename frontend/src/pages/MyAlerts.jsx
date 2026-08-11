@@ -6,6 +6,15 @@ import { useI18n } from '../utils/i18n'
 import { SkeletonAlertList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import ResponderTracker from '../components/ResponderTracker'
+import {
+  AlertTriangle,
+  ArrowRight,
+  CloudRain,
+  Link2,
+  MapPin,
+  Siren,
+  Users,
+} from '../components/icons'
 
 const URGENCY_BADGE = {
   CRITICAL: 'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm shadow-red-500/40',
@@ -66,20 +75,20 @@ function AlertRow({ a, onCancel, cancelling, index = 0 }) {
       <p className="text-gray-300 text-sm break-words">{a.description}</p>
       {a.address && (
         <p className="text-gray-500 text-xs mt-1.5 flex gap-1">
-          <span aria-hidden className="shrink-0">📍</span>
+          <MapPin className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
           <span className="line-clamp-1">{a.address}</span>
         </p>
       )}
       <div className="flex flex-wrap gap-2 sm:gap-3 mt-2 text-[11px] text-gray-500">
         <span className="tabular-nums">Verified {a.verified_score ?? 0}/100</span>
         <span>
-          👥 {a.witnesses ?? 1}{' '}
+          <Users className="h-3 w-3 inline-block mr-1 -mt-0.5" aria-hidden />{a.witnesses ?? 1}{' '}
           {(a.witnesses ?? 1) !== 1 ? t('card_witness_many') : t('card_witness_one')}
         </span>
         {a.corroborating_ids?.length ? (
-          <span>🔗 {a.corroborating_ids.length} {t('card_similar_nearby')}</span>
+          <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" aria-hidden />{a.corroborating_ids.length} {t('card_similar_nearby')}</span>
         ) : null}
-        {a.weather_match ? <span>🌦 {t('card_weather_match')}</span> : null}
+        {a.weather_match ? <span className="inline-flex items-center gap-1"><CloudRain className="h-3 w-3" aria-hidden />{t('card_weather_match')}</span> : null}
       </div>
       {a.status === 'open' && (
         <div className="mt-3 flex justify-end">
@@ -158,7 +167,7 @@ export default function MyAlerts() {
 
       {error && (
         <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
-          <span aria-hidden className="text-base shrink-0 mt-px">⚠️</span>
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>
       )}
@@ -167,7 +176,7 @@ export default function MyAlerts() {
         <SkeletonAlertList count={3} />
       ) : alerts.length === 0 ? (
         <EmptyState
-          icon="🚨"
+          icon={<Siren className="h-7 w-7" />}
           title={t('mine_empty')}
           action={
             <Link
@@ -175,6 +184,7 @@ export default function MyAlerts() {
               className="inline-block bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
             >
               {t('mine_post_first')}
+              <ArrowRight className="h-4 w-4 inline-block ml-1.5 -mt-0.5" aria-hidden />
             </Link>
           }
         />

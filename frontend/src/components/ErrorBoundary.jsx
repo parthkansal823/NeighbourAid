@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { TriangleAlert } from './icons'
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -26,7 +27,7 @@ export default class ErrorBoundary extends Component {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-950">
         <div className="max-w-md w-full bg-gray-900 border border-red-800 rounded-2xl p-8 text-center">
-          <div className="text-5xl mb-4" aria-hidden>💥</div>
+          <TriangleAlert className="h-12 w-12 mx-auto mb-4 text-red-400" aria-hidden />
           <h1 className="text-2xl font-bold text-white mb-2">Something went wrong</h1>
           <p className="text-gray-400 text-sm mb-4">
             NeighbourAid hit an unexpected error. You can go back to the home screen and try again.

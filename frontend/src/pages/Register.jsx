@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
+import { AlertTriangle, MapPin } from '../components/icons'
 import { apiError } from '../utils/error'
 import { SkillsPicker, VehicleToggle } from '../components/ProfileFields'
 
@@ -22,8 +23,9 @@ export default function Register() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [locLoading, setLocLoading] = useState(false)
+  const [locationSet, setLocationSet] = useState(false)
 
-  const detectLocation = () => {
+  const detectLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setError('Geolocation is not available in this browser.')
       return
@@ -36,6 +38,7 @@ export default function Register() {
           ...f,
           location: { type: 'Point', coordinates: [coords.longitude, coords.latitude] },
         }))
+        setLocationSet(true)
         setLocLoading(false)
       },
       (err) => {
@@ -44,10 +47,23 @@ export default function Register() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     )
-  }
+  }, [])
+
+  // Offer the fix up front so the field is usually filled before they reach it.
+  useEffect(() => {
+    detectLocation()
+  }, [detectLocation])
 
   const submit = async (e) => {
     e.preventDefault()
+    // Home location isn't cosmetic: it gates the 2 km witness radius and is
+    // the fallback position shown to a reporter tracking their responder.
+    // Registering on the placeholder coordinates silently plants the account
+    // in Chandigarh regardless of where the person actually is.
+    if (!locationSet) {
+      setError(t('register_location_required'))
+      return
+    }
     setError('')
     setLoading(true)
     try {
@@ -86,7 +102,7 @@ export default function Register() {
 
         {error && (
           <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
-            <span aria-hidden className="text-base shrink-0 mt-px">⚠️</span>
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
             <span>{error}</span>
           </div>
         )}
@@ -123,13 +139,21 @@ export default function Register() {
             <input
               type="password"
               required
-              minLength={6}
+              // Must match UserCreate on the server (min 8, ≥1 letter, ≥1
+              // digit). This said 6, so the browser happily accepted a
+              // password the API then rejected with a raw 422.
+              minLength={8}
+              pattern="(?=.*[A-Za-z])(?=.*\d).{8,}"
+              title={t('register_password_hint')}
               autoComplete="new-password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className={inputCls}
               placeholder="••••••••"
             />
+            <p className="text-[11px] text-gray-500 mt-1">
+              {t('register_password_hint')}
+            </p>
           </div>
 
           <div>
@@ -146,7 +170,7 @@ export default function Register() {
                       : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200 hover:bg-gray-800/40'
                   }`}
                 >
-                  {r === 'reporter' ? `🚨 ${t('register_role_reporter')}` : `🤝 ${t('register_role_volunteer')}`}
+                  {r === 'reporter' ? t('register_role_reporter') : t('register_role_volunteer')}
                 </button>
               ))}
             </div>
@@ -175,8 +199,18 @@ export default function Register() {
             <div className="flex gap-2">
               <input
                 readOnly
-                value={`${lat.toFixed(4)}, ${lng.toFixed(4)}`}
-                className="flex-1 min-w-0 bg-gray-800/80 border border-gray-700 text-gray-300 rounded-lg px-3 sm:px-4 py-2.5 text-sm tabular-nums"
+                value={
+                  locationSet
+                    ? `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+                    : locLoading
+                      ? t('register_detecting')
+                      : t('register_location_placeholder')
+                }
+                className={`flex-1 min-w-0 bg-gray-800/80 border rounded-lg px-3 sm:px-4 py-2.5 text-sm ${
+                  locationSet
+                    ? 'border-emerald-700/70 ring-1 ring-emerald-700/30 text-gray-300 tabular-nums'
+                    : 'border-amber-700/70 text-amber-300/90'
+                }`}
               />
               <button
                 type="button"
@@ -193,10 +227,22 @@ export default function Register() {
                     {t('register_detecting')}
                   </span>
                 ) : (
-                  <>📍 {t('register_detect')}</>
+                  <>
+                  <MapPin className="h-4 w-4 inline-block mr-1 -mt-0.5" aria-hidden />
+                  {t('register_detect')}
+                </>
                 )}
               </button>
             </div>
+            <p
+              className={`text-[11px] mt-1 ${
+                locationSet ? 'text-emerald-400' : 'text-amber-400/90'
+              }`}
+            >
+              {locationSet
+                ? t('register_location_saved')
+                : t('register_location_required')}
+            </p>
           </div>
 
           <button

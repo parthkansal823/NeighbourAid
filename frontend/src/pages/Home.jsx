@@ -104,8 +104,11 @@ export default function Home() {
     { level: 'LOW', color: 'bg-green-600', example: t('urgency_example_low') },
   ]
 
+  // Signed-out visitors get "Report a Crisis", not "Get Started". Reporting is
+  // the reason someone lands here mid-emergency, and it no longer needs an
+  // account — routing them through signup first cost minutes that matter.
   const heroPrimary = !user
-    ? { to: '/register', label: t('home_cta_join'), tone: 'from-orange-500 to-orange-600 hover:to-orange-500' }
+    ? { to: '/post-alert', label: t('home_cta_report'), tone: 'from-red-600 to-red-700 hover:to-red-500' }
     : user.role === 'reporter'
     ? { to: '/post-alert', label: t('home_cta_report'), tone: 'from-red-600 to-red-700 hover:to-red-500' }
     : { to: '/volunteer', label: t('home_cta_volunteer'), tone: 'from-green-600 to-green-700 hover:to-green-500' }

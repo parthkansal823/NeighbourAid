@@ -134,7 +134,7 @@ async def test_witness_rejects_own_alert(client):
     alert_id = ObjectId()
     token = _token("volunteer")
     # The JWT sub becomes the user id; make the alert owned by the same id
-    import jose.jwt as jj
+    import jwt as jj
     from app.core.config import settings
     sub = jj.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])["sub"]
 
@@ -158,7 +158,7 @@ async def test_witness_rejects_far_user(client):
     c, db = client
     alert_id = ObjectId()
     token = _token("volunteer")
-    import jose.jwt as jj
+    import jwt as jj
     from app.core.config import settings
     sub = jj.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])["sub"]
 

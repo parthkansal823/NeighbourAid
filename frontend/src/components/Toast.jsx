@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { AlertTriangle, CheckCircle2, Info, Siren } from './icons'
 
 const ToastContext = createContext(null)
 
@@ -59,10 +60,10 @@ const VARIANT_STYLE = {
 }
 
 const VARIANT_ICON = {
-  info: 'ℹ️',
-  success: '✅',
-  warning: '⚠️',
-  danger: '🚨',
+  info: Info,
+  success: CheckCircle2,
+  warning: AlertTriangle,
+  danger: Siren,
 }
 
 const VARIANT_BAR = {
@@ -79,7 +80,15 @@ const VARIANT_GLOW = {
   danger: 'shadow-red-500/20',
 }
 
+const VARIANT_ICON_COLOR = {
+  info: 'text-gray-300',
+  success: 'text-emerald-300',
+  warning: 'text-amber-300',
+  danger: 'text-red-300',
+}
+
 function ToastItem({ toast, onClose }) {
+  const Icon = VARIANT_ICON[toast.variant] ?? VARIANT_ICON.info
   return (
     <div
       role="status"
@@ -99,9 +108,12 @@ function ToastItem({ toast, onClose }) {
       />
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2 min-w-0">
-          <span aria-hidden className="text-base shrink-0 mt-px">
-            {VARIANT_ICON[toast.variant] ?? VARIANT_ICON.info}
-          </span>
+          <Icon
+            aria-hidden
+            className={`h-4 w-4 shrink-0 mt-0.5 ${
+              VARIANT_ICON_COLOR[toast.variant] ?? VARIANT_ICON_COLOR.info
+            }`}
+          />
           <div className="min-w-0">
             {toast.title && <div className="font-semibold mb-0.5 truncate">{toast.title}</div>}
             {toast.body && (

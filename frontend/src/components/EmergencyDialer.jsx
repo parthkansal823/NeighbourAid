@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useI18n } from '../utils/i18n'
+import { Ambulance, Baby, Siren, ShieldUser, Truck, VenusAndMars, X } from './icons'
 
 // India national emergency numbers (verified across MHA, NDMA, state police).
 // 112 is the unified India-wide emergency number (ERSS — launched 2019).
 const NUMBERS = [
-  { num: '112', labelKey: 'dialer_all_in_one', icon: '🆘', tone: 'bg-red-600 hover:bg-red-700' },
-  { num: '100', labelKey: 'dialer_police', icon: '👮', tone: 'bg-blue-600 hover:bg-blue-700' },
-  { num: '108', labelKey: 'dialer_ambulance', icon: '🚑', tone: 'bg-emerald-600 hover:bg-emerald-700' },
-  { num: '101', labelKey: 'dialer_fire', icon: '🚒', tone: 'bg-orange-600 hover:bg-orange-700' },
-  { num: '1091', labelKey: 'dialer_women', icon: '👩', tone: 'bg-pink-600 hover:bg-pink-700' },
-  { num: '1098', labelKey: 'dialer_child', icon: '🧒', tone: 'bg-purple-600 hover:bg-purple-700' },
+  { num: '112', labelKey: 'dialer_all_in_one', Icon: Siren, tone: 'bg-red-600 hover:bg-red-700' },
+  { num: '100', labelKey: 'dialer_police', Icon: ShieldUser, tone: 'bg-blue-600 hover:bg-blue-700' },
+  { num: '108', labelKey: 'dialer_ambulance', Icon: Ambulance, tone: 'bg-emerald-600 hover:bg-emerald-700' },
+  { num: '101', labelKey: 'dialer_fire', Icon: Truck, tone: 'bg-orange-600 hover:bg-orange-700' },
+  { num: '1091', labelKey: 'dialer_women', Icon: VenusAndMars, tone: 'bg-pink-600 hover:bg-pink-700' },
+  { num: '1098', labelKey: 'dialer_child', Icon: Baby, tone: 'bg-purple-600 hover:bg-purple-700' },
 ]
 
 export default function EmergencyDialer() {
@@ -31,7 +32,7 @@ export default function EmergencyDialer() {
         aria-label={t('dialer_open')}
         title={t('dialer_tooltip')}
       >
-        <span className="text-2xl" aria-hidden>🆘</span>
+        <Siren className="h-7 w-7" aria-hidden />
       </button>
 
       {open && (
@@ -50,24 +51,25 @@ export default function EmergencyDialer() {
               <h2 className="text-base sm:text-lg font-bold text-white">{t('dialer_title')}</h2>
               <button
                 onClick={() => setOpen(false)}
-                className="text-gray-500 hover:text-gray-200 text-2xl leading-none px-2 -mr-2"
+                className="text-gray-500 hover:text-gray-200 px-2 -mr-2"
                 aria-label="Close"
               >
-                ×
+                <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
             <p className="text-xs text-gray-500 mb-4">
               {t('dialer_subtitle')}
             </p>
             <div className="grid grid-cols-2 gap-2">
-              {NUMBERS.map(({ num, labelKey, icon, tone }) => (
+              {NUMBERS.map(({ num, labelKey, Icon, tone }) => (
                 <a
                   key={num}
                   href={`tel:${num}`}
                   className={`${tone} text-white rounded-xl px-3 py-3 transition-colors flex flex-col items-start gap-0.5`}
                 >
-                  <span className="text-[11px] uppercase tracking-wider opacity-80">
-                    {icon} {t(labelKey)}
+                  <span className="text-[11px] uppercase tracking-wider opacity-80 inline-flex items-center gap-1.5">
+                    <Icon className="h-3.5 w-3.5" aria-hidden />
+                    {t(labelKey)}
                   </span>
                   <span className="text-xl sm:text-2xl font-black tracking-wide">{num}</span>
                 </a>

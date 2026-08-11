@@ -17,6 +17,7 @@ NeighbourAid feed unlocks reach you can't get any other way.
 from __future__ import annotations
 
 import asyncio
+import secrets
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -27,9 +28,13 @@ from pydantic import BaseModel, Field
 from ..core.config import settings
 from ..db.client import get_db
 from ..models.alert import AlertCategory, GeoPoint
-from ..services.ai import generate_headline, similarity, triage as ai_triage
+from ..services.ai import generate_headline, triage as ai_triage
 from ..services.geocode import reverse_geocode
-from ..services.verification import compute_verified_score, find_corroborating_alerts
+from ..services.verification import (
+    compute_verified_score,
+    filter_corroborating,
+    find_corroborating_alerts,
+)
 from ..services.weather import current_weather, supports_category
 from ..services.webhook import fire_alert_created
 from ..services.websocket import manager
@@ -62,7 +67,10 @@ def _check_auth(token: Optional[str]) -> None:
     expected = (settings.INBOUND_TOKEN or "").strip()
     if not expected:
         raise HTTPException(503, "Inbound webhook is disabled")
-    if not token or token.strip() != expected:
+    # compare_digest, not `!=`: a plain string compare short-circuits on the
+    # first differing byte, which leaks the shared secret one character at a
+    # time to anyone who can time the responses.
+    if not token or not secrets.compare_digest(token.strip(), expected):
         raise HTTPException(401, "Invalid inbound token")
 
 
@@ -87,11 +95,7 @@ async def whatsapp_inbound(
         return_exceptions=False,
     )
     weather_match = supports_category(msg.category.value, weather)
-    corroborating = [
-        c for c in corroborating
-        if similarity(msg.body, c.get("description", "")) >= 0.25
-        or c.get("_id") is not None
-    ]
+    corroborating = filter_corroborating(msg.body, corroborating)
     verified_score = compute_verified_score(
         witnesses=1,
         corroborating_alerts=len(corroborating),

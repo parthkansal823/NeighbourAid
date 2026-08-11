@@ -12,6 +12,20 @@ class UserRole(str, Enum):
     volunteer = "volunteer"
 
 
+def normalize_email(v: str) -> str:
+    """Lower-case and trim so `Asha@Gmail.com` and `asha@gmail.com` are the
+    same account.
+
+    RFC 5321 does allow a case-sensitive local part, but no mailbox provider
+    users are likely to have actually implements it that way — and the
+    `email` unique index *is* case-sensitive. Without normalising here, a
+    user who signs up on their phone (autocapitalised first letter) simply
+    cannot log in from their laptop, and a second signup with the same
+    address silently succeeds as a separate account.
+    """
+    return v.strip().lower()
+
+
 class GeoPoint(BaseModel):
     type: str = Field(default="Point")
     coordinates: List[float] = Field(min_length=2, max_length=2)
@@ -81,6 +95,11 @@ class UserCreate(BaseModel):
             raise ValueError("name must be at least 2 non-space characters")
         return stripped
 
+    @field_validator("email")
+    @classmethod
+    def lower_email(cls, v: str) -> str:
+        return normalize_email(v)
+
     @field_validator("password")
     @classmethod
     def password_complexity(cls, v: str) -> str:
@@ -96,6 +115,11 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("email")
+    @classmethod
+    def lower_email(cls, v: str) -> str:
+        return normalize_email(v)
 
 
 class LocationUpdate(BaseModel):

@@ -2,6 +2,20 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from
 import L from 'leaflet'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import HeatLayer from './HeatLayer'
+// `Circle` is already taken by react-leaflet in this file, so the lucide dot
+// comes in under an explicit alias.
+import {
+  ArrowUp,
+  CircleDot,
+  CloudRain,
+  Compass,
+  CornerUpLeft,
+  CornerUpRight,
+  MapPin,
+  Redo2,
+  Star,
+  Users,
+} from './icons'
 
 // Fix leaflet default icon path broken by bundlers
 delete L.Icon.Default.prototype._getIconUrl
@@ -65,7 +79,7 @@ function destinationIcon() {
     </circle>
     <path d="M16 0C8.27 0 2 6.27 2 14c0 10 14 30 14 30s14-20 14-30C30 6.27 23.73 0 16 0z" fill="url(#dg)" stroke="white" stroke-width="1.5"/>
     <circle cx="16" cy="14" r="6" fill="white"/>
-    <text x="16" y="18" font-family="system-ui" font-size="10" font-weight="bold" text-anchor="middle" fill="#c2410c">★</text>
+    <path d="M16 9.6l1.5 3.1 3.4.5-2.5 2.4.6 3.4-3-1.6-3 1.6.6-3.4-2.5-2.4 3.4-.5z" fill="#c2410c"/>
   </svg>`
   return L.divIcon({
     html: svg,
@@ -179,21 +193,24 @@ function prettifyStep(step) {
   return out
 }
 
+// Maneuver -> icon. Returns a component so the caller can size and colour it
+// with CSS; the old version returned arrow glyphs whose rendering depended on
+// whatever font the device had.
 function stepIcon(step) {
   const s = (step || '').toLowerCase()
-  if (s.includes('left')) return '↰'
-  if (s.includes('right')) return '↱'
-  if (s.includes('u-turn')) return '⤴'
-  if (s.includes('arrive')) return '★'
-  if (s.includes('continue') || s.includes('head')) return '↑'
-  return '•'
+  if (s.includes('left')) return CornerUpLeft
+  if (s.includes('right')) return CornerUpRight
+  if (s.includes('u-turn')) return Redo2
+  if (s.includes('arrive')) return Star
+  if (s.includes('continue') || s.includes('head')) return ArrowUp
+  return CircleDot
 }
 
 function RoutePanel({ route, loading, error, onClear, destination }) {
   return (
     <div className="absolute top-3 left-3 z-[400] bg-gradient-to-b from-gray-900/95 to-gray-900/85 backdrop-blur border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-200 shadow-2xl shadow-black/50 max-w-[240px] reveal-up">
       <div className="flex items-center gap-2 mb-1">
-        <span aria-hidden className="text-base">🧭</span>
+        <Compass className="h-4 w-4" aria-hidden />
         <span className="font-semibold text-white">Route</span>
         <button
           onClick={onClear}
@@ -322,7 +339,7 @@ function RichRoutePanel({ route, loading, error, onClear, destination }) {
   return (
     <div className="absolute top-3 left-3 z-[410] bg-gradient-to-b from-gray-900/95 to-gray-900/85 backdrop-blur border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-200 shadow-2xl shadow-black/50 max-w-[280px] reveal-up">
       <div className="flex items-center gap-2 mb-1">
-        <span aria-hidden className="text-base">🧭</span>
+        <Compass className="h-4 w-4" aria-hidden />
         <span className="font-semibold text-white">Live directions</span>
         <button
           onClick={onClear}
@@ -370,9 +387,15 @@ function RichRoutePanel({ route, loading, error, onClear, destination }) {
               <ol className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                 {route.steps.map((step, idx) => (
                   <li key={`${idx}-${step.instruction}`} className="flex items-start gap-2">
-                    <span className="text-orange-300 font-semibold shrink-0 mt-px">
-                      {stepIcon(step.instruction)}
-                    </span>
+                    {(() => {
+                      const StepIcon = stepIcon(step.instruction)
+                      return (
+                        <StepIcon
+                          className="h-3.5 w-3.5 text-orange-300 shrink-0 mt-0.5"
+                          aria-hidden
+                        />
+                      )
+                    })()}
                     <div className="min-w-0">
                       <div className="text-gray-100 leading-snug">
                         {prettifyStep(step.instruction)}
@@ -536,12 +559,22 @@ export default function MapView({
                   </p>
                   <p className="mb-1">{alert.description}</p>
                   {alert.address ? (
-                    <p className="text-[11px] text-gray-500 mt-1">📍 {alert.address}</p>
+                    <p className="text-[11px] text-gray-500 mt-1 flex items-start gap-1">
+                      <MapPin className="h-3 w-3 shrink-0 mt-px" aria-hidden />
+                      {alert.address}
+                    </p>
                   ) : null}
-                  <p className="text-[11px] text-gray-500 mt-1">
-                    👥 {alert.witnesses ?? 1} witness
+                  <p className="text-[11px] text-gray-500 mt-1 inline-flex items-center gap-1">
+                    <Users className="h-3 w-3" aria-hidden />
+                    {alert.witnesses ?? 1} witness
                     {(alert.witnesses ?? 1) !== 1 ? 'es' : ''}
-                    {alert.weather_match ? ' · 🌦 weather-match' : ''}
+                    {alert.weather_match ? (
+                      <>
+                        {' · '}
+                        <CloudRain className="h-3 w-3" aria-hidden />
+                        weather-match
+                      </>
+                    ) : null}
                   </p>
                 </div>
               </Popup>

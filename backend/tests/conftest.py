@@ -9,6 +9,28 @@ from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, MagicMock
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiters():
+    """Wipe the in-memory rate-limit buckets before every test.
+
+    The limiters are module-level singletons keyed by client IP, and every
+    test hits the app from the same IP. Without this, the 6th registration
+    *anywhere in the suite* got a 429, so tests asserting on validation
+    behaviour started failing purely because of how many tests ran before
+    them — and adding an unrelated test could break a passing one.
+    """
+    from app.services import ratelimit as rl
+
+    for limiter in (
+        rl.anonymous_alert_limiter,
+        rl.login_limiter,
+        rl.register_limiter,
+        rl.write_limiter,
+    ):
+        limiter.reset()
+    yield
+
+
 @pytest.fixture
 def mock_db():
     db = MagicMock()

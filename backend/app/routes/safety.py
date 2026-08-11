@@ -17,6 +17,23 @@ from ..models.user import GeoPoint
 
 router = APIRouter(prefix="/api/safety", tags=["safety"])
 
+_indexes_ready = False
+
+
+async def _ensure_indexes(db) -> None:
+    """Create the check-in indexes once per process, lazily on first use.
+
+    `create_index` is idempotent but still a round trip to Mongo each time;
+    running both on every `/near` read added two needless queries to a public
+    endpoint the map polls.
+    """
+    global _indexes_ready
+    if _indexes_ready:
+        return
+    await db.safety_checkins.create_index([("location", "2dsphere")])
+    await db.safety_checkins.create_index("expires_at", expireAfterSeconds=0)
+    _indexes_ready = True
+
 
 class CheckinCreate(BaseModel):
     status: Literal["safe", "need_help"]
@@ -31,6 +48,9 @@ async def create_checkin(
 ):
     """Post or refresh your safety status. Latest check-in per user wins."""
     db = get_db()
+    # Also ensure indexes on the write path — the TTL index is what expires
+    # stale check-ins, and it must exist even if nobody ever reads /near.
+    await _ensure_indexes(db)
     user = await db.users.find_one(
         {"_id": ObjectId(payload["sub"])}, {"name": 1}
     )
@@ -69,8 +89,7 @@ async def near(lat: float, lng: float, km: float = 5.0):
     """Public — list of recent check-ins within a radius. Used by the map
     + the safety page to give visibility over 'who's safe in my area'."""
     db = get_db()
-    await db.safety_checkins.create_index([("location", "2dsphere")])
-    await db.safety_checkins.create_index("expires_at", expireAfterSeconds=0)
+    await _ensure_indexes(db)
     now = datetime.now(timezone.utc)
     cursor = db.safety_checkins.find(
         {

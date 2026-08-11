@@ -5,15 +5,20 @@ import { useI18n } from '../utils/i18n'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import EmptyState from '../components/EmptyState'
+import { MapPin, Package, ResourceIcon } from '../components/icons'
+import { getBrowseLocation } from '../utils/geo'
 
+// Labels only — the glyph comes from <ResourceIcon kind=... />, which shares
+// its kind→icon table with the rest of the app. These used to carry stub
+// strings ('House', 'O2', 'Blood') that rendered as literal text in the pill.
 const KIND_META = {
-  shelter: { icon: 'House', label: 'Shelter' },
-  food: { icon: 'Food', label: 'Food' },
-  blood: { icon: 'Blood', label: 'Blood' },
-  oxygen: { icon: 'O2', label: 'Oxygen' },
-  water: { icon: 'Water', label: 'Water' },
-  medical_camp: { icon: 'Med', label: 'Medical camp' },
-  other: { icon: 'Pin', label: 'Other' },
+  shelter: { label: 'Shelter' },
+  food: { label: 'Food' },
+  blood: { label: 'Blood' },
+  oxygen: { label: 'Oxygen' },
+  water: { label: 'Water' },
+  medical_camp: { label: 'Medical camp' },
+  other: { label: 'Other' },
 }
 
 const KINDS = Object.keys(KIND_META)
@@ -63,9 +68,9 @@ function ResourceCard({ pin, mineId, onDelete, index = 0 }) {
         <div className="min-w-0 flex items-start gap-3">
           <span
             aria-hidden
-            className="text-xs uppercase tracking-widest px-2 py-1 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-200 shrink-0"
+            className="inline-flex items-center justify-center h-8 w-8 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-200 shrink-0"
           >
-            {meta.icon}
+            <ResourceIcon kind={pin.kind} className="h-4 w-4" />
           </span>
           <div className="min-w-0">
             <h3 className="text-white font-semibold truncate">{pin.name}</h3>
@@ -145,6 +150,7 @@ export default function Resources() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [usingFallbackArea, setUsingFallbackArea] = useState(false)
   const [expiringOnly, setExpiringOnly] = useState(false)
 
   const [kind, setKind] = useState('shelter')
@@ -158,11 +164,15 @@ export default function Resources() {
   const deferredSearch = useDeferredValue(search.trim().toLowerCase())
 
   useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      ({ coords: c }) => setCoords([c.longitude, c.latitude]),
-      () => setCoords([76.7794, 30.7333]),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    )
+    let cancelled = false
+    getBrowseLocation().then(({ coords: c, isFallback }) => {
+      if (cancelled) return
+      setCoords(c)
+      setUsingFallbackArea(isFallback)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const load = useCallback(async ({ silent = false } = {}) => {
@@ -303,6 +313,16 @@ export default function Resources() {
         </div>
       </div>
 
+      {usingFallbackArea && (
+        <div className="bg-amber-950/60 border border-amber-800/70 text-amber-300 text-xs rounded-lg px-4 py-2.5 mb-4 flex items-start gap-2">
+          <MapPin className="h-4 w-4 shrink-0 mt-px" aria-hidden />
+          <span>
+            Showing a default area — we could not read your location. Enable
+            location access to see resources around you.
+          </span>
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
           <span aria-hidden className="text-base shrink-0 mt-px">!</span>
@@ -343,7 +363,7 @@ export default function Resources() {
                     : 'border-gray-700 text-gray-300 hover:border-orange-500/40 hover:bg-gray-800/40'
                 }`}
               >
-                <span className="mr-1">{KIND_META[k].icon}</span>
+                <ResourceIcon kind={k} className="h-3.5 w-3.5 inline-block mr-1.5 -mt-0.5" />
                 {KIND_META[k].label}
               </button>
             ))}
@@ -480,7 +500,7 @@ export default function Resources() {
           <p className="text-gray-500 text-sm">{t('res_loading')}</p>
         ) : filtered.length === 0 ? (
           <EmptyState
-            icon="Stock"
+            icon={<Package className="h-7 w-7" />}
             title={t('res_none_yet')}
             body={t('res_none_body')}
           />

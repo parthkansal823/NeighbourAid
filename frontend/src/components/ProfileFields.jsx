@@ -3,15 +3,26 @@
  * contacts. Used by Register (at sign-up) and Profile (edit later).
  */
 
+import {
+  Accessibility,
+  Car,
+  HeartPulse,
+  Baby,
+  Languages,
+  Stethoscope,
+  Waves,
+  Zap,
+} from './icons'
+
 export const SKILL_OPTIONS = [
-  { code: 'medical', label: 'Medical background', icon: '🏥' },
-  { code: 'cpr', label: 'CPR trained', icon: '❤️' },
-  { code: 'swim', label: 'Can swim / flood rescue', icon: '🏊' },
-  { code: 'driver', label: 'Driver / has vehicle', icon: '🚗' },
-  { code: 'electrician', label: 'Electrician', icon: '⚡' },
-  { code: 'translator', label: 'Multilingual', icon: '🌐' },
-  { code: 'elderly_care', label: 'Elderly care', icon: '👴' },
-  { code: 'child_care', label: 'Child care', icon: '🧒' },
+  { code: 'medical', label: 'Medical background', Icon: Stethoscope },
+  { code: 'cpr', label: 'CPR trained', Icon: HeartPulse },
+  { code: 'swim', label: 'Can swim / flood rescue', Icon: Waves },
+  { code: 'driver', label: 'Driver / has vehicle', Icon: Car },
+  { code: 'electrician', label: 'Electrician', Icon: Zap },
+  { code: 'translator', label: 'Multilingual', Icon: Languages },
+  { code: 'elderly_care', label: 'Elderly care', Icon: Accessibility },
+  { code: 'child_care', label: 'Child care', Icon: Baby },
 ]
 
 export function SkillsPicker({ value, onChange }) {
@@ -37,7 +48,7 @@ export function SkillsPicker({ value, onChange }) {
                 : 'border-gray-700 text-gray-300 hover:border-gray-500'
             }`}
           >
-            <span className="mr-1" aria-hidden>{s.icon}</span>
+            <s.Icon className="h-4 w-4 inline-block mr-1.5 -mt-0.5" aria-hidden />
             {s.label}
           </button>
         )
@@ -55,7 +66,10 @@ export function VehicleToggle({ value, onChange }) {
         onChange={(e) => onChange(e.target.checked)}
         className="w-4 h-4"
       />
-      <span className="text-sm text-gray-300">🚗 I have a vehicle I can use</span>
+      <span className="text-sm text-gray-300 inline-flex items-center gap-1.5">
+        <Car className="h-4 w-4" aria-hidden />
+        I have a vehicle I can use
+      </span>
     </label>
   )
 }

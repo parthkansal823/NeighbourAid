@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import { useVoice } from '../hooks/useVoice'
@@ -11,6 +11,18 @@ import {
   listPending,
 } from '../utils/offlineQueue'
 import { useToast } from '../components/Toast'
+import { useAuth } from '../context/AuthContext'
+import {
+  AlertTriangle,
+  Camera,
+  Check,
+  MapPin,
+  Mic,
+  MicOff,
+  Siren,
+  UserRoundX,
+  WifiOff,
+} from '../components/icons'
 
 const CATEGORIES = ['medical', 'flood', 'fire', 'missing', 'power', 'other']
 const MAX_PHOTOS = 3
@@ -18,7 +30,13 @@ const MAX_PHOTOS = 3
 export default function PostAlert() {
   const navigate = useNavigate()
   const { t, lang } = useI18n()
+  const { user } = useAuth()
   const { push: toast } = useToast()
+  // No session → post through the public anonymous endpoint. It's rate-limited
+  // per IP server-side and the alert is tagged `is_anonymous` so volunteers
+  // know they can't call the reporter back for details.
+  const isAnonymous = !user
+  const endpoint = isAnonymous ? '/api/alerts/anonymous' : '/api/alerts/'
   const fileInputRef = useRef(null)
   const [form, setForm] = useState({
     category: 'medical',
@@ -78,7 +96,7 @@ export default function PostAlert() {
     }
   }, [])
 
-  const detectLocation = () => {
+  const detectLocation = useCallback(() => {
     if (!navigator.geolocation) {
       setError('Geolocation is not available in this browser.')
       return
@@ -100,7 +118,14 @@ export default function PostAlert() {
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     )
-  }
+  }, [])
+
+  // Ask for the fix as soon as the page opens. Location is mandatory to
+  // submit, and someone reporting an emergency shouldn't have to discover
+  // that by being blocked at the end of the form.
+  useEffect(() => {
+    detectLocation()
+  }, [detectLocation])
 
   const onPhotoPick = async (e) => {
     const files = Array.from(e.target.files || [])
@@ -139,12 +164,22 @@ export default function PostAlert() {
       setError(t('post_min_chars'))
       return
     }
+    // The form seeds `location` with a placeholder so the map/inputs have
+    // something to render. Submitting that placeholder would dispatch
+    // volunteers to a spot the reporter has never been — the single worst
+    // failure mode this app has — so require a real fix first.
+    if (!locationSet) {
+      setError(t('post_location_required'))
+      return
+    }
     setError('')
     setSubmitting(true)
     const payload = { ...form, photos }
     try {
-      await api.post('/api/alerts/', payload)
-      navigate('/my-alerts')
+      const { data } = await api.post(endpoint, payload)
+      // Anonymous reporters have no /my-alerts to return to — send them to the
+      // alert's own page so they can still watch it get picked up and share it.
+      navigate(isAnonymous ? `/alert/${data.id}` : '/my-alerts')
     } catch (err) {
       // If we're offline or the network is unreachable, queue it for later
       const isNetwork =
@@ -161,7 +196,9 @@ export default function PostAlert() {
             title: 'Saved offline',
             body: 'Alert queued — it will send automatically when you reconnect.',
           })
-          navigate('/my-alerts')
+          // /my-alerts is reporter-only; sending an anonymous reporter there
+          // would bounce them straight back to the login screen.
+          navigate(isAnonymous ? '/' : '/my-alerts')
           return
         } catch {
           setError('Could not queue alert offline — try again.')
@@ -188,16 +225,31 @@ export default function PostAlert() {
       />
       <div className="relative bg-gradient-to-b from-gray-900/95 to-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-5 sm:p-8 w-full max-w-lg shadow-2xl shadow-black/50 reveal-up">
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-3xl glow-red rounded-full p-1">🚨</span>
+          <Siren className="h-8 w-8 text-red-400 glow-red rounded-full p-0.5" aria-hidden />
           <h1 className="text-xl sm:text-2xl font-bold text-white">{t('post_title')}</h1>
         </div>
         <p className="text-gray-400 text-sm mb-4 sm:mb-6">
           {t('post_subtitle')}
         </p>
 
+        {isAnonymous && (
+          <div className="bg-blue-950/60 border border-blue-800 text-blue-200 text-xs rounded-lg px-3 py-2.5 mb-4 flex items-start gap-2">
+            <UserRoundX className="h-4 w-4 shrink-0 mt-px" aria-hidden />
+            <span>
+              Posting anonymously — no account needed. Volunteers nearby are
+              alerted immediately, but they won&apos;t be able to call you back
+              for details.{' '}
+              <Link to="/login" className="underline hover:text-white">
+                Sign in
+              </Link>{' '}
+              to track and update your alert.
+            </span>
+          </div>
+        )}
+
         {!online && (
           <div className="bg-amber-950/70 border border-amber-700 text-amber-300 text-xs rounded-lg px-3 py-2 mb-4 flex items-center gap-2 pop-in">
-            <span aria-hidden>📡</span>
+            <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
             <span>Offline — your alert will be queued and sent automatically.</span>
           </div>
         )}
@@ -209,7 +261,7 @@ export default function PostAlert() {
 
         {error && (
           <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
-            <span aria-hidden className="text-base shrink-0 mt-px">⚠️</span>
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
             <span>{error}</span>
           </div>
         )}
@@ -252,6 +304,11 @@ export default function PostAlert() {
                   }`}
                   title={voice.listening ? t('post_voice_tip_stop') : t('post_voice_tip_start')}
                 >
+                  {voice.listening ? (
+                    <MicOff className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />
+                  ) : (
+                    <Mic className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />
+                  )}
                   {voice.listening ? t('post_voice_recording') : t('post_voice_speak')}
                 </button>
               )}
@@ -265,7 +322,10 @@ export default function PostAlert() {
               placeholder={t('post_description_placeholder')}
             />
             {voice.error && (
-              <p className="text-xs text-red-400 mt-1">🎤 {voice.error}</p>
+              <p className="text-xs text-red-400 mt-1 inline-flex items-center gap-1">
+                <MicOff className="h-3.5 w-3.5" aria-hidden />
+                {voice.error}
+              </p>
             )}
           </div>
 
@@ -298,7 +358,7 @@ export default function PostAlert() {
                       : 'border-gray-700 text-gray-400 hover:border-orange-500 hover:text-orange-400'
                   }`}
                 >
-                  <span className="text-2xl mb-1">📷</span>
+                  <Camera className="h-6 w-6 mb-1" aria-hidden />
                   {photoProcessing ? 'Processing…' : 'Add photo'}
                   <input
                     ref={fileInputRef}
@@ -323,9 +383,17 @@ export default function PostAlert() {
             <div className="flex gap-2">
               <input
                 readOnly
-                value={`${lat.toFixed(5)}, ${lng.toFixed(5)}`}
-                className={`flex-1 min-w-0 bg-gray-800/80 border text-gray-300 rounded-lg px-3 sm:px-4 py-2.5 text-sm transition-colors tabular-nums ${
-                  locationSet ? 'border-emerald-700/70 ring-1 ring-emerald-700/30' : 'border-gray-700'
+                value={
+                  locationSet
+                    ? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+                    : locLoading
+                      ? t('post_locating')
+                      : t('post_location_placeholder')
+                }
+                className={`flex-1 min-w-0 bg-gray-800/80 border rounded-lg px-3 sm:px-4 py-2.5 text-sm transition-colors ${
+                  locationSet
+                    ? 'border-emerald-700/70 ring-1 ring-emerald-700/30 text-gray-300 tabular-nums'
+                    : 'border-amber-700/70 text-amber-300/90'
                 }`}
               />
               <button
@@ -340,18 +408,28 @@ export default function PostAlert() {
                     <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 ) : (
-                  <>📍 {t('post_use_gps')}</>
+                  <>
+                    <MapPin className="h-4 w-4 inline-block mr-1 -mt-0.5" aria-hidden />
+                    {t('post_use_gps')}
+                  </>
                 )}
               </button>
             </div>
-            {locationSet && (
-              <p className="text-[11px] text-emerald-400 mt-1 pop-in">✓ GPS location captured</p>
+            {locationSet ? (
+              <p className="text-[11px] text-emerald-400 mt-1 pop-in inline-flex items-center gap-1">
+                <Check className="h-3.5 w-3.5" aria-hidden />
+                GPS location captured
+              </p>
+            ) : (
+              <p className="text-[11px] text-amber-400/90 mt-1">
+                {t('post_location_required')}
+              </p>
             )}
           </div>
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !locationSet}
             className="group relative w-full bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
           >
             <span

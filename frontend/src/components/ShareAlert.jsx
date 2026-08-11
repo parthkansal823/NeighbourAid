@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { MessageCircle, Share2 } from './icons'
 import { useToast } from './Toast'
 
 /**
@@ -24,7 +25,10 @@ export default function ShareAlert({ alert }) {
   const shareText = useMemo(() => {
     const urgency = alert?.urgency ? `${alert.urgency} · ` : ''
     const cat = alert?.category ? `${alert.category}` : 'crisis'
-    const where = alert?.address ? `\n📍 ${alert.address}` : ''
+    // Plain text, not an emoji pin: this string is handed to WhatsApp/SMS,
+    // and some SMS gateways transcode a non-GSM-7 character into a UCS-2
+    // message, which halves the per-segment length and can split the alert.
+    const where = alert?.address ? `\nLocation: ${alert.address}` : ''
     const desc = alert?.description ? `\n${alert.description}` : ''
     return `${urgency}${cat} on NeighbourAid${desc}${where}\n${shareUrl}`
   }, [alert, shareUrl])
@@ -72,10 +76,11 @@ export default function ShareAlert({ alert }) {
     <>
       <button
         onClick={onClick}
-        className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition-colors"
+        className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition-colors inline-flex items-center gap-1"
         title="Share this alert"
       >
-        🔗 Share
+        <Share2 className="h-3.5 w-3.5" aria-hidden />
+        Share
       </button>
       {open && (
         <div
@@ -133,9 +138,10 @@ export default function ShareAlert({ alert }) {
                 href={waUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg text-sm"
+                className="flex w-full items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg text-sm"
               >
-                💬 Share via WhatsApp
+                <MessageCircle className="h-4 w-4" aria-hidden />
+                Share via WhatsApp
               </a>
             </div>
 

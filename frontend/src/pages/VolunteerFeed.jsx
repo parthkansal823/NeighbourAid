@@ -11,6 +11,14 @@ import { SkeletonAlertList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
+import {
+  AlertTriangle,
+  Bell,
+  MapPin,
+  ShieldCheck,
+  Volume2,
+  VolumeX,
+} from '../components/icons'
 
 const TOAST_VARIANT = {
   CRITICAL: 'danger',
@@ -40,14 +48,9 @@ function playPing() {
   }
 }
 
-const CATEGORY_ICON = {
-  medical: '🏥',
-  flood: '🌊',
-  fire: '🔥',
-  missing: '🔍',
-  power: '⚡',
-  other: '⚠️',
-}
+// Toast and OS-notification titles are plain strings — they can't host an
+// SVG — so they carry the urgency + category words instead of a glyph. The
+// on-screen cards render the real CategoryIcon.
 
 export default function VolunteerFeed() {
   const { token, user } = useAuth()
@@ -61,19 +64,37 @@ export default function VolunteerFeed() {
   const [status, setStatus] = useState('connecting')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [geoError, setGeoError] = useState('')
   const knownIds = useRef(new Set())
   const watchIdRef = useRef(null)
 
   // Keep the volunteer's location fresh — they may be moving toward a crisis.
   // The watch updates both the server proximity and the "nearby" fetch.
+  //
+  // On failure we deliberately leave `coords` null rather than substituting a
+  // default city. Every alert here is filtered by distance from this point,
+  // so a fabricated location doesn't degrade the feed — it silently shows a
+  // volunteer someone else's neighbourhood while hiding the emergencies on
+  // their own street.
   useEffect(() => {
     if (!navigator.geolocation) {
-      setCoords([76.7794, 30.7333])
+      setGeoError('This browser cannot share your location, so nearby alerts cannot be found.')
+      setLoading(false)
       return undefined
     }
     navigator.geolocation.getCurrentPosition(
-      ({ coords: c }) => setCoords([c.longitude, c.latitude]),
-      () => setCoords([76.7794, 30.7333]),
+      ({ coords: c }) => {
+        setGeoError('')
+        setCoords([c.longitude, c.latitude])
+      },
+      (err) => {
+        setGeoError(
+          err?.code === 1
+            ? 'Location permission is blocked. Enable it for this site to receive nearby alerts.'
+            : 'Could not read your location, so nearby alerts cannot be found.'
+        )
+        setLoading(false)
+      },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     )
     watchIdRef.current = navigator.geolocation.watchPosition(
@@ -163,7 +184,6 @@ export default function VolunteerFeed() {
       })
       if (isNew && incoming.status === 'open') {
         playPing()
-        const catIcon = CATEGORY_ICON[incoming.category] || '⚠️'
         // Hands-free TTS for CRITICAL only — anything lower is too noisy.
         if (incoming.urgency === 'CRITICAL') {
           const distancePart =
@@ -180,13 +200,14 @@ export default function VolunteerFeed() {
             ? ` · ${incoming.your_distance_km.toFixed(1)} km away`
             : ''
         const skillTag = incoming.is_skill_match ? ' · MATCHES YOUR SKILLS' : ''
+        const title = `${incoming.urgency} · ${incoming.category}${skillTag}`
         toast({
           variant: TOAST_VARIANT[incoming.urgency] ?? 'info',
-          title: `${catIcon} ${incoming.urgency} · ${incoming.category}${skillTag}`,
+          title,
           body: `${incoming.description.slice(0, 140)}${distance}`,
         })
         notifyRef.current?.({
-          title: `${catIcon} ${incoming.urgency} · ${incoming.category}${skillTag}`,
+          title,
           body: `${incoming.description.slice(0, 140)}${distance}`,
           tag: `alert-${incoming.id}`,
           // CRITICAL alerts stay visible until the volunteer interacts
@@ -257,7 +278,7 @@ export default function VolunteerFeed() {
 
       {error && (
         <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
-          <span aria-hidden className="text-base shrink-0 mt-px">⚠️</span>
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>
       )}
@@ -269,9 +290,10 @@ export default function VolunteerFeed() {
           </div>
           <button
             onClick={notif.request}
-            className="text-xs bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-3 py-1.5 rounded-lg shadow-sm shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 whitespace-nowrap self-start sm:self-auto"
+            className="text-xs bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-3 py-1.5 rounded-lg shadow-sm shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 whitespace-nowrap self-start sm:self-auto inline-flex items-center gap-1.5"
           >
-            🔔 {t('vol_enable')}
+            <Bell className="h-3.5 w-3.5" aria-hidden />
+            {t('vol_enable')}
           </button>
         </div>
       )}
@@ -290,12 +312,22 @@ export default function VolunteerFeed() {
           }`}
           title="Read out CRITICAL alerts via your device's voice"
         >
-          <span aria-hidden>🔊</span>
+          {voiceAlert.enabled ? (
+            <Volume2 className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <VolumeX className="h-3.5 w-3.5" aria-hidden />
+          )}
           <span>Voice alerts {voiceAlert.enabled ? 'on' : 'off'}</span>
         </button>
       )}
 
-      {loading ? (
+      {geoError ? (
+        <EmptyState
+          icon={<MapPin className="h-7 w-7" />}
+          title="Location needed"
+          body={`${geoError} Nearby alerts are matched by distance, so we won't guess a location for you.`}
+        />
+      ) : loading ? (
         <SkeletonAlertList count={3} />
       ) : (
         <>
@@ -305,7 +337,7 @@ export default function VolunteerFeed() {
             </h2>
             {openAlerts.length === 0 ? (
               <EmptyState
-                icon="🛟"
+                icon={<ShieldCheck className="h-7 w-7" />}
                 title={t('vol_no_open')}
                 body="When a reporter posts within 10 km — or anywhere matching your skills — it will land here in real time."
               />

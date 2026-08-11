@@ -12,9 +12,18 @@ from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
 
+from .ai import similarity
+
 CORROBORATE_RADIUS_M = 500
 CORROBORATE_WINDOW_MIN = 30
 WITNESS_RADIUS_M = 2000  # users within 2 km can add a witness vote
+
+# Text-similarity floor for treating a nearby same-category alert as
+# corroboration of *this* incident. Same category + same 500 m + same
+# 30 min is a strong prior, but not proof: two unrelated medical alerts
+# can easily coincide in a dense neighbourhood. Requiring some textual
+# overlap is what keeps `verified_score` meaningful.
+CORROBORATE_SIMILARITY_MIN = 0.25
 
 
 def compute_verified_score(
@@ -50,6 +59,23 @@ async def find_corroborating_alerts(db, category: str, coordinates: list[float])
         }
     )
     return [doc async for doc in cursor]
+
+
+def filter_corroborating(description: str, candidates: list[dict]) -> list[dict]:
+    """Narrow raw geo/category candidates down to ones that actually describe
+    the same incident.
+
+    `find_corroborating_alerts` matches on category + radius + time window
+    only, so it happily returns "child lost at the market" as corroboration
+    for "elderly man collapsed". Requiring `CORROBORATE_SIMILARITY_MIN`
+    textual overlap is what makes the resulting count trustworthy enough to
+    feed into `compute_verified_score`.
+    """
+    return [
+        c
+        for c in candidates
+        if similarity(description, c.get("description", "")) >= CORROBORATE_SIMILARITY_MIN
+    ]
 
 
 async def bump_witness(db, alert_id: ObjectId, user_id: str) -> dict | None:

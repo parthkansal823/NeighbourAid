@@ -65,12 +65,20 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
-  // Auto-logout if token expires while the tab is open
+  // Auto-logout if the token expires while the tab is open.
+  //
+  // setTimeout stores its delay in a signed 32-bit int: anything over
+  // ~24.8 days overflows and fires *immediately*, which would log the user
+  // out on page load rather than in a month. Cap the wait and re-arm.
   useEffect(() => {
-    if (!user?.exp) return
+    if (!user?.exp) return undefined
+    const MAX_DELAY = 2 ** 31 - 1
     const ms = user.exp * 1000 - Date.now()
-    if (ms <= 0) return logout()
-    const id = setTimeout(logout, ms)
+    if (ms <= 0) {
+      logout()
+      return undefined
+    }
+    const id = setTimeout(logout, Math.min(ms, MAX_DELAY))
     return () => clearTimeout(id)
   }, [user, logout])
 

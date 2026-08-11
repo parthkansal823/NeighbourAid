@@ -101,6 +101,26 @@ class ETAUpdate(BaseModel):
     eta_minutes: int = Field(ge=0, le=240)
 
 
+class AlertUpdateCreate(BaseModel):
+    """A short situational update posted against an alert.
+
+    Previously the route took a bare `dict` and hand-rolled the length check,
+    so a non-string `body` (say `{"body": {"$ne": null}}`) reached `.strip()`
+    and raised a 500 instead of a 422, and the field never appeared in the
+    OpenAPI schema.
+    """
+
+    body: str = Field(min_length=3, max_length=500)
+
+    @field_validator("body")
+    @classmethod
+    def strip_body(cls, v: str) -> str:
+        stripped = v.strip()
+        if len(stripped) < 3:
+            raise ValueError("update must be at least 3 non-space characters")
+        return stripped
+
+
 class AlertOut(BaseModel):
     id: str
     reporter_id: str

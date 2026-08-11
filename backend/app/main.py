@@ -125,7 +125,9 @@ async def health():
 @app.websocket("/ws/volunteer")
 async def volunteer_ws(websocket: WebSocket, token: str):
     payload = decode_token_safe(token)
-    if not payload:
+    # A malformed `sub` would raise InvalidId on the ObjectId() below, after
+    # the socket is already accepted — reject it up front like a bad token.
+    if not payload or not ObjectId.is_valid(payload.get("sub") or ""):
         await websocket.close(code=4001)
         return
     if payload.get("role") != "volunteer":

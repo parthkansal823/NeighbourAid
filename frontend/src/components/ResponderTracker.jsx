@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import api from '../utils/api'
+import { AlertTriangle } from './icons'
 
 /**
  * Live tracker for an accepted alert. Polls /api/alerts/{id}/responder
@@ -72,7 +73,13 @@ export default function ResponderTracker({ alert }) {
   }, [alert.id])
 
   if (alert.status !== 'accepted') return null
-  if (error) return <p className="text-xs text-amber-300 mt-2">⚠ {error}</p>
+  if (error)
+    return (
+      <p className="text-xs text-amber-300 mt-2 inline-flex items-center gap-1">
+        <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+        {error}
+      </p>
+    )
   if (!responder) return null
 
   const [aLng, aLat] = alert.location?.coordinates ?? [0, 0]

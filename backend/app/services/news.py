@@ -244,7 +244,13 @@ async def fetch_news(force: bool = False) -> list[dict[str, Any]]:
     # Sort by authenticity_score descending so the highest-trust items surface first
     merged.sort(key=lambda i: i.get("authenticity_score", 0), reverse=True)
 
+    # Always record the attempt, even when nothing came back. Leaving
+    # `_cache_ts` untouched on an empty result means every subsequent request
+    # re-fetches all four feeds — exactly when the feeds are already failing
+    # or rate-limiting us. The last known-good list is kept rather than
+    # blanked so a transient outage degrades to slightly stale news instead
+    # of an empty page.
+    _cache_ts = now
     if merged:
         _cache = merged[:40]
-        _cache_ts = now
     return _cache

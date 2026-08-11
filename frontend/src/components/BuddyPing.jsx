@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../utils/api'
+import { Handshake } from './icons'
 import { useAuth } from '../context/AuthContext'
 
 /**
@@ -61,7 +62,7 @@ export default function BuddyPing({ message, compact = false }) {
               className="text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-100 px-2.5 py-1 rounded-full flex items-center gap-1"
               title={`Ping ${c.name}${c.phone ? ` · ${c.phone}` : ''}`}
             >
-              <span aria-hidden>🤝</span>
+              <Handshake className="h-3.5 w-3.5" aria-hidden />
               <span className="truncate max-w-[120px]">{c.name}</span>
             </a>
           )

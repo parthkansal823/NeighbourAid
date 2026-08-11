@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../utils/api'
+import { Siren } from './icons'
 import { apiError } from '../utils/error'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
@@ -58,7 +59,7 @@ export default function QuickSOS() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 pt-4 flex flex-col items-center">
       <div className="w-full sm:max-w-md bg-red-950/60 border border-red-700 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
-        <span className="text-2xl sm:text-3xl" aria-hidden>🆘</span>
+        <Siren className="h-8 w-8 sm:h-9 sm:w-9 text-red-300 shrink-0" aria-hidden />
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-red-200 text-sm sm:text-base">{t('sos_button')}</div>
           <p className="text-[11px] sm:text-xs text-red-300/80 mt-0.5 truncate">

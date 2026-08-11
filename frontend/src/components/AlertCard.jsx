@@ -8,6 +8,25 @@ import { translateText } from '../utils/translate'
 import { useToast } from './Toast'
 import ShareAlert from './ShareAlert'
 import AutoDispatch from './AutoDispatch'
+import {
+  Bot,
+  CategoryIcon,
+  Clock,
+  Car,
+  CloudRain,
+  Compass,
+  Dna,
+  Flag,
+  Globe,
+  ImageIcon,
+  Link2,
+  MapPin,
+  Sparkles,
+  Tag,
+  Users,
+  UserRoundX,
+  X,
+} from './icons'
 
 const URGENCY_STYLES = {
   CRITICAL: 'border-red-500/70 bg-gradient-to-br from-red-950/60 via-red-950/30 to-gray-900/40 hover:shadow-red-500/20',
@@ -23,14 +42,8 @@ const URGENCY_BADGE = {
   LOW: 'bg-gradient-to-b from-green-500 to-green-600 text-white shadow-sm shadow-green-500/30',
 }
 
-const CATEGORY_ICON = {
-  medical: '🏥',
-  flood: '🌊',
-  fire: '🔥',
-  missing: '🔍',
-  power: '⚡',
-  other: '⚠️',
-}
+// Category icons live in components/icons.jsx so the card, the map pins and
+// the volunteer feed can't drift apart.
 
 function useTimeAgo(iso) {
   const { t } = useI18n()
@@ -125,14 +138,15 @@ function TranslatableText({ text, sourceLang }) {
           type="button"
           onClick={toggle}
           disabled={loading}
-          className="text-[11px] text-blue-300 hover:text-blue-200 mt-1 disabled:opacity-50"
+          className="text-[11px] text-blue-300 hover:text-blue-200 mt-1 disabled:opacity-50 inline-flex items-center gap-1"
           title={showing ? 'Show original' : `Translate to ${lang.toUpperCase()}`}
         >
+          <Globe className="h-3 w-3" aria-hidden />
           {loading
-            ? '🌐 translating…'
+            ? 'translating…'
             : showing
-            ? `🌐 Show original (${detected.toUpperCase()})`
-            : `🌐 Translate to ${lang.toUpperCase()}`}
+            ? `Show original (${detected.toUpperCase()})`
+            : `Translate to ${lang.toUpperCase()}`}
         </button>
       )}
     </div>
@@ -171,9 +185,12 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
         type="button"
         onClick={fetchIfNeeded}
         disabled={loading}
-        className="mb-3 w-full text-xs bg-gray-900/60 hover:bg-gray-900 border border-gray-700 text-gray-300 rounded-lg py-2 transition-colors disabled:opacity-60"
+        className="mb-3 w-full text-xs bg-gray-900/60 hover:bg-gray-900 border border-gray-700 text-gray-300 rounded-lg py-2 transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-1.5"
       >
-        {loading ? 'Loading photos…' : `📸 View ${photoCount} photo${photoCount !== 1 ? 's' : ''}`}
+        <ImageIcon className="h-3.5 w-3.5" aria-hidden />
+        {loading
+          ? 'Loading photos…'
+          : `View ${photoCount} photo${photoCount !== 1 ? 's' : ''}`}
       </button>
     )
   }
@@ -219,10 +236,10 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
           />
           <button
             onClick={() => setOpen(null)}
-            className="absolute top-4 right-4 bg-black/70 hover:bg-black text-white w-10 h-10 rounded-full text-xl leading-none flex items-center justify-center"
+            className="absolute top-4 right-4 bg-black/70 hover:bg-black text-white w-10 h-10 rounded-full flex items-center justify-center"
             aria-label="Close"
           >
-            ×
+            <X className="h-5 w-5" aria-hidden />
           </button>
           {photos.length > 1 && (
             <>
@@ -285,7 +302,7 @@ function EtaStrip({ alert, onUpdate, canEdit }) {
 
   return (
     <div className="mt-2 mb-3 bg-blue-950/40 border border-blue-800 rounded-lg px-3 py-2 text-xs text-blue-200 flex items-center gap-2 flex-wrap">
-      <span aria-hidden>🚗</span>
+      <Car className="h-4 w-4 shrink-0" aria-hidden />
       {editing ? (
         <>
           <input
@@ -450,17 +467,20 @@ export default function AlertCard({ alert, onUpdate }) {
     >
       {isSkillMatch && (
         <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-gradient-to-r from-amber-500/30 to-amber-500/10 text-amber-200 border border-amber-700/70 px-2 py-0.5 rounded-full shadow-sm shadow-amber-500/20">
-          <span className="animate-pulse">✨</span> Matches your skills
+          <Sparkles className="h-3 w-3 animate-pulse" aria-hidden /> Matches your skills
         </div>
       )}
       {alert.is_anonymous && (
         <div className="mb-2 ml-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-gray-800/80 text-gray-300 border border-gray-700 px-2 py-0.5 rounded-full">
-          🕶 Anonymous tip
+          <UserRoundX className="h-3 w-3" aria-hidden /> Anonymous tip
         </div>
       )}
       <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl shrink-0 transition-transform duration-200 hover:scale-110">{CATEGORY_ICON[alert.category] ?? '⚠️'}</span>
+          <CategoryIcon
+            category={alert.category}
+            className="h-5 w-5 shrink-0 transition-transform duration-200 hover:scale-110"
+          />
           <span className="font-semibold capitalize text-white truncate">
             {t(`cat_${alert.category}`) ?? alert.category}
           </span>
@@ -494,7 +514,7 @@ export default function AlertCard({ alert, onUpdate }) {
 
       {alert.address && (
         <p className="text-gray-500 text-xs mb-3 flex items-start gap-1">
-          <span aria-hidden className="shrink-0">📍</span>
+          <MapPin className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
           <span className="line-clamp-2">{alert.address}</span>
         </p>
       )}
@@ -504,36 +524,40 @@ export default function AlertCard({ alert, onUpdate }) {
       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] mb-3">
         {typeof alert.urgency_confidence === 'number' && (
           <span
-            className="bg-gray-900/60 border border-gray-800 text-gray-300 px-2 py-0.5 rounded-full"
+            className="bg-gray-900/60 border border-gray-800 text-gray-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1"
             title="AI confidence in the urgency classification"
           >
-            🤖 {Math.round((alert.urgency_confidence ?? 0) * 100)}% {t('card_ai_confident')}
+            <Bot className="h-3 w-3" aria-hidden />
+            {Math.round((alert.urgency_confidence ?? 0) * 100)}% {t('card_ai_confident')}
           </span>
         )}
         {alert.photo_evidence_score > 0 && (
           <span
-            className="bg-emerald-900/50 border border-emerald-700 text-emerald-200 px-2 py-0.5 rounded-full"
+            className="bg-emerald-900/50 border border-emerald-700 text-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1"
             title={alert.photo_findings || 'Photo evidence boosts verification'}
           >
-            📸 +{alert.photo_evidence_score} photo evidence
+            <ImageIcon className="h-3 w-3" aria-hidden />
+            +{alert.photo_evidence_score} photo evidence
           </span>
         )}
         {alert.vulnerability && (
           <span
-            className="bg-pink-900/50 border border-pink-700 text-pink-200 px-2 py-0.5 rounded-full capitalize"
+            className="bg-pink-900/50 border border-pink-700 text-pink-200 px-2 py-0.5 rounded-full capitalize inline-flex items-center gap-1"
           >
-            🧬 {alert.vulnerability}
+            <Dna className="h-3 w-3" aria-hidden />
+            {alert.vulnerability}
           </span>
         )}
         {alert.time_sensitivity && (
           <span
-            className={`border px-2 py-0.5 rounded-full capitalize ${
+            className={`border px-2 py-0.5 rounded-full capitalize inline-flex items-center gap-1 ${
               alert.time_sensitivity === 'immediate'
                 ? 'bg-red-900/50 border-red-700 text-red-200'
                 : 'bg-gray-900/60 border-gray-800 text-gray-300'
             }`}
           >
-            ⏱ {alert.time_sensitivity}
+            <Clock className="h-3 w-3" aria-hidden />
+            {alert.time_sensitivity}
           </span>
         )}
         {alert.language && alert.language !== 'en' && (
@@ -545,9 +569,10 @@ export default function AlertCard({ alert, onUpdate }) {
         )}
         {alert.triggers?.length ? (
           <span
-            className="bg-gray-900/60 border border-gray-800 text-gray-400 px-2 py-0.5 rounded-full"
+            className="bg-gray-900/60 border border-gray-800 text-gray-400 px-2 py-0.5 rounded-full inline-flex items-center gap-1"
           >
-            🏷 {alert.triggers.join(', ')}
+            <Tag className="h-3 w-3" aria-hidden />
+            {alert.triggers.join(', ')}
           </span>
         ) : null}
       </div>
@@ -564,14 +589,26 @@ export default function AlertCard({ alert, onUpdate }) {
           />
         </div>
         <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-gray-400">
-          <span>👥 {witnesses} {witnesses !== 1 ? t('card_witness_many') : t('card_witness_one')}</span>
+          <span className="inline-flex items-center gap-1">
+            <Users className="h-3 w-3" aria-hidden />
+            {witnesses} {witnesses !== 1 ? t('card_witness_many') : t('card_witness_one')}
+          </span>
           {alert.corroborating_ids?.length ? (
-            <span>🔗 {alert.corroborating_ids.length} {t('card_similar_nearby')}</span>
+            <span className="inline-flex items-center gap-1">
+              <Link2 className="h-3 w-3" aria-hidden />
+              {alert.corroborating_ids.length} {t('card_similar_nearby')}
+            </span>
           ) : null}
-          {alert.weather_match ? <span title="Live weather consistent">🌦 {t('card_weather_match')}</span> : null}
+          {alert.weather_match ? (
+            <span className="inline-flex items-center gap-1" title="Live weather consistent">
+              <CloudRain className="h-3 w-3" aria-hidden />
+              {t('card_weather_match')}
+            </span>
+          ) : null}
           {alert.flags > 0 && (
-            <span className="text-red-300" title="Flagged by community">
-              🚩 {alert.flags}
+            <span className="text-red-300 inline-flex items-center gap-1" title="Flagged by community">
+              <Flag className="h-3 w-3" aria-hidden />
+              {alert.flags}
             </span>
           )}
         </div>
@@ -612,19 +649,21 @@ export default function AlertCard({ alert, onUpdate }) {
           <ShareAlert alert={alert} />
           <Link
             to={mapsUrl}
-            className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition-colors hover:bg-gray-800/60"
+            className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition-colors hover:bg-gray-800/60 inline-flex items-center gap-1"
             title="Open in NeighbourAid map"
           >
-            🧭 {t('card_directions')}
+            <Compass className="h-3.5 w-3.5" aria-hidden />
+            {t('card_directions')}
           </Link>
           {user && !isOwn && !flagged && (
             <button
               onClick={flag}
               disabled={loading === 'flag'}
-              className="text-xs text-gray-500 hover:text-red-400 px-2 py-1 rounded-lg transition-colors"
+              className="text-xs text-gray-500 hover:text-red-400 px-2 py-1 rounded-lg transition-colors inline-flex items-center gap-1"
               title="Flag as fake or spam"
             >
-              🚩 Flag
+              <Flag className="h-3.5 w-3.5" aria-hidden />
+              Flag
             </button>
           )}
           {user && !isOwn && alert.status !== 'resolved' && (

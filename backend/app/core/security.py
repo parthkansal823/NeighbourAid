@@ -1,7 +1,18 @@
+"""Password hashing and JWT issue/verify.
+
+Uses PyJWT rather than python-jose. python-jose 3.3.0 was pinned here with
+five known CVEs, and it pulls in `ecdsa`, which carries a timing-attack
+advisory (CVE-2024-23342) its maintainers have stated will not be fixed —
+there is no patched version to upgrade to. PyJWT delegates crypto to
+`cryptography` instead, so that dependency disappears entirely.
+"""
+
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
+from bson import ObjectId
+from jwt import PyJWTError
 from fastapi import HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -38,7 +49,7 @@ def create_token(data: dict) -> str:
 def decode_token(token: str) -> dict:
     try:
         return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -48,14 +59,24 @@ def decode_token(token: str) -> dict:
 def decode_token_safe(token: str) -> dict | None:
     try:
         return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
-    except JWTError:
+    except PyJWTError:
         return None
 
 
 async def get_current_user(
     creds: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ) -> dict:
-    return decode_token(creds.credentials)
+    payload = decode_token(creds.credentials)
+    # Every route turns `sub` into an ObjectId to query Mongo. Validating it
+    # once here means a token carrying a malformed subject is rejected as
+    # 401 instead of raising InvalidId deep inside a handler and surfacing
+    # as a 500.
+    if not ObjectId.is_valid(payload.get("sub") or ""):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+    return payload
 
 
 def require_role(role: str):
