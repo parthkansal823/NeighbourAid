@@ -1,12 +1,12 @@
 ---
 title: NeighbourAid API
 emoji: 🚨
-colorFrom: orange
-colorTo: red
+colorFrom: red
+colorTo: yellow
 sdk: docker
 app_port: 7860
 pinned: false
-short_description: Hyperlocal crisis-response API for India — FastAPI + Claude triage
+short_description: Hyperlocal crisis-response API for India
 ---
 
 # NeighbourAid API

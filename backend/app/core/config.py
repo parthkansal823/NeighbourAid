@@ -106,3 +106,33 @@ elif len(settings.JWT_SECRET.encode("utf-8")) < MIN_JWT_SECRET_BYTES:
     if settings.is_production:
         raise RuntimeError(message)
     log.warning(message)
+
+
+# A MONGO_URL still pointing at localhost is almost always an unset
+# environment variable rather than a deliberate choice — nobody runs a
+# database on localhost inside a Space, a container, or a PaaS dyno.
+#
+# Left unchecked it surfaces 30 seconds later as a 40-line PyMongo
+# ServerSelectionTimeoutError traceback, which reads like a network fault and
+# sends people to check firewalls and Atlas IP allow-lists. Naming it here
+# turns that into one line that says which variable to set and where.
+_LOCAL_MONGO_HOSTS = ("localhost", "127.0.0.1", "::1", "0.0.0.0")
+
+
+def _points_at_localhost(url: str) -> bool:
+    # Deliberately string-based rather than urlparse: mongodb+srv:// URIs and
+    # multi-host seed lists both parse awkwardly, and a false negative here
+    # only costs us the nicer error message.
+    host_part = url.split("//", 1)[-1].split("/", 1)[0].split("@")[-1]
+    return any(host_part.startswith(h) or f"@{h}" in url for h in _LOCAL_MONGO_HOSTS)
+
+
+if settings.is_production and _points_at_localhost(settings.MONGO_URL):
+    raise RuntimeError(
+        "MONGO_URL points at localhost, which cannot be right in production - "
+        "the environment variable is almost certainly unset. On Hugging Face "
+        "Spaces set it under Settings -> Variables and secrets; elsewhere set "
+        "it in the host's environment. Expected a MongoDB Atlas connection "
+        "string like: mongodb+srv://USER:PASSWORD@cluster.xxxxx.mongodb.net/"
+        "neighbouraid?retryWrites=true&w=majority"
+    )

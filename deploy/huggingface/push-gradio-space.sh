@@ -15,12 +15,27 @@
 # to edit code. Anything committed in the Space UI is lost on the next run.
 #
 # Usage:
-#   ./deploy/huggingface/push-gradio-space.sh <hf-username> [space-name]
+#   bash deploy/huggingface/push-gradio-space.sh <hf-username> [space-name]
+#
+# On Windows use `bash ...` (or the PowerShell wrapper push-gradio-space.ps1).
+# Running `./push-gradio-space.sh` from PowerShell does NOT execute it —
+# PowerShell has no shebang handling, so it hands the file to whatever is
+# associated with .sh and the file simply opens in an editor.
+#
+# Pass --dry-run to assemble the Space tree and print it without pushing.
+# Worth doing once: the real run force-pushes.
 #
 # Requires git and a Hugging Face write token (git will prompt):
 #   https://huggingface.co/settings/tokens
 
 set -euo pipefail
+
+DRY_RUN=0
+ARGS=()
+for arg in "$@"; do
+  if [[ "$arg" == "--dry-run" ]]; then DRY_RUN=1; else ARGS+=("$arg"); fi
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
 
 USER_NAME="${1:-}"
 SPACE_NAME="${2:-neighbouraid-api}"
@@ -51,6 +66,12 @@ else
 fi
 (cd "$REPO_ROOT/backend" && "$PY" -m pytest -q)
 
+# Validate the Space README frontmatter locally. The Hub rejects an invalid
+# one with a server-side "pre-receive hook declined" that names no field, so
+# catching it here turns a guess-and-force-push loop into a one-line error.
+echo "==> Validating Space README frontmatter"
+"$PY" "$REPO_ROOT/deploy/huggingface/validate_readme.py" "$HERE/README.md"
+
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
@@ -66,7 +87,7 @@ cp -r "$REPO_ROOT/backend/app" "$STAGE/app"
   cat "$REPO_ROOT/backend/requirements.txt"
   echo
   echo "# Added by push-gradio-space.sh — required by the Space SDK only."
-  echo "gradio>=5.49.1"
+  echo "gradio>=6.23.1"
 } > "$STAGE/requirements.txt"
 
 # Never ship local config or caches. A .env here would override the Space's
@@ -80,6 +101,14 @@ __pycache__/
 *.pyc
 .env
 GITIGNORE
+
+if [[ "$DRY_RUN" == "1" ]]; then
+  echo "==> --dry-run: assembled tree, not pushing"
+  (cd "$STAGE" && find . -type f -not -path './.git/*' | sort | sed 's/^/    /')
+  echo
+  echo "    Would force-push the above to $REMOTE"
+  exit 0
+fi
 
 echo "==> Pushing to $REMOTE"
 cd "$STAGE"
