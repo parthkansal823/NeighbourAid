@@ -13,10 +13,11 @@
  * party works against the guarantee the rest of the app makes.
  *
  * Two rules follow from that:
- *   1. Never call this automatically. Bulk auto-translation is gated behind
- *      the `autoTranslate` preference, which defaults to OFF and is disclosed
- *      where it is toggled. Per-alert manual translation is fine — that is a
- *      deliberate choice by a user about one specific message.
+ *   1. Bulk auto-translation stays gated behind the `autoTranslate`
+ *      preference. It defaults to ON — a volunteer who can't read the report
+ *      can't act on it — so the disclosure carries the weight the default
+ *      used to: the toggle in the language menu states where the text goes
+ *      and switches it off. Never call this outside that gate.
  *   2. Do not widen what gets sent. Pass the single string being displayed,
  *      never the whole alert object (location, reporter, contact details).
  *

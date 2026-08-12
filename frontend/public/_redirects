@@ -1,0 +1,11 @@
+# Cloudflare Pages / Netlify SPA fallback.
+#
+# React Router owns every path client-side, but the edge only has the files
+# in dist/. Without this rule a direct hit on /map, /volunteer or a shared
+# alert link returns the host's 404 page instead of the app — which is the
+# case that matters most here, since those links get forwarded around during
+# an incident by people who never touched the home page.
+#
+# 200 (rewrite), not 302 (redirect): the URL in the address bar must survive
+# so the router can read it on boot.
+/*  /index.html  200

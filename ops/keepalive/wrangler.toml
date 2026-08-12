@@ -1,0 +1,21 @@
+name = "neighbouraid-keepalive"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+# Every 10 minutes, not every 14. Render's idle timer is 15 minutes and
+# Cloudflare's free-plan cron is best-effort — it can fire a few minutes
+# late under load. A 10-minute schedule absorbs that slip; a 14-minute one
+# lets a single delayed tick put the service to sleep.
+[triggers]
+crons = ["*/10 * * * *"]
+
+[vars]
+# Replace with your Render URL after the first deploy. Not a secret — it is
+# a public health endpoint — so plain vars is right, and keeping it in git
+# means the schedule is reproducible from a clone.
+BACKEND_URL = "https://neighbouraid-api.onrender.com"
+
+# No observability plan needed for cron logs; `wrangler tail` streams them
+# live during setup and the free plan retains recent invocations.
+[observability]
+enabled = true

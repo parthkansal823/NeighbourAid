@@ -57,7 +57,9 @@ function LanguageMenu() {
       </button>
       {open && (
         <div className="absolute right-0 mt-1.5 w-64 glass border border-gray-800 rounded-lg shadow-2xl shadow-black/50 z-50 overflow-hidden pop-in">
-          <ul role="listbox">
+          {/* Scrolls once the list outgrows the viewport, so the auto-translate
+              row below stays reachable no matter how many languages we ship. */}
+          <ul role="listbox" className="max-h-64 overflow-y-auto">
             {languages.map((l) => (
               <li key={l.code}>
                 <button
@@ -80,10 +82,11 @@ function LanguageMenu() {
           </ul>
 
           {/*
-            Auto-translate is opt-in and says plainly where the text goes.
-            It was previously on by default with no way to turn it off, which
-            meant alert bodies — including anonymous reports — were sent to a
-            third party without the user ever being asked.
+            Auto-translate is on by default — a volunteer who can't read the
+            report can't act on it — but it says plainly where the text goes
+            and can be switched off here. That disclosure is the whole point:
+            alert bodies include anonymous reports, and previously they were
+            sent to a third party without the user ever being told.
           */}
           <div className="border-t border-gray-800 px-3 py-2.5">
             <label className="flex items-start gap-2 cursor-pointer">

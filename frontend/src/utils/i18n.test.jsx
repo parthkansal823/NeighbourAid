@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
-import { I18nProvider, useI18n } from './i18n'
+import { render, screen, act, waitFor } from '@testing-library/react'
+import { I18nProvider, LANGUAGES, isSupportedLang, useI18n } from './i18n'
+
+import bn from '../i18n/bn'
+import en from '../i18n/en'
+import gu from '../i18n/gu'
+import hi from '../i18n/hi'
+import mr from '../i18n/mr'
+import pa from '../i18n/pa'
+import ta from '../i18n/ta'
+import te from '../i18n/te'
+
+const DICTS = { en, hi, bn, mr, te, ta, gu, pa }
 
 function Probe() {
   const { t, lang, setLang } = useI18n()
@@ -25,17 +36,18 @@ describe('I18nProvider', () => {
     expect(screen.getByTestId('msg')).toHaveTextContent(/Live Map/i)
   })
 
-  it('switches to Hindi when setLang("hi") is invoked', () => {
+  it('switches to Hindi when setLang("hi") is invoked', async () => {
     render(
       <I18nProvider>
         <Probe />
       </I18nProvider>
     )
-    act(() => {
+    await act(async () => {
       screen.getByText('go-hi').click()
     })
+    // `lang` flips synchronously; the strings follow once the chunk resolves.
     expect(screen.getByTestId('lang')).toHaveTextContent('hi')
-    expect(screen.getByTestId('msg')).toHaveTextContent(/लाइव/)
+    await waitFor(() => expect(screen.getByTestId('msg')).toHaveTextContent(/लाइव/))
   })
 
   it('ignores unknown language codes', () => {
@@ -99,4 +111,67 @@ describe('I18nProvider', () => {
     // No translation found anywhere → returns the key itself as a last resort
     expect(screen.getByTestId('x')).toHaveTextContent('this_key_does_not_exist')
   })
+})
+
+describe('translation catalogues', () => {
+  // The English file is the source of truth for the key set. A missing key
+  // silently falls back to English at runtime, so a half-finished language
+  // renders a bilingual UI instead of failing — good for users, invisible to
+  // us. These tests make the gap visible at build time instead.
+  const enKeys = Object.keys(en).sort()
+
+  it('exposes a dictionary for every language offered in the menu', () => {
+    for (const { code } of LANGUAGES) {
+      expect(DICTS[code], `no dictionary for '${code}'`).toBeTruthy()
+      expect(isSupportedLang(code), `'${code}' is in the menu but not loadable`).toBe(true)
+    }
+    // And nothing unreachable: a dictionary not in LANGUAGES is dead weight
+    // in the bundle that no user can ever select.
+    expect(Object.keys(DICTS).sort()).toEqual(LANGUAGES.map((l) => l.code).sort())
+  })
+
+  it.each(LANGUAGES.map((l) => [l.code, DICTS[l.code].nav_map]))(
+    'lazily loads the %s chunk and renders its strings',
+    async (code, expected) => {
+      // The dictionaries are dynamic imports now, so a language can be listed
+      // in the menu, have a complete file, and still never reach the screen if
+      // the loader map misses it. Drive it through the provider to prove the
+      // whole path works, not just that the file exists.
+      function Switcher() {
+        const { t, setLang } = useI18n()
+        return (
+          <div>
+            <span data-testid="msg">{t('nav_map')}</span>
+            <button onClick={() => setLang(code)} type="button">go</button>
+          </div>
+        )
+      }
+      render(
+        <I18nProvider>
+          <Switcher />
+        </I18nProvider>
+      )
+      await act(async () => {
+        screen.getByText('go').click()
+      })
+      await waitFor(() => expect(screen.getByTestId('msg')).toHaveTextContent(expected))
+    }
+  )
+
+  it.each(LANGUAGES.map((l) => l.code))('%s covers exactly the English key set', (code) => {
+    expect(Object.keys(DICTS[code]).sort()).toEqual(enKeys)
+  })
+
+  it.each(LANGUAGES.filter((l) => l.code !== 'en').map((l) => l.code))(
+    '%s has no untranslated copy-paste left over',
+    (code) => {
+      // A value byte-identical to English usually means the key was pasted in
+      // and never translated. `register_detecting` is a bare ellipsis, which
+      // is genuinely the same in every language.
+      const copied = enKeys.filter(
+        (k) => k !== 'register_detecting' && DICTS[code][k] === en[k]
+      )
+      expect(copied).toEqual([])
+    }
+  )
 })

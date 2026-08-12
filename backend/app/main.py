@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .core.config import settings
 from .core.security import decode_token_safe
 from .core.security_headers import SecurityHeadersMiddleware
 from .db.client import connect, disconnect, get_db
@@ -123,7 +124,48 @@ async def root():
 
 @app.get("/health")
 async def health():
+    """Liveness. Deliberately checks nothing.
+
+    Two things poll this: the platform's health check, and the keep-alive
+    cron in ops/keepalive that stops a free-tier host idling out. Both ask
+    the same question — "is this process up?" — and neither should be able
+    to take the service down. If this touched Mongo, a transient Atlas
+    blip would return 503, the platform would recycle a perfectly healthy
+    container, and a database wobble would become an outage.
+
+    Use /health/ready for "can it actually serve traffic?".
+    """
     return {"status": "ok"}
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness — verifies the dependencies a request actually needs.
+
+    Point uptime monitoring here, not at /health: this is the endpoint that
+    distinguishes "process is up" from "process can serve an alert". Returns
+    503 with the failing component named, so an alert tells you where to
+    look instead of just that something is wrong.
+    """
+    try:
+        db = get_db()
+        # `ping` is the cheapest round trip that proves the driver is
+        # connected and authenticated — no collection scan, no index use.
+        await db.command("ping")
+    except Exception as exc:  # noqa: BLE001 — the reason is the payload
+        log.warning("readiness check failed: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "database": "unreachable"},
+        )
+    # AI is reported but never fails the check: triage falls back to the
+    # keyword heuristic without a key, so a missing key is a documented
+    # operating mode, not an outage.
+    return {
+        "status": "ok",
+        "database": "ok",
+        "ai": "claude" if settings.ANTHROPIC_API_KEY else "heuristic",
+    }
 
 
 @app.websocket("/ws/volunteer")

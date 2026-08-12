@@ -1,7 +1,9 @@
 import os
 
 # Force the keyword-heuristic fallback so unit tests are deterministic and
-# don't pull the 1.6 GB HuggingFace model. Must be set before app imports.
+# never reach the Anthropic API — no key required to run the suite, and no
+# network call in a unit test. Must be set before app imports.
+# test_ai_triage.py covers the Claude path separately with a mocked client.
 os.environ.setdefault("NA_DISABLE_AI_MODEL", "1")
 
 import pytest
@@ -44,6 +46,8 @@ def mock_db():
         return_value=MagicMock(inserted_id="507f1f77bcf86cd799439012")
     )
     db.alerts.create_index = AsyncMock()
+    # Readiness probe (/health/ready) issues a raw `ping` command.
+    db.command = AsyncMock(return_value={"ok": 1})
     return db
 
 
