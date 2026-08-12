@@ -122,23 +122,48 @@ def detect_language(text: str) -> str:
 # Classifier bootstrap
 # --------------------------------------------------------------------------
 
-def _get_classifier():
-    global _classifier, _load_failed
-    if _classifier is not None or _load_failed:
-        return _classifier
-    if _DISABLE:
-        _load_failed = True
+def _get_client():
+    """Return a shared AsyncAnthropic client, or None to use the heuristic.
+
+    Built once and reused: the client owns an HTTP connection pool, so
+    constructing one per alert would open a fresh TLS connection on the
+    hottest path in the app.
+    """
+    global _client, _client_failed
+    if _client is not None or _client_failed:
+        return _client
+    if _DISABLE or not settings.ANTHROPIC_API_KEY:
+        _client_failed = True
+        if not _DISABLE:
+            log.info(
+                "ANTHROPIC_API_KEY not set — triage uses the keyword heuristic. "
+                "Set it to enable Claude-based triage."
+            )
         return None
     try:
-        from transformers import pipeline  # heavy import, defer
-        _classifier = pipeline(
-            "zero-shot-classification",
-            model="facebook/bart-large-mnli",
+        _client = anthropic.AsyncAnthropic(
+            api_key=settings.ANTHROPIC_API_KEY,
+            # Short, explicit timeout: alert creation awaits this, and a
+            # reporter must not watch a spinner because triage is slow. The
+            # SDK default is 10 minutes, which is wrong for this path.
+            timeout=settings.AI_TIMEOUT_SECONDS,
+            # One retry, not the default two — a second retry would blow the
+            # latency budget before it ever helped.
+            max_retries=1,
         )
-    except Exception as exc:  # noqa: BLE001
-        log.warning("AI model unavailable, using heuristic fallback: %s", exc)
-        _load_failed = True
-    return _classifier
+    except Exception as exc:  # noqa: BLE001 — never break alert creation
+        log.warning("Could not build Anthropic client, using heuristic: %s", exc)
+        _client_failed = True
+    return _client
+
+
+async def close_client() -> None:
+    """Release the shared client's connection pool (called from lifespan)."""
+    global _client, _client_failed
+    if _client is not None:
+        await _client.close()
+    _client = None
+    _client_failed = False
 
 
 # --------------------------------------------------------------------------
