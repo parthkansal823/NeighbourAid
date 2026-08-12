@@ -41,23 +41,12 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 60 * 24
 
-    # Set ENVIRONMENT=production on any real deploy. It turns the
-    # "you're using the public dev JWT secret" warning below into a
-    # hard startup failure, so the mistake surfaces at deploy time
-    # rather than as a silent authentication bypass in production.
-    ENVIRONMENT: str = "development"
-
-    # Claude powers alert triage (app/services/ai.py). Leave the key empty and
-    # the app still works — triage falls back to a keyword heuristic covering
-    # English, Hindi and Hinglish, which is what CI and the tests exercise.
-    ANTHROPIC_API_KEY: str = ""
-    AI_MODEL: str = "claude-opus-5"
-
-    # Alert creation awaits triage, so this is a user-facing latency budget,
-    # not a generic network timeout. The SDK's own default is 10 minutes —
-    # far too long for a reporter staring at a spinner mid-emergency. On
-    # timeout the heuristic answers instead, so a low ceiling is safe.
-    AI_TIMEOUT_SECONDS: float = 8.0
+    # Defaults to production, so a deploy that sets nothing still gets the
+    # strict checks below rather than silently running with the public dev
+    # signing key. Local development and the test suite opt out explicitly
+    # (see backend/.env and tests/conftest.py) — that way the unsafe
+    # configuration is the one you have to ask for.
+    ENVIRONMENT: str = "production"
 
     # Optional outbound webhook fired on every new alert. Designed for n8n /
     # Zapier / Make / custom cron runners — point this at a webhook trigger

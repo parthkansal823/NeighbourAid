@@ -6,10 +6,12 @@ correct the Tamil list without reading any Python around it.
 
 WHY THIS EXISTS AT ALL
 
-The heuristic is the fallback under Claude, but it is also what runs on every
-alert when no API key is configured — which is the default free deployment.
+This is the triage engine — the only one. Every alert in the app is ranked by
+what is in this file, so a gap here is not a degraded fallback, it is a
+mis-ranked emergency.
+
 It used to hold English and romanised-Hindi terms only. The app ships a UI in
-eight languages, so a report typed in the language the user just selected
+eight languages, so a report typed in the language the user had just selected
 matched nothing and fell through to MEDIUM. "व्यक्ति बेहोश है, सांस नहीं आ रही"
 — unconscious, not breathing — ranked below a power cut.
 

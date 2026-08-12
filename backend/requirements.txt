@@ -6,10 +6,6 @@ uvicorn[standard]>=0.38.0
 # of PyMongo's built-in async driver, which 4.9 introduced. app/db/client.py
 # uses AsyncMongoClient directly.
 pymongo>=4.17.0
-# Claude powers alert triage (app/services/ai.py). Without an API key the app
-# still runs — triage degrades to the keyword heuristic — but the SDK itself is
-# a core dependency now, not an optional extra.
-anthropic>=0.121.0
 # PyJWT replaces python-jose: the pinned jose 3.3.0 had 5 CVEs and drags in
 # `ecdsa`, whose timing-attack advisory has no fixed release.
 pyjwt>=2.10.1

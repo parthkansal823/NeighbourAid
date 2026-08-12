@@ -47,19 +47,14 @@ not work:
 | `MONGO_URL` | Yes | MongoDB Atlas connection string |
 | `JWT_SECRET` | Yes | ≥32 random bytes; the app refuses to start in production on the built-in dev default |
 | `ENVIRONMENT` | Yes | Set to `production` |
-| `ANTHROPIC_API_KEY` | No | Leave unset to run entirely free — triage falls back to the multilingual keyword heuristic |
 | `FRONTEND_ORIGINS` | No | Only for a custom frontend domain |
 
-## Triage without an API key
+## Triage
 
-With no `ANTHROPIC_API_KEY`, urgency classification runs on the keyword
-heuristic in `app/services/vocab.py`. It covers all eight languages the app
-ships in — English, Hindi (both scripts), Bengali, Tamil, Telugu, Marathi,
-Gujarati and Punjabi — costs nothing, needs no network, and answers in under
-a millisecond. Less accurate than Claude on unusual phrasing, but it is a
-real classifier, not a stub.
-
-Check which engine is live at `/health/ready`.
+Urgency classification runs in-process from the multilingual vocabulary in
+`app/services/vocab.py` — English, Hindi (both scripts), Bengali, Tamil,
+Telugu, Marathi, Gujarati and Punjabi. No API key, no network, no cost,
+under a millisecond per report.
 
 ## Keeping it warm
 

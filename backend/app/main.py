@@ -13,7 +13,6 @@ from .core.security import decode_token_safe
 from .core.security_headers import SecurityHeadersMiddleware
 from .db.client import connect, disconnect, get_db
 from .routes import alerts, auth, inbound, news, resources, safety, stats, users
-from .services.ai import ai_status, close_client as close_ai_client
 from .services.websocket import manager
 
 log = logging.getLogger("neighbouraid")
@@ -25,9 +24,6 @@ async def lifespan(app: FastAPI):
     await connect()
     yield
     await disconnect()
-    # The Anthropic client holds an HTTP connection pool; close it so a
-    # reload or test teardown doesn't leak sockets.
-    await close_ai_client()
 
 
 app = FastAPI(title="NeighbourAid API", version="1.0.0", lifespan=lifespan)
@@ -131,12 +127,12 @@ async def root():
 async def health():
     """Liveness. Deliberately checks nothing.
 
-    Two things poll this: the platform's health check, and the keep-alive
-    cron in ops/keepalive that stops a free-tier host idling out. Both ask
-    the same question — "is this process up?" — and neither should be able
-    to take the service down. If this touched Mongo, a transient Atlas
-    blip would return 503, the platform would recycle a perfectly healthy
-    container, and a database wobble would become an outage.
+    Two things poll this: the platform's health check, and the uptime
+    monitor that stops a free-tier host idling out. Both ask the same
+    question — "is this process up?" — and neither should be able to take
+    the service down. If this touched Mongo, a transient Atlas blip would
+    return 503, the platform would recycle a perfectly healthy container,
+    and a database wobble would become an outage.
 
     Use /health/ready for "can it actually serve traffic?".
     """
@@ -149,17 +145,14 @@ async def readiness():
     keeps them warm as a side effect.
 
     This is the endpoint to point UptimeRobot (or any uptime monitor) at.
-    Polling it every 5 minutes does three useful things at once:
+    Polling it every 5 minutes does two useful things at once:
 
       * keeps the host from idling out and cold-starting on the next SOS
       * keeps the Mongo connection pool open, so the first real query does
         not pay to re-establish a connection to Atlas
-      * builds the Anthropic client if it isn't built yet, so the TLS
-        handshake is already done when the next alert needs triage
 
-    None of that costs an API call, so the polling stays free however often
-    you run it. Returns 503 naming the failing component, so the alert email
-    tells you where to look instead of only that something broke.
+    Returns 503 naming the failing component, so the alert email tells you
+    where to look instead of only that something broke.
     """
     try:
         db = get_db()
@@ -172,17 +165,7 @@ async def readiness():
             status_code=503,
             content={"status": "degraded", "database": "unreachable"},
         )
-    # AI is reported but never fails the check: triage falls back to the
-    # keyword heuristic without a key, so running heuristic-only is a
-    # documented operating mode, not an outage. Watch this field rather than
-    # alerting on it — "heuristic" when you expect "claude" means the key is
-    # missing; "heuristic-degraded" means the key is set but the client
-    # could not be built.
-    return {
-        "status": "ok",
-        "database": "ok",
-        "ai": ai_status(),
-    }
+    return {"status": "ok", "database": "ok"}
 
 
 @app.websocket("/ws/volunteer")

@@ -124,6 +124,5 @@ echo "==> Done. Build logs: ${REMOTE}?logs=build"
 echo "    Live URL:        https://${USER_NAME}-${SPACE_NAME}.hf.space"
 echo
 echo "First push? Set these under Settings -> Variables and secrets:"
-echo "    MONGO_URL, JWT_SECRET, ENVIRONMENT=production"
-echo "  ANTHROPIC_API_KEY is optional — without it triage runs free on the"
-echo "  multilingual keyword heuristic."
+echo "    MONGO_URL and JWT_SECRET"
+echo "  ENVIRONMENT already defaults to production."

@@ -152,9 +152,8 @@ __pycache__/
     Write-Host "    Live URL:   https://$UserName-$SpaceName.hf.space"
     Write-Host ''
     Write-Host 'First push? Set these under Settings -> Variables and secrets:'
-    Write-Host '    MONGO_URL, JWT_SECRET, ENVIRONMENT=production'
-    Write-Host '  ANTHROPIC_API_KEY is optional -- without it triage runs free on the'
-    Write-Host '  multilingual keyword heuristic.'
+    Write-Host '    MONGO_URL and JWT_SECRET'
+    Write-Host '  ENVIRONMENT already defaults to production.'
 }
 finally {
     Remove-Item -Recurse -Force $Stage -ErrorAction SilentlyContinue

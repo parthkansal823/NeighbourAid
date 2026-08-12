@@ -1,10 +1,10 @@
 import os
 
-# Force the keyword-heuristic fallback so unit tests are deterministic and
-# never reach the Anthropic API — no key required to run the suite, and no
-# network call in a unit test. Must be set before app imports.
-# test_ai_triage.py covers the Claude path separately with a mocked client.
-os.environ.setdefault("NA_DISABLE_AI_MODEL", "1")
+# ENVIRONMENT defaults to production so a real deploy gets the strict startup
+# checks by default. The suite runs against a mock database and the public dev
+# JWT secret, both of which those checks reject on purpose, so tests opt out
+# explicitly here. Must be set before app imports.
+os.environ.setdefault("ENVIRONMENT", "development")
 
 import pytest
 from httpx import AsyncClient, ASGITransport

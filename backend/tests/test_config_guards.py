@@ -40,3 +40,33 @@ def test_detects_local_mongo_urls(url):
 )
 def test_does_not_flag_real_remote_urls(url):
     assert _points_at_localhost(url) is False
+
+
+def test_environment_defaults_to_production():
+    """The default has to be the safe one.
+
+    A deploy that sets nothing must still get the strict startup checks.
+    Defaulting to development meant a forgotten ENVIRONMENT variable silently
+    downgraded the JWT-secret and MONGO_URL guards to log warnings that
+    nobody reads, and the app booted anyway with a signing key published in
+    this repo. Tests and local dev opt out explicitly instead.
+    """
+    from app.core.config import Settings
+
+    # Build a fresh Settings ignoring both the ambient environment and the
+    # repo's .env files, which is exactly the situation on a bare deploy:
+    # push-gradio-space.sh strips .env out of the Space tree.
+    bare = Settings.model_construct()
+    assert Settings.model_fields["ENVIRONMENT"].default == "production"
+    assert bare.ENVIRONMENT == "production"
+
+
+def test_a_bare_deploy_is_rejected_rather_than_booted():
+    """Defaults alone must not produce a runnable production config."""
+    from app.core.config import DEV_JWT_SECRET, Settings, _points_at_localhost
+
+    bare = Settings.model_construct()
+    assert bare.is_production
+    # Both guards in config.py fire on these, so import would raise.
+    assert bare.JWT_SECRET == DEV_JWT_SECRET
+    assert _points_at_localhost(bare.MONGO_URL)

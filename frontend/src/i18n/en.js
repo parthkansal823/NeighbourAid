@@ -23,7 +23,7 @@ export default {
   home_title_1: 'Your neighbour needs help.',
   home_title_2: 'Be there in minutes.',
   home_subtitle:
-    'NeighbourAid connects people in crisis with nearby volunteers in real time. AI triage, live maps, and instant WebSocket notifications — all free, all local.',
+    'NeighbourAid connects people in crisis with nearby volunteers in real time. Instant triage, live maps, and WebSocket notifications — all free, all local.',
   home_cta_report: 'Report a Crisis',
   home_cta_map: 'View Live Map',
   home_cta_volunteer: 'Open Volunteer Feed',
@@ -37,8 +37,8 @@ export default {
   home_how_title: 'How it works',
   home_how_1_title: 'Post a Crisis',
   home_how_1_desc: 'Fill in the category, description, and your GPS location. Done in 30 seconds.',
-  home_how_2_title: 'AI Triage',
-  home_how_2_desc: 'Claude reads the report and classifies urgency as CRITICAL / HIGH / MEDIUM / LOW instantly.',
+  home_how_2_title: 'Instant triage',
+  home_how_2_desc: 'Your report is classified as CRITICAL / HIGH / MEDIUM / LOW instantly, in any of our 8 languages.',
   home_how_3_title: 'Volunteers Notified',
   home_how_3_desc: 'Nearby volunteers get a live WebSocket ping and can accept or resolve the alert.',
 
@@ -100,10 +100,12 @@ export default {
 
   // Post alert
   post_title: 'Report a Crisis',
-  post_subtitle: 'Our AI will classify urgency and instantly notify nearby volunteers.',
+  post_subtitle:
+    'Your report is classified by urgency and nearby volunteers are notified instantly.',
   post_category: 'Category',
   post_description: 'Description',
-  post_description_hint: '(AI uses this for triage)',
+  post_description_hint:
+    '(used to rank urgency)',
   post_description_placeholder:
     'e.g. Elderly man collapsed near the park gate, appears unconscious, needs immediate help…',
   post_voice_speak: 'Speak',

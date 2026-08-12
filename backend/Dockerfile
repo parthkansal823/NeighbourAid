@@ -2,10 +2,9 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Triage runs on Claude via the Anthropic API — no local model weights, so the
-# image stays small and the build needs no GPU or multi-GB download. Set
-# ANTHROPIC_API_KEY at runtime to enable it; without a key the app falls back
-# to the keyword heuristic in app/services/ai.py and still works.
+# Triage is a local keyword classifier (app/services/vocab.py) — no model
+# weights, no API client, so the image stays small and the build needs no
+# GPU or multi-GB download.
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 

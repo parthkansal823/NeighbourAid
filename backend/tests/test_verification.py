@@ -43,38 +43,33 @@ def test_weather_supports_returns_false_for_unknown_categories():
     assert not weather_svc.supports_category("flood", None)
 
 
-# --- AI triage tests (use heuristic fallback via NA_DISABLE_AI_MODEL=1) ---
+# --- Triage tests (local keyword classifier, see app/services/vocab.py) ---
 
 
-@pytest.mark.asyncio
-async def test_triage_critical_detects_unconscious():
-    t = await triage("Man collapsed and is unconscious, not breathing")
+def test_triage_critical_detects_unconscious():
+    t = triage("Man collapsed and is unconscious, not breathing")
     assert t.urgency == "CRITICAL"
     assert "unconscious" in t.triggers
     assert t.priority_score >= 80
 
 
-@pytest.mark.asyncio
-async def test_triage_detects_child_vulnerability():
-    t = await triage("A bachcha is trapped inside the flooded building")
+def test_triage_detects_child_vulnerability():
+    t = triage("A bachcha is trapped inside the flooded building")
     assert t.vulnerability == "child"
 
 
-@pytest.mark.asyncio
-async def test_triage_detects_elderly_vulnerability():
-    t = await triage("Elderly man alone and injured after the accident")
+def test_triage_detects_elderly_vulnerability():
+    t = triage("Elderly man alone and injured after the accident")
     assert t.vulnerability == "elderly"
 
 
-@pytest.mark.asyncio
-async def test_triage_time_sensitivity_immediate():
-    t = await triage("Need help immediately, right now")
+def test_triage_time_sensitivity_immediate():
+    t = triage("Need help immediately, right now")
     assert t.time_sensitivity == "immediate"
 
 
-@pytest.mark.asyncio
-async def test_triage_time_sensitivity_days():
-    t = await triage("Can someone come tomorrow to check the power line")
+def test_triage_time_sensitivity_days():
+    t = triage("Can someone come tomorrow to check the power line")
     assert t.time_sensitivity == "days"
 
 
@@ -90,9 +85,8 @@ def test_detect_language_english():
     assert detect_language("fire in the building help") == "en"
 
 
-@pytest.mark.asyncio
-async def test_backcompat_classify_urgency_signature():
-    urgency, reason = await classify_urgency("person is bleeding heavily")
+def test_backcompat_classify_urgency_signature():
+    urgency, reason = classify_urgency("person is bleeding heavily")
     assert urgency == "CRITICAL"
     assert reason  # non-empty
 

@@ -87,7 +87,7 @@ async def whatsapp_inbound(
     db = get_db()
     lng, lat = msg.location.coordinates[0], msg.location.coordinates[1]
 
-    t = await ai_triage(msg.body)
+    t = ai_triage(msg.body)
     address, weather, corroborating = await asyncio.gather(
         reverse_geocode(lat, lng),
         current_weather(lat, lng),

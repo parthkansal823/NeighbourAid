@@ -1,6 +1,6 @@
 # Deploying NeighbourAid
 
-Everything here is free. No credit card, no paid tier, no API key required.
+Everything here is free. No credit card, no paid tier, no API key anywhere.
 
 | Piece | Host | Cost |
 |---|---|---|
@@ -8,7 +8,7 @@ Everything here is free. No credit card, no paid tier, no API key required.
 | Database | MongoDB Atlas M0, Mumbai (`ap-south-1`) | Free |
 | Frontend (React SPA) | Cloudflare Workers (static assets) | Free |
 | Uptime + keep-warm | UptimeRobot → `/health/ready` | Free |
-| AI triage | Multilingual keyword heuristic, in-process | Free |
+| Triage | Multilingual keyword classifier, in-process | Free |
 
 **Order matters.** The database URL is needed to configure the backend, and
 the backend URL is needed to build the frontend. Going 1 → 5 avoids
@@ -134,7 +134,6 @@ Then set secrets under **Settings → Variables and secrets**:
 | `MONGO_URL` | Yes | the Atlas string from step 1 |
 | `JWT_SECRET` | Yes | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `ENVIRONMENT` | Yes | `production` |
-| `ANTHROPIC_API_KEY` | No | leave unset to stay free — see step 5 |
 | `FRONTEND_ORIGINS` | No | only for a custom frontend domain |
 
 `ENVIRONMENT=production` makes the app refuse to boot on the public dev
@@ -235,13 +234,12 @@ It never makes an API call, so the polling is free at any frequency.
 platform health check can never take the service down over a transient Atlas
 blip. Use it only where a host requires a health path.
 
-## 5. AI triage — free by default
+## 5. Triage — local, free, no API key
 
-Triage used to load a 1.6 GB HuggingFace model into your own process, which
-is where "AI won't run on a free tier" came from. **That is no longer true.**
-Urgency classification now runs on the keyword heuristic in
-[`app/services/vocab.py`](backend/app/services/vocab.py): pure Python, no
-dependencies, no network, sub-millisecond, free forever.
+Urgency classification runs entirely inside your process:
+[`app/services/vocab.py`](backend/app/services/vocab.py) matches a
+multilingual crisis vocabulary. Pure Python, no dependencies, no network, no
+key, **0.013 ms** per report.
 
 It covers all eight languages the UI ships in — English, Hindi in both
 Devanagari and romanised form, Bengali, Tamil, Telugu, Marathi, Gujarati and
@@ -252,23 +250,10 @@ CRITICAL   vulnerability=elderly   time=immediate   lang=ta   score=115
 triggers: ['மயக்கமட', 'மூச்சு விடவில்லை']
 ```
 
-Honest limit: keyword matching catches *stated* danger, not *implied* danger.
-Setting `ANTHROPIC_API_KEY` upgrades triage to Claude, which reads intent and
-handles unusual phrasing far better, at roughly **$0.008 per alert**. It is a
-real improvement and entirely optional — leave it unset and nothing breaks.
-
-Whichever you run, `/health/ready` reports the live engine:
-
-| `ai` value | Meaning |
-|---|---|
-| `heuristic` | No API key — the free path, working as intended |
-| `claude` | Key set, Claude is live |
-| `heuristic-degraded` | Key set but the client could not be built — check the key |
-| `disabled` | `NA_DISABLE_AI_MODEL=1` is set (tests use this; never in production) |
-
-A transient failure no longer disables Claude permanently: the client backs
-off 60 seconds and retries, so a brief network problem at startup can't leave
-the Space quietly running heuristic-only for days.
+The honest limit: keywords catch *stated* danger, not *implied* danger. "He
+is not breathing" classifies correctly; a report where severity is only
+inferable from context will not. In exchange you get triage that cannot fail,
+cannot rate-limit, and cannot bill anyone.
 
 ---
 
