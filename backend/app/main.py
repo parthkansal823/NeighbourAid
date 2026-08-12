@@ -38,10 +38,15 @@ app = FastAPI(title="NeighbourAid API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Allow the configured frontend origins. Extra hosts can be appended via
-# FRONTEND_ORIGINS (comma-separated). The regex allow-list covers the two
-# free hosts users actually deploy to (Vercel + HuggingFace Spaces). Auth
-# is JWT-in-Authorization-header — not cookies — so credentials=true is
-# safe and the Authorization header is not exempt from same-origin policy.
+# FRONTEND_ORIGINS (comma-separated). The regex allow-list covers the free
+# hosts this project actually gets deployed to. Auth is
+# JWT-in-Authorization-header — not cookies — so credentials=true is safe and
+# the Authorization header is not exempt from same-origin policy.
+#
+# `.workers.dev` matters as much as `.pages.dev`: Cloudflare now serves
+# static sites from Workers too, and a frontend deployed that way is a
+# different origin. Without it every API call fails preflight, which shows up
+# in the browser as a CORS error rather than anything pointing at this list.
 _default_origins = ["http://localhost:3000", "http://localhost:5173"]
 _extra = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "").split(",") if o.strip()]
 app.add_middleware(
@@ -52,7 +57,8 @@ app.add_middleware(
         r"https://.*\.onrender\.com|"
         r"https://.*\.hf\.space|"
         r"https://.*\.netlify\.app|"
-        r"https://.*\.pages\.dev"
+        r"https://.*\.pages\.dev|"
+        r"https://.*\.workers\.dev"
     ),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],

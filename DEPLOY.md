@@ -4,10 +4,15 @@ Everything below is free, and needs no credit card.
 
 | Piece | Host | Cost |
 |---|---|---|
-| Backend (FastAPI + WebSockets) | Hugging Face Spaces, Docker SDK | Free |
+| Backend (FastAPI + WebSockets) | Render, free web service, Singapore | Free |
 | Database | MongoDB Atlas M0, Mumbai (`ap-south-1`) | Free |
-| Frontend (React SPA) | Cloudflare Pages | Free |
+| Frontend (React SPA) | Cloudflare Pages **or** Workers | Free |
 | Uptime + keep-warm | UptimeRobot → `/health/ready` | Free |
+
+> Hugging Face Spaces was the earlier recommendation, and the Docker files
+> for it are still in `deploy/huggingface/` if your account has Docker Spaces
+> available. They are gated behind a paid plan on some accounts, which is why
+> Render is the default here.
 
 ## The constraint behind these choices
 
@@ -22,29 +27,22 @@ dict. Two consequences shape everything below:
    `--workers 1` for exactly this reason. Lifting that ceiling means moving
    the registry behind Redis pub/sub first.
 
-## Why Hugging Face Spaces
+## Why Render free (and how the sleep problem is solved)
 
-Compared with the other free tiers, for this specific app:
+Render's free plan sleeps after **15 minutes** without an inbound request and
+takes roughly **50 seconds** to wake. For a side project that is a shrug; for
+a crisis app it is unacceptable, because the first request after a quiet spell
+is someone pressing SOS.
 
-| | HF Spaces (free) | Render (free) |
-|---|---|---|
-| Idle timeout | **48 hours** | 15 minutes |
-| RAM / CPU | **16 GB / 2 vCPU** | 512 MB / 0.1 vCPU |
-| Monthly cap | none | 750 instance-hours |
-| WebSockets | yes | yes |
-| Region | US | Singapore (closer to India) |
+The fix is step 4: an UptimeRobot monitor polls `/health/ready` every 5
+minutes, so the idle timer never reaches 15. Free instance-hours are 750 a
+month against a calendar month's ~730, so one always-warm service fits — but
+only one. A second free service on the same account pushes you over and both
+get suspended.
 
-The 48-hour idle window is the deciding factor. A cold start on a crisis app
-means the first request after a quiet spell — someone pressing SOS — waits for
-a container to boot. Render's 15-minute timer makes that the *common* case;
-Hugging Face's 48-hour one makes it rare, and the uptime ping in step 4
-removes it entirely.
-
-Two honest caveats: Spaces are US-hosted, so Indian users pay ~100ms more
-latency than they would on Render's Singapore region, and Spaces are built for
-ML demos rather than production APIs — Hugging Face can restart or rebuild
-them at will. For a project at this stage that trade is worth it; if this ever
-carries real traffic, a paid instance is the answer, not a different free one.
+The trade versus paid hosting is 512 MB RAM and 0.1 vCPU. That is fine here:
+triage runs either on Anthropic's servers or on a keyword match, so nothing
+heavy runs in your process.
 
 ---
 

@@ -232,3 +232,47 @@ async def test_connect_falls_back_to_default_db_name():
             assert db_client._db is fake_db
         finally:
             db_client._db = original
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://neighbouraid.pages.dev",
+        # Cloudflare serves static sites from Workers too, and that is a
+        # different origin. Missing it blocked every API call from a real
+        # deploy, surfacing only as a browser CORS error that pointed
+        # nowhere near the allow-list.
+        "https://neighbouraid-ap2308.kansalp-parth.workers.dev",
+        "https://neighbouraid.vercel.app",
+        "https://neighbouraid.netlify.app",
+        "https://user-neighbouraid-api.hf.space",
+    ],
+)
+@pytest.mark.asyncio
+async def test_cors_allows_the_free_hosts_we_deploy_to(client, origin):
+    c, _ = client
+    resp = await c.options(
+        "/api/auth/login",
+        headers={
+            "Origin": origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("access-control-allow-origin") == origin
+
+
+@pytest.mark.asyncio
+async def test_cors_still_rejects_unknown_origins(client):
+    """The allow-list has to keep meaning something after being widened."""
+    c, _ = client
+    resp = await c.options(
+        "/api/auth/login",
+        headers={
+            "Origin": "https://evil.example.com",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert resp.headers.get("access-control-allow-origin") is None
