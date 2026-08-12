@@ -1,8 +1,26 @@
 import logging
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 log = logging.getLogger(__name__)
+
+# Resolved from this file, not from the process working directory.
+#
+# `env_file=".env"` alone is relative to wherever you happened to launch
+# from, so `uvicorn` started in backend/ read backend/.env while the same
+# command from the repo root read a different file. Split your settings
+# across the two — MONGO_URL in one, JWT_SECRET in the other — and half of
+# them silently vanish depending on which directory you were standing in.
+# JWT_SECRET vanishing is the dangerous one: it falls back to the public
+# dev secret below and the app boots anyway.
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+_REPO_ROOT = _BACKEND_DIR.parent
+
+# Later entries win, so the search runs general → specific → explicit:
+# repo root, then backend/, then whatever the current directory offers
+# (which is what a `docker run --env-file` or a one-off shell expects).
+_ENV_FILES = (_REPO_ROOT / ".env", _BACKEND_DIR / ".env", Path(".env"))
 
 # The value JWT_SECRET falls back to when the env var is unset. Anyone
 # reading this repo knows it, so a deployment still using it can have
@@ -54,7 +72,7 @@ class Settings(BaseSettings):
     # header. Empty string disables the route entirely (default).
     INBOUND_TOKEN: str = ""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=_ENV_FILES, extra="ignore")
 
     @property
     def is_production(self) -> bool:

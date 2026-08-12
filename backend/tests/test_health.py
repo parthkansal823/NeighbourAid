@@ -76,7 +76,11 @@ async def test_readiness_reports_heuristic_mode_without_an_api_key(client, monke
     key would look permanently broken to monitoring.
     """
     from app.core import config
+    from app.services import ai
 
+    monkeypatch.setattr(ai, "_DISABLE", False)
+    monkeypatch.setattr(ai, "_client", None)
+    monkeypatch.setattr(ai, "_client_disabled", False)
     monkeypatch.setattr(config.settings, "ANTHROPIC_API_KEY", "", raising=False)
     c, _ = client
     resp = await c.get("/health/ready")
@@ -87,7 +91,12 @@ async def test_readiness_reports_heuristic_mode_without_an_api_key(client, monke
 @pytest.mark.asyncio
 async def test_readiness_reports_claude_when_a_key_is_configured(client, monkeypatch):
     from app.core import config
+    from app.services import ai
+    from unittest.mock import MagicMock
 
+    monkeypatch.setattr(ai, "_DISABLE", False)
+    monkeypatch.setattr(ai, "_client", MagicMock())
+    monkeypatch.setattr(ai, "_client_disabled", False)
     monkeypatch.setattr(config.settings, "ANTHROPIC_API_KEY", "sk-ant-test", raising=False)
     c, _ = client
     resp = await c.get("/health/ready")

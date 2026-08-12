@@ -33,10 +33,12 @@ def claude(monkeypatch):
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "sk-ant-test")
     client = MagicMock()
     monkeypatch.setattr(ai, "_client", client)
-    monkeypatch.setattr(ai, "_client_failed", False)
+    monkeypatch.setattr(ai, "_client_disabled", False)
+    monkeypatch.setattr(ai, "_client_retry_after", 0.0)
     yield client
     ai._client = None
-    ai._client_failed = False
+    ai._client_disabled = False
+    ai._client_retry_after = 0.0
 
 
 def _parsed(**overrides) -> ai._ClaudeTriage:
@@ -160,8 +162,89 @@ async def test_no_api_key_skips_claude_entirely(monkeypatch):
     monkeypatch.setattr(ai, "_DISABLE", False)
     monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
     monkeypatch.setattr(ai, "_client", None)
-    monkeypatch.setattr(ai, "_client_failed", False)
+    monkeypatch.setattr(ai, "_client_disabled", False)
+    monkeypatch.setattr(ai, "_client_retry_after", 0.0)
 
     t = await ai.triage("Man collapsed and is unconscious, not breathing")
     assert t.urgency == "CRITICAL"
     assert ai._client is None  # no client was ever constructed
+
+
+@pytest.mark.asyncio
+async def test_transient_client_failure_recovers_on_a_later_alert(monkeypatch):
+    """A construction failure must not disable Claude for the whole process.
+
+    This used to latch permanently: one bad moment during startup and every
+    alert afterwards got heuristic triage until a human noticed and
+    restarted. On a host that stays up for weeks that is a long time to
+    quietly run degraded.
+    """
+    monkeypatch.setattr(ai, "_DISABLE", False)
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(ai, "_client", None)
+    monkeypatch.setattr(ai, "_client_disabled", False)
+    monkeypatch.setattr(ai, "_client_retry_after", 0.0)
+
+    calls = {"n": 0}
+
+    def flaky(**_kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("transient DNS failure")
+        return MagicMock()
+
+    monkeypatch.setattr(ai.anthropic, "AsyncAnthropic", flaky)
+
+    assert ai._get_client() is None          # first attempt fails
+    assert ai._client_retry_after > 0        # ...and backs off rather than latching
+    assert ai._get_client() is None          # still inside the backoff window
+
+    # Wind the clock past the backoff; the next attempt must actually retry.
+    monkeypatch.setattr(ai, "_client_retry_after", 0.0)
+    assert ai._get_client() is not None
+    assert calls["n"] == 2
+
+    ai._client = None
+    ai._client_disabled = False
+    ai._client_retry_after = 0.0
+
+
+@pytest.mark.asyncio
+async def test_missing_key_latches_because_it_cannot_change(monkeypatch):
+    """The counterweight: a config fact SHOULD latch.
+
+    Re-checking a key that is definitionally absent on every single alert
+    would be wasted work on the hottest path in the app.
+    """
+    monkeypatch.setattr(ai, "_DISABLE", False)
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
+    monkeypatch.setattr(ai, "_client", None)
+    monkeypatch.setattr(ai, "_client_disabled", False)
+    monkeypatch.setattr(ai, "_client_retry_after", 0.0)
+
+    assert ai._get_client() is None
+    assert ai._client_disabled is True
+
+    ai._client_disabled = False
+
+
+def test_ai_status_reports_the_live_engine(monkeypatch):
+    """Backs the /health/ready field an uptime monitor reads."""
+    monkeypatch.setattr(ai, "_DISABLE", False)
+    monkeypatch.setattr(ai, "_client", None)
+    monkeypatch.setattr(ai, "_client_disabled", False)
+    monkeypatch.setattr(ai, "_client_retry_after", 0.0)
+
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "")
+    assert ai.ai_status() == "heuristic"
+
+    monkeypatch.setattr(ai, "_client_disabled", False)
+    monkeypatch.setattr(settings, "ANTHROPIC_API_KEY", "sk-ant-test")
+    monkeypatch.setattr(ai, "_client", MagicMock())
+    assert ai.ai_status() == "claude"
+
+    monkeypatch.setattr(ai, "_DISABLE", True)
+    assert ai.ai_status() == "disabled"
+
+    ai._client = None
+    ai._client_disabled = False

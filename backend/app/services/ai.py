@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from typing import Literal, Optional
 
@@ -36,7 +37,21 @@ log = logging.getLogger(__name__)
 # so classification stays deterministic and offline.
 _DISABLE = os.getenv("NA_DISABLE_AI_MODEL", "").lower() in ("1", "true", "yes")
 _client: "anthropic.AsyncAnthropic | None" = None
-_client_failed = False
+
+# Two different reasons the client can be absent, deliberately kept apart.
+#
+# `_client_disabled` is a config fact — no API key, or the kill switch is on.
+# It cannot change while the process runs, so latching it is correct and
+# saves re-checking on every alert.
+#
+# `_client_retry_after` covers the transient case: construction blew up for
+# some reason that may not recur. Latching *that* permanently was a real
+# failure mode — one hiccup during startup and the deploy served heuristic
+# triage until someone noticed and restarted it, which on a long-lived host
+# could be weeks. Now it backs off and heals itself.
+_client_disabled = False
+_client_retry_after = 0.0
+_CLIENT_RETRY_BACKOFF_SECONDS = 60.0
 
 
 # --------------------------------------------------------------------------
@@ -92,16 +107,23 @@ def _get_client():
     constructing one per alert would open a fresh TLS connection on the
     hottest path in the app.
     """
-    global _client, _client_failed
-    if _client is not None or _client_failed:
+    global _client, _client_disabled, _client_retry_after
+    if _client is not None:
         return _client
+    if _client_disabled:
+        return None
     if _DISABLE or not settings.ANTHROPIC_API_KEY:
-        _client_failed = True
+        # Permanent for this process: neither of these changes at runtime.
+        _client_disabled = True
         if not _DISABLE:
-            log.info(
-                "ANTHROPIC_API_KEY not set — triage uses the keyword heuristic. "
-                "Set it to enable Claude-based triage."
+            log.warning(
+                "ANTHROPIC_API_KEY not set — triage is running on the keyword "
+                "heuristic. Urgency will be less accurate on unusual phrasing. "
+                "Set the key to enable Claude."
             )
+        return None
+    # Transient failure: wait out the backoff, then try again.
+    if time.monotonic() < _client_retry_after:
         return None
     try:
         _client = anthropic.AsyncAnthropic(
@@ -115,18 +137,38 @@ def _get_client():
             max_retries=1,
         )
     except Exception as exc:  # noqa: BLE001 — never break alert creation
-        log.warning("Could not build Anthropic client, using heuristic: %s", exc)
-        _client_failed = True
+        _client_retry_after = time.monotonic() + _CLIENT_RETRY_BACKOFF_SECONDS
+        log.warning(
+            "Could not build Anthropic client, using heuristic for the next %ss: %s",
+            int(_CLIENT_RETRY_BACKOFF_SECONDS),
+            exc,
+        )
     return _client
+
+
+def ai_status() -> str:
+    """Which triage engine is live, for the readiness probe.
+
+    Constructs the client if it hasn't been built yet, which also means the
+    uptime ping doubles as a warm-up: the TLS handshake and connection pool
+    are already in place when the first real alert arrives. No API call is
+    made, so this stays free no matter how often it is polled.
+    """
+    if _DISABLE:
+        return "disabled"
+    if not settings.ANTHROPIC_API_KEY:
+        return "heuristic"
+    return "claude" if _get_client() is not None else "heuristic-degraded"
 
 
 async def close_client() -> None:
     """Release the shared client's connection pool (called from lifespan)."""
-    global _client, _client_failed
+    global _client, _client_disabled, _client_retry_after
     if _client is not None:
         await _client.close()
     _client = None
-    _client_failed = False
+    _client_disabled = False
+    _client_retry_after = 0.0
 
 
 # --------------------------------------------------------------------------

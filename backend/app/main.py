@@ -9,12 +9,11 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .core.config import settings
 from .core.security import decode_token_safe
 from .core.security_headers import SecurityHeadersMiddleware
 from .db.client import connect, disconnect, get_db
 from .routes import alerts, auth, inbound, news, resources, safety, stats, users
-from .services.ai import close_client as close_ai_client
+from .services.ai import ai_status, close_client as close_ai_client
 from .services.websocket import manager
 
 log = logging.getLogger("neighbouraid")
@@ -140,12 +139,21 @@ async def health():
 
 @app.get("/health/ready")
 async def readiness():
-    """Readiness — verifies the dependencies a request actually needs.
+    """Readiness — verifies the dependencies a request actually needs, and
+    keeps them warm as a side effect.
 
-    Point uptime monitoring here, not at /health: this is the endpoint that
-    distinguishes "process is up" from "process can serve an alert". Returns
-    503 with the failing component named, so an alert tells you where to
-    look instead of just that something is wrong.
+    This is the endpoint to point UptimeRobot (or any uptime monitor) at.
+    Polling it every 5 minutes does three useful things at once:
+
+      * keeps the host from idling out and cold-starting on the next SOS
+      * keeps the Mongo connection pool open, so the first real query does
+        not pay to re-establish a connection to Atlas
+      * builds the Anthropic client if it isn't built yet, so the TLS
+        handshake is already done when the next alert needs triage
+
+    None of that costs an API call, so the polling stays free however often
+    you run it. Returns 503 naming the failing component, so the alert email
+    tells you where to look instead of only that something broke.
     """
     try:
         db = get_db()
@@ -159,12 +167,15 @@ async def readiness():
             content={"status": "degraded", "database": "unreachable"},
         )
     # AI is reported but never fails the check: triage falls back to the
-    # keyword heuristic without a key, so a missing key is a documented
-    # operating mode, not an outage.
+    # keyword heuristic without a key, so running heuristic-only is a
+    # documented operating mode, not an outage. Watch this field rather than
+    # alerting on it — "heuristic" when you expect "claude" means the key is
+    # missing; "heuristic-degraded" means the key is set but the client
+    # could not be built.
     return {
         "status": "ok",
         "database": "ok",
-        "ai": "claude" if settings.ANTHROPIC_API_KEY else "heuristic",
+        "ai": ai_status(),
     }
 
 
