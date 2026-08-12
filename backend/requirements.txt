@@ -1,22 +1,38 @@
-fastapi>=0.110.0
-uvicorn[standard]>=0.27.0
-motor>=3.3.2
-pymongo>=4.8.0
+# Minimum versions are floors chosen to clear known CVEs (pip-audit clean as
+# of this pin). Keep them at `>=` so security patches land without a bump.
+fastapi>=0.121.0
+uvicorn[standard]>=0.38.0
+# Motor is gone: MongoDB deprecated it in May 2025 (EOL May 2026) in favour
+# of PyMongo's built-in async driver, which 4.9 introduced. app/db/client.py
+# uses AsyncMongoClient directly.
+pymongo>=4.17.0
 # PyJWT replaces python-jose: the pinned jose 3.3.0 had 5 CVEs and drags in
 # `ecdsa`, whose timing-attack advisory has no fixed release.
 pyjwt>=2.10.1
 cryptography>=48.0.1
-bcrypt>=4.1.0
-python-multipart>=0.0.9
+bcrypt>=4.2.0
+python-multipart>=0.0.27
 # app/services/photo.py degrades to a crude byte-length check without this,
 # so every dimension/corruption check it documents silently never runs.
-pillow>=10.3.0
-transformers>=4.40.0
-torch>=2.2.0
-pydantic[email]>=2.9.0
-pydantic-settings>=2.3.0
-pytest>=8.0.0
-httpx>=0.27.0
-pytest-asyncio>=0.23.0
-gunicorn>=21.2.0
-feedparser>=6.0.10
+pillow>=11.3.0
+pydantic[email]>=2.12.0
+pydantic-settings>=2.14.2
+pytest>=8.3.0
+httpx>=0.28.0
+pytest-asyncio>=0.24.0
+gunicorn>=23.0.0
+feedparser>=6.0.11
+
+# The optional local AI model (transformers + torch) is NOT here — it lives
+# in requirements-ai.txt. It is ~2.5 GB of wheels plus a 1.6 GB model for a
+# feature that is disabled by default in tests, CI and the Docker image, and
+# app/services/ai.py falls back to a keyword heuristic that handles English,
+# Hindi and Hinglish when the import fails. Keeping it out of the default
+# install removes that entire dependency tree — and its CVE surface — from
+# every deployment that does not explicitly ask for it.
+
+# Transitive pins that pip-audit flagged; listed explicitly so a fresh
+# install can't resolve back to a vulnerable version.
+urllib3>=2.7.0
+idna>=3.15
+starlette>=1.3.1

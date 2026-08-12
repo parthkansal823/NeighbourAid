@@ -15,42 +15,55 @@
     "mobile:add:ios": "npx cap add ios",
     "mobile:open:ios": "npx cap open ios",
     "mobile:ios": "npm run mobile:sync && npx cap open ios",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^8.3.1",
-    "@capacitor/core": "^8.3.1",
-    "@capacitor/ios": "^8.3.1",
-    "axios": "^1.6.2",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "axios": "^1.19.0",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.31.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-leaflet": "^4.2.1",
-    "react-router-dom": "^6.20.1"
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.18.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.3.1",
-    "@testing-library/jest-dom": "^6.4.2",
-    "@testing-library/react": "^14.3.1",
-    "@testing-library/user-event": "^14.5.2",
-    "@vitejs/plugin-react": "^4.2.1",
-    "@vitest/ui": "^2.1.9",
-    "autoprefixer": "^10.4.16",
-    "eslint": "^8.55.0",
-    "eslint-plugin-react": "^7.33.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "eslint-plugin-react-refresh": "^0.4.5",
-    "fake-indexeddb": "^5.0.2",
-    "jsdom": "^24.0.0",
+    "@capacitor/cli": "^8.5.0",
+    "@eslint/js": "^9.39.5",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/ui": "^4.1.10",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.4",
+    "fake-indexeddb": "^6.2.5",
+    "globals": "^17.10.0",
+    "jsdom": "^30.0.1",
     "postcss": "^8.4.32",
-    "tailwindcss": "^3.3.6",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^6.4.2",
-    "vitest": "^2.1.9"
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  },
+  "_overrides_note": "Transitive deps of build-time tooling (never shipped to the browser) that had open advisories with no released parent version picking up the fix. brace-expansion is scoped per-parent on purpose: the advisory covers <=1.1.17 and 3.0.0-5.0.8, so 1.1.18 and 5.0.9 are both clean — but a single global range cannot serve both, because legacy minimatch@3 needs the 1.x export shape while minimatch@10 needs 5.x. Forcing one globally breaks ESLint with 'expand is not a function'. Drop an entry once its parent depends on a clean version by itself.",
+  "overrides": {
+    "tar": ">=7.5.21",
+    "uuid": ">=11.1.1",
+    "eslint-plugin-react": {
+      "brace-expansion": "^1.1.18"
+    },
+    "@capacitor/cli": {
+      "brace-expansion": ">=5.0.9"
+    }
   }
 }

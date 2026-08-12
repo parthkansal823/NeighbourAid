@@ -24,7 +24,9 @@ export function useNotifications() {
   const [swReady, setSwReady] = useState(false)
 
   useEffect(() => {
-    if (typeof Notification === 'undefined') setPermission('unsupported')
+    // No `setPermission('unsupported')` here — the useState initializer above
+    // already resolves that case, so this was a redundant synchronous setState
+    // that forced an extra render on every mount.
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready
         .then(() => setSwReady(true))

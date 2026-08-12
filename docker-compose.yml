@@ -11,9 +11,10 @@ services:
     build:
       context: ./backend
       args:
-        # Set SKIP_MODEL_DOWNLOAD=1 in .env to skip the 1.6 GB HF model
-        # download at image build time (good for small VMs / CI).
-        SKIP_MODEL_DOWNLOAD: ${SKIP_MODEL_DOWNLOAD:-0}
+        # Local AI model is opt-in. Set WITH_AI=1 in .env to install torch +
+        # transformers and bake the 1.6 GB model into the image; the default
+        # build uses the keyword heuristic in app/services/ai.py.
+        WITH_AI: ${WITH_AI:-0}
     ports:
       - "8000:8000"
     environment:

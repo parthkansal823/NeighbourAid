@@ -7,6 +7,7 @@ import { apiError } from '../utils/error'
 import EmptyState from '../components/EmptyState'
 import { MapPin, Package, ResourceIcon } from '../components/icons'
 import { getBrowseLocation } from '../utils/geo'
+import { useNow } from '../hooks/useTimeAgo'
 
 // Labels only — the glyph comes from <ResourceIcon kind=... />, which shares
 // its kind→icon table with the rest of the app. These used to carry stub
@@ -51,7 +52,11 @@ function isExpiringSoon(pin) {
 function ResourceCard({ pin, mineId, onDelete, index = 0 }) {
   const meta = KIND_META[pin.kind] || KIND_META.other
   const expires = pin.expires_at ? new Date(pin.expires_at) : null
-  const expiresIn = expires ? Math.max(0, Math.floor((expires - Date.now()) / 60000)) : null
+  // `now` comes from a ticking hook rather than a bare Date.now() in render:
+  // it keeps render pure, and it means the "45m left" countdown actually
+  // counts down instead of freezing at whatever it read on first paint.
+  const now = useNow()
+  const expiresIn = expires ? Math.max(0, Math.floor((expires - now) / 60000)) : null
   const expiringSoon = isExpiringSoon(pin)
   const isMine = mineId && pin.owner_id === mineId
   const lat = pin.location?.coordinates?.[1]
@@ -61,7 +66,7 @@ function ResourceCard({ pin, mineId, onDelete, index = 0 }) {
 
   return (
     <li
-      className="group bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl px-4 py-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-700 hover:shadow-lg hover:shadow-black/40 reveal-up"
+      className="group bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl px-4 py-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-700 hover:shadow-lg hover:shadow-black/40 reveal-up"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -101,11 +106,11 @@ function ResourceCard({ pin, mineId, onDelete, index = 0 }) {
           </div>
         )}
         {pin.contact && (
-          <div className="break-words">
+          <div className="wrap-break-word">
             <span className="text-gray-500">Contact:</span> {pin.contact}
           </div>
         )}
-        {pin.notes && <div className="text-gray-300 break-words">{pin.notes}</div>}
+        {pin.notes && <div className="text-gray-300 wrap-break-word">{pin.notes}</div>}
       </div>
 
       <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
@@ -175,14 +180,14 @@ export default function Resources() {
     }
   }, [])
 
-  const load = useCallback(async ({ silent = false } = {}) => {
+  // `load` deliberately sets no flags on its synchronous path — it only
+  // lowers them once the request settles. Raising a flag before the first
+  // `await` makes it reachable synchronously from the mount effect, which
+  // costs an extra render pass before paint. Callers that want a spinner
+  // (the poll tick, the Refresh button) raise it themselves; the initial
+  // load needs nothing, because `loading` already starts true.
+  const load = useCallback(async () => {
     if (!coords) return
-
-    if (silent) {
-      setRefreshing(true)
-    } else {
-      setLoading(true)
-    }
 
     try {
       const { data } = await api.get('/api/resources/near', {
@@ -193,17 +198,19 @@ export default function Resources() {
     } catch (err) {
       setError(apiError(err, t('res_load_failed')))
     } finally {
-      if (silent) {
-        setRefreshing(false)
-      } else {
-        setLoading(false)
-      }
+      setLoading(false)
+      setRefreshing(false)
     }
   }, [coords, t])
 
   useEffect(() => {
     void load()
-    const id = setInterval(() => void load({ silent: true }), 60000)
+    const id = setInterval(() => {
+      // Inside a timer callback, not the effect body — raising the
+      // refresh flag here is a normal async state update.
+      setRefreshing(true)
+      void load()
+    }, 60000)
     return () => clearInterval(id)
   }, [load])
 
@@ -242,7 +249,8 @@ export default function Resources() {
       setContact('')
       setCapacity('')
       setNotes('')
-      await load({ silent: true })
+      setRefreshing(true)
+      await load()
     } catch (err) {
       setError(apiError(err, t('res_post_failed')))
     } finally {
@@ -293,7 +301,7 @@ export default function Resources() {
   }, [deferredSearch, expiringOnly, filter, pins])
 
   const inputCls =
-    'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600'
+    'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600'
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
@@ -305,7 +313,10 @@ export default function Resources() {
           </div>
           <button
             type="button"
-            onClick={() => void load({ silent: true })}
+            onClick={() => {
+              setRefreshing(true)
+              void load()
+            }}
             className="text-xs border border-gray-700 hover:border-orange-500/50 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-all duration-200"
           >
             {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -340,7 +351,7 @@ export default function Resources() {
       {user ? (
         <form
           onSubmit={onSubmit}
-          className="bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 space-y-3 reveal-up stagger-1 shadow-lg shadow-black/20"
+          className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 space-y-3 reveal-up stagger-1 shadow-lg shadow-black/20"
         >
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
@@ -359,7 +370,7 @@ export default function Resources() {
                 onClick={() => setKind(k)}
                 className={`text-xs px-3 py-2 rounded-lg border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${
                   kind === k
-                    ? 'border-orange-500 bg-gradient-to-b from-orange-500/25 to-orange-500/10 text-orange-200 shadow-sm shadow-orange-500/15'
+                    ? 'border-orange-500 bg-linear-to-b from-orange-500/25 to-orange-500/10 text-orange-200 shadow-xs shadow-orange-500/15'
                     : 'border-gray-700 text-gray-300 hover:border-orange-500/40 hover:bg-gray-800/40'
                 }`}
               >
@@ -417,7 +428,7 @@ export default function Resources() {
               max="336"
               value={validHours}
               onChange={(e) => setValidHours(e.target.value)}
-              className="w-20 bg-gray-800/80 border border-gray-700 text-white rounded-lg px-2 py-1 text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all tabular-nums"
+              className="w-20 bg-gray-800/80 border border-gray-700 text-white rounded-lg px-2 py-1 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all tabular-nums"
             />
             <span>{t('res_hours')}</span>
           </div>
@@ -425,11 +436,11 @@ export default function Resources() {
           <button
             type="submit"
             disabled={posting || !coords}
-            className="group relative w-full bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+            className="group relative w-full bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
           >
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
+              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
             />
             <span className="relative">{posting ? t('res_posting') : t('res_post')}</span>
           </button>
@@ -443,7 +454,7 @@ export default function Resources() {
         </div>
       )}
 
-      <section className="bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 shadow-lg shadow-black/20">
+      <section className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 shadow-lg shadow-black/20">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
             {t('res_nearby')} . <span className="tabular-nums">{filtered.length}</span>
@@ -453,7 +464,7 @@ export default function Resources() {
               type="checkbox"
               checked={expiringOnly}
               onChange={(e) => setExpiringOnly(e.target.checked)}
-              className="rounded border-gray-700 bg-gray-900"
+              className="rounded-sm border-gray-700 bg-gray-900"
             />
             Expiring within 1 hour
           </label>
@@ -473,7 +484,7 @@ export default function Resources() {
               onClick={() => setFilter('all')}
               className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 ${
                 filter === 'all'
-                  ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-sm shadow-orange-500/15'
+                  ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-xs shadow-orange-500/15'
                   : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
               }`}
             >
@@ -486,7 +497,7 @@ export default function Resources() {
                 onClick={() => setFilter(k)}
                 className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 ${
                   filter === k
-                    ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-sm shadow-orange-500/15'
+                    ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-xs shadow-orange-500/15'
                     : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
                 }`}
               >

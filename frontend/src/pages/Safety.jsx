@@ -7,26 +7,11 @@ import { useI18n } from '../utils/i18n'
 import { getBrowseLocation } from '../utils/geo'
 import { AlertTriangle, MapPin } from '../components/icons'
 import BuddyPing from '../components/BuddyPing'
+import { useTimeAgo } from '../hooks/useTimeAgo'
 
 const STATUS_STYLE = {
-  safe: 'bg-gradient-to-br from-green-900/60 to-green-950/40 text-green-300 border-green-700/70',
-  need_help: 'bg-gradient-to-br from-red-900/60 to-red-950/40 text-red-300 border-red-700/70',
-}
-
-function useTimeAgo(iso) {
-  const { t } = useI18n()
-  const [, tick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 30000)
-    return () => clearInterval(id)
-  }, [])
-  if (!iso) return ''
-  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (Number.isNaN(diff) || diff < 0) return `0${t('t_sec')}`
-  if (diff < 60) return `${diff}${t('t_sec')}`
-  if (diff < 3600) return `${Math.floor(diff / 60)}${t('t_min')}`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}${t('t_hr')}`
-  return `${Math.floor(diff / 86400)}${t('t_day')}`
+  safe: 'bg-linear-to-br from-green-900/60 to-green-950/40 text-green-300 border-green-700/70',
+  need_help: 'bg-linear-to-br from-red-900/60 to-red-950/40 text-red-300 border-red-700/70',
 }
 
 function CheckinRow({ checkin, index = 0 }) {
@@ -46,7 +31,7 @@ function CheckinRow({ checkin, index = 0 }) {
         </span>
         <span className="text-xs text-gray-400 shrink-0 tabular-nums">{ago}</span>
       </div>
-      {checkin.note && <p className="text-sm mt-1 break-words">{checkin.note}</p>}
+      {checkin.note && <p className="text-sm mt-1 wrap-break-word">{checkin.note}</p>}
       {directions && (
         <Link
           to={directions}
@@ -88,14 +73,14 @@ export default function Safety() {
     }
   }, [])
 
-  const load = useCallback(async ({ silent = false } = {}) => {
+  // `load` deliberately sets no flags on its synchronous path — it only
+  // lowers them once the request settles. Raising a flag before the first
+  // `await` makes it reachable synchronously from the mount effect, which
+  // costs an extra render pass before paint. Callers that want a spinner
+  // (the poll tick, the Refresh button) raise it themselves; the initial
+  // load needs nothing, because `loading` already starts true.
+  const load = useCallback(async () => {
     if (!coords) return
-
-    if (silent) {
-      setRefreshing(true)
-    } else {
-      setLoading(true)
-    }
 
     try {
       const [nearRes, meRes] = await Promise.all([
@@ -110,17 +95,19 @@ export default function Safety() {
     } catch (err) {
       setError(apiError(err, t('safety_load_failed')))
     } finally {
-      if (silent) {
-        setRefreshing(false)
-      } else {
-        setLoading(false)
-      }
+      setLoading(false)
+      setRefreshing(false)
     }
   }, [coords, t, user])
 
   useEffect(() => {
     void load()
-    const id = setInterval(() => void load({ silent: true }), 30000)
+    const id = setInterval(() => {
+      // Inside a timer callback, not the effect body — raising the
+      // refresh flag here is a normal async state update.
+      setRefreshing(true)
+      void load()
+    }, 30000)
     return () => clearInterval(id)
   }, [load])
 
@@ -143,7 +130,8 @@ export default function Safety() {
         location: { type: 'Point', coordinates: fresh },
       })
       setMe(data)
-      await load({ silent: true })
+      setRefreshing(true)
+      await load()
     } catch (err) {
       setError(apiError(err, t('safety_post_failed')))
     } finally {
@@ -184,7 +172,10 @@ export default function Safety() {
           </div>
           <button
             type="button"
-            onClick={() => void load({ silent: true })}
+            onClick={() => {
+              setRefreshing(true)
+              void load()
+            }}
             className="text-xs border border-gray-700 hover:border-orange-500/50 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-all duration-200"
           >
             {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -234,7 +225,7 @@ export default function Safety() {
       )}
 
       {user ? (
-        <section className="bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 reveal-up stagger-1 shadow-lg shadow-black/20">
+        <section className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 reveal-up stagger-1 shadow-lg shadow-black/20">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
             <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
               {t('safety_your')}
@@ -251,28 +242,28 @@ export default function Safety() {
               onChange={(e) => setNote(e.target.value)}
               placeholder={t('safety_note_ph')}
               maxLength={280}
-              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600"
+              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600"
             />
             <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => checkin('safe')}
                 disabled={!coords || !!saving}
-                className="group relative flex-1 bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+                className="group relative flex-1 bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
               >
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
+                  className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
                 />
                 <span className="relative">{saving === 'safe' ? t('safety_saving') : `Safe: ${t('safety_i_am_safe')}`}</span>
               </button>
               <button
                 onClick={() => checkin('need_help')}
                 disabled={!coords || !!saving}
-                className="group relative flex-1 bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+                className="group relative flex-1 bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
               >
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
+                  className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
                 />
                 <span className="relative">{saving === 'need_help' ? t('safety_saving') : `Help: ${t('safety_i_need_help')}`}</span>
               </button>
@@ -288,7 +279,7 @@ export default function Safety() {
         </div>
       )}
 
-      <section className="bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 shadow-lg shadow-black/20">
+      <section className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 shadow-lg shadow-black/20">
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
             {t('safety_nearby')} . <span className="tabular-nums">{visible.length}</span> {t('safety_checkins')}
@@ -305,7 +296,7 @@ export default function Safety() {
                 onClick={() => setFilter(item.value)}
                 className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 ${
                   filter === item.value
-                    ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-sm shadow-orange-500/15'
+                    ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-xs shadow-orange-500/15'
                     : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
                 }`}
               >
@@ -320,7 +311,7 @@ export default function Safety() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, note, or status"
-          className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600 mb-3"
+          className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600 mb-3"
         />
 
         {loading ? (
@@ -350,7 +341,7 @@ function MyCheckin({ me }) {
         </span>
         <span className="text-gray-400 shrink-0">{ago}</span>
       </div>
-      {me.note && <p className="text-sm mt-1 break-words">{me.note}</p>}
+      {me.note && <p className="text-sm mt-1 wrap-break-word">{me.note}</p>}
       <p className="text-[11px] text-gray-400 mt-2">
         {t('safety_expires')} {new Date(me.expires_at).toLocaleString()}
       </p>

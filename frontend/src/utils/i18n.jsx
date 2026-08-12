@@ -26,6 +26,9 @@ const DICT = {
     nav_logout: 'Logout',
     nav_profile: 'Profile',
     nav_language: 'Language',
+    lang_auto_translate: 'Auto-translate alerts',
+    lang_auto_translate_warning:
+      'Sends alert text to Google Translate. Leave off for sensitive reports.',
 
     // Home
     home_badge: 'Hyperlocal Crisis Network',
@@ -302,6 +305,9 @@ const DICT = {
     nav_logout: 'लॉगआउट',
     nav_profile: 'प्रोफ़ाइल',
     nav_language: 'भाषा',
+    lang_auto_translate: 'अलर्ट अपने आप अनुवाद करें',
+    lang_auto_translate_warning:
+      'अलर्ट का टेक्स्ट Google Translate को भेजा जाता है। संवेदनशील रिपोर्ट के लिए बंद रखें।',
 
     // Home
     home_badge: 'हाइपरलोकल संकट नेटवर्क',
@@ -578,6 +584,9 @@ const DICT = {
     nav_logout: 'ਲੌਗਆਉਟ',
     nav_profile: 'ਪ੍ਰੋਫਾਈਲ',
     nav_language: 'ਭਾਸ਼ਾ',
+    lang_auto_translate: 'ਅਲਰਟ ਆਪਣੇ-ਆਪ ਅਨੁਵਾਦ ਕਰੋ',
+    lang_auto_translate_warning:
+      'ਅਲਰਟ ਦਾ ਟੈਕਸਟ Google Translate ਨੂੰ ਭੇਜਿਆ ਜਾਂਦਾ ਹੈ। ਸੰਵੇਦਨਸ਼ੀਲ ਰਿਪੋਰਟਾਂ ਲਈ ਬੰਦ ਰੱਖੋ।',
 
     // Home
     home_badge: 'ਹਾਈਪਰਲੋਕਲ ਸੰਕਟ ਨੈੱਟਵਰਕ',
@@ -854,11 +863,24 @@ export function I18nProvider({ children }) {
   })
 
   // Auto-translate user-generated content (alert descriptions, updates) to
-  // the active language. Default on — it's the main reason multilingual
-  // support exists in a crisis app. Users can disable it to save data.
+  // the active language.
+  //
+  // Defaults to OFF, deliberately. Translation sends the alert text to
+  // Google's public `translate.googleapis.com` endpoint — a third party, over
+  // the network, off the device. That text is not neutral: it is domestic
+  // abuse reports, medical details, and missing-person descriptions. This app
+  // ships an anonymous-reporting endpoint precisely so someone can report
+  // without identifying themselves, and silently forwarding the body of that
+  // report elsewhere undercuts the promise.
+  //
+  // It used to default to ON with no UI to turn it off, so every foreign-
+  // script alert was transmitted without the user ever being told. Now it is
+  // opt-in and disclosed at the toggle. Per-alert manual translation is
+  // unaffected: tapping "Translate" on one message is a deliberate choice
+  // about one message.
   const [autoTranslate, setAutoTranslate] = useState(() => {
     const v = localStorage.getItem('autoTranslate')
-    return v == null ? true : v === '1'
+    return v === '1'
   })
 
   useEffect(() => {

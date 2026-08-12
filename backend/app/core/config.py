@@ -7,7 +7,14 @@ log = logging.getLogger(__name__)
 # The value JWT_SECRET falls back to when the env var is unset. Anyone
 # reading this repo knows it, so a deployment still using it can have
 # tokens forged for any user and any role.
-DEV_JWT_SECRET = "dev-secret-change-in-production"
+#
+# Padded past 32 bytes deliberately: RFC 7518 §3.2 requires an HMAC key at
+# least as long as the hash output (32 bytes for SHA-256), and PyJWT emits
+# an InsecureKeyLengthWarning below that. The old 31-byte value tripped it.
+DEV_JWT_SECRET = "dev-secret-change-in-production-0"
+
+# Shortest HMAC key accepted for HS256, per RFC 7518 §3.2.
+MIN_JWT_SECRET_BYTES = 32
 
 
 class Settings(BaseSettings):
@@ -57,3 +64,15 @@ if settings.JWT_SECRET == DEV_JWT_SECRET:
         "JWT_SECRET is the public development default — fine locally, but set a "
         "real secret before deploying. ENVIRONMENT=production makes this fatal."
     )
+elif len(settings.JWT_SECRET.encode("utf-8")) < MIN_JWT_SECRET_BYTES:
+    # A custom-but-short secret is the more dangerous case: it looks
+    # configured, so nobody revisits it, while HS256 quietly gets less
+    # entropy than the algorithm assumes.
+    message = (
+        f"JWT_SECRET is only {len(settings.JWT_SECRET.encode('utf-8'))} bytes. "
+        f"HS256 needs at least {MIN_JWT_SECRET_BYTES} (RFC 7518 §3.2). Generate "
+        'one with: python -c "import secrets; print(secrets.token_urlsafe(48))"'
+    )
+    if settings.is_production:
+        raise RuntimeError(message)
+    log.warning(message)

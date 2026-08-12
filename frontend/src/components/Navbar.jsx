@@ -5,14 +5,14 @@ import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 
 const navLink = ({ isActive }) =>
-  `relative py-1 transition-colors after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-gradient-to-r after:from-orange-400 after:to-amber-300 after:origin-left after:transition-transform after:duration-300 ${
+  `relative py-1 transition-colors after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-linear-to-r after:from-orange-400 after:to-amber-300 after:origin-left after:transition-transform after:duration-300 ${
     isActive
       ? 'text-white after:scale-x-100'
       : 'text-gray-400 hover:text-white after:scale-x-0 hover:after:scale-x-100'
   }`
 
 function LanguageMenu() {
-  const { lang, setLang, languages } = useI18n()
+  const { lang, setLang, languages, t, autoTranslate, setAutoTranslate } = useI18n()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -56,30 +56,54 @@ function LanguageMenu() {
         </svg>
       </button>
       {open && (
-        <ul
-          role="listbox"
-          className="absolute right-0 mt-1.5 w-36 glass border border-gray-800 rounded-lg shadow-2xl shadow-black/50 z-50 overflow-hidden pop-in"
-        >
-          {languages.map((l) => (
-            <li key={l.code}>
-              <button
-                role="option"
-                aria-selected={l.code === lang}
-                onClick={() => {
-                  setLang(l.code)
-                  setOpen(false)
-                }}
-                className={`w-full text-left px-3 py-2 text-sm transition-colors ${
-                  l.code === lang
-                    ? 'bg-orange-500/20 text-orange-300'
-                    : 'text-gray-200 hover:bg-gray-800/80'
-                }`}
-              >
-                {l.label}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="absolute right-0 mt-1.5 w-64 glass border border-gray-800 rounded-lg shadow-2xl shadow-black/50 z-50 overflow-hidden pop-in">
+          <ul role="listbox">
+            {languages.map((l) => (
+              <li key={l.code}>
+                <button
+                  role="option"
+                  aria-selected={l.code === lang}
+                  onClick={() => {
+                    setLang(l.code)
+                    setOpen(false)
+                  }}
+                  className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                    l.code === lang
+                      ? 'bg-orange-500/20 text-orange-300'
+                      : 'text-gray-200 hover:bg-gray-800/80'
+                  }`}
+                >
+                  {l.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {/*
+            Auto-translate is opt-in and says plainly where the text goes.
+            It was previously on by default with no way to turn it off, which
+            meant alert bodies — including anonymous reports — were sent to a
+            third party without the user ever being asked.
+          */}
+          <div className="border-t border-gray-800 px-3 py-2.5">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoTranslate}
+                onChange={(e) => setAutoTranslate(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-orange-500"
+              />
+              <span className="min-w-0">
+                <span className="block text-xs text-gray-200">
+                  {t('lang_auto_translate')}
+                </span>
+                <span className="block text-[10px] leading-snug text-amber-300/80 mt-0.5">
+                  {t('lang_auto_translate_warning')}
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -151,7 +175,7 @@ export default function Navbar() {
                   reachable from every page — not buried behind signup. */}
               <Link
                 to="/post-alert"
-                className="bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 inline-flex items-center gap-1.5"
+                className="bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 inline-flex items-center gap-1.5"
               >
                 <Siren className="h-4 w-4" aria-hidden />
                 {t('nav_report')}
@@ -172,7 +196,7 @@ export default function Navbar() {
                   </NavLink>
                   <Link
                     to="/post-alert"
-                    className="bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5"
+                    className="bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5"
                   >
                     {t('nav_report')}
                   </Link>
@@ -181,7 +205,7 @@ export default function Navbar() {
               {user.role === 'volunteer' && (
                 <Link
                   to="/volunteer"
-                  className="bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-200 hover:-translate-y-0.5"
+                  className="bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-200 hover:-translate-y-0.5"
                 >
                   {t('nav_volunteer')}
                 </Link>
@@ -224,7 +248,7 @@ export default function Navbar() {
               />
               <span
                 className={`absolute left-0 top-[17px] block h-0.5 w-full rounded-full bg-current transition-all duration-300 ${
-                  menuOpen ? '-translate-y-[6px] -rotate-45' : ''
+                  menuOpen ? 'translate-y-[-6px] -rotate-45' : ''
                 }`}
               />
             </div>
@@ -277,7 +301,7 @@ export default function Navbar() {
               <Link
                 onClick={closeMenu}
                 to="/post-alert"
-                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-center font-semibold shadow-md shadow-red-500/20 transition-all"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-center font-semibold shadow-md shadow-red-500/20 transition-all"
               >
                 <Siren className="h-4 w-4" aria-hidden />
                 {t('nav_report')}
@@ -310,7 +334,7 @@ export default function Navbar() {
                   <Link
                     onClick={closeMenu}
                     to="/post-alert"
-                    className="block px-3 py-2 rounded-lg bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-center font-semibold shadow-md shadow-red-500/20 transition-all"
+                    className="block px-3 py-2 rounded-lg bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-center font-semibold shadow-md shadow-red-500/20 transition-all"
                   >
                     {t('nav_report')}
                   </Link>
@@ -320,7 +344,7 @@ export default function Navbar() {
                 <Link
                   onClick={closeMenu}
                   to="/volunteer"
-                  className="block px-3 py-2 rounded-lg bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-center font-semibold shadow-md shadow-emerald-500/20 transition-all"
+                  className="block px-3 py-2 rounded-lg bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-center font-semibold shadow-md shadow-emerald-500/20 transition-all"
                 >
                   {t('nav_volunteer')}
                 </Link>

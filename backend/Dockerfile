@@ -1,21 +1,33 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
-# Skip the heavy 1.6 GB HF model pre-download in environments that can't
-# afford the disk / build time (CI, low-RAM hosts using the heuristic
-# fallback). Set SKIP_MODEL_DOWNLOAD=1 to opt in.
-ARG SKIP_MODEL_DOWNLOAD=0
+# The local AI model is opt-in, and the default is *off*.
+#
+# This used to be inverted (SKIP_MODEL_DOWNLOAD=0 by default), so every build
+# pulled ~2.5 GB of torch wheels plus a 1.6 GB model — enough to blow the disk
+# and build timeout on the free tiers this image targets — for a feature the
+# app degrades from cleanly. Build with `--build-arg WITH_AI=1` when you
+# actually want local inference.
+ARG WITH_AI=0
 
-COPY requirements.txt .
+COPY requirements.txt requirements-ai.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Pre-download the HF model into the image so runtime never needs network.
-RUN if [ "$SKIP_MODEL_DOWNLOAD" = "0" ]; then \
+# Install the model stack and bake the weights into the image, so runtime
+# never needs network for a request. Both steps are skipped by default.
+RUN if [ "$WITH_AI" = "1" ]; then \
+      pip install --no-cache-dir -r requirements-ai.txt && \
       python -c "from transformers import pipeline; pipeline('zero-shot-classification', model='facebook/bart-large-mnli')"; \
     else \
-      echo "Skipping HuggingFace model download (SKIP_MODEL_DOWNLOAD=$SKIP_MODEL_DOWNLOAD)"; \
+      echo "Building without the local AI model (WITH_AI=$WITH_AI) — app/services/ai.py uses its keyword heuristic."; \
     fi
+
+# No NA_DISABLE_AI_MODEL default is baked in on purpose. When the model is
+# absent, app/services/ai.py catches the ImportError on first triage, logs it
+# once and latches to the heuristic — so the flag is an optimisation, not a
+# requirement, and hard-coding it here would silently override an operator
+# who set it themselves.
 
 COPY ./app ./app
 

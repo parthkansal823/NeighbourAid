@@ -206,7 +206,7 @@ async def test_connect_falls_back_to_default_db_name():
     should fall back to the `neighbouraid` database silently."""
     from app.db import client as db_client
 
-    # Build a fake Motor client that:
+    # Build a fake PyMongo async client that:
     #   - raises ConfigurationError on get_default_database (the bug shape)
     #   - returns a mock DB when subscripted by name (the fallback path)
     fake_db = MagicMock()
@@ -218,10 +218,10 @@ async def test_connect_falls_back_to_default_db_name():
         side_effect=ConfigurationError("no default db")
     )
     fake_client.__getitem__ = MagicMock(return_value=fake_db)
+    # close() is a coroutine on AsyncMongoClient (it was sync on Motor).
+    fake_client.close = AsyncMock()
 
-    with patch.object(
-        db_client, "AsyncIOMotorClient", return_value=fake_client
-    ):
+    with patch.object(db_client, "AsyncMongoClient", return_value=fake_client):
         # Cache the original to restore afterwards so we don't pollute
         # other tests (the global fixture swaps _db too).
         original = db_client._db

@@ -7,6 +7,7 @@ import { useI18n } from '../utils/i18n'
 // `Map` is aliased: the bare name collides with the JS built-in, which also
 // means ESLint's no-undef would NOT have caught it going missing.
 import { Map as MapIcon, MapPin, Flame, X } from '../components/icons'
+import { GEOLOCATION_SUPPORTED } from '../utils/geo'
 
 const URGENCY_FILTERS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 const CATEGORIES = ['all', 'medical', 'flood', 'fire', 'missing', 'power', 'other']
@@ -30,8 +31,14 @@ export default function MapDashboard() {
   const [userCenter, setUserCenter] = useState(null)
   const [locationAccuracy, setLocationAccuracy] = useState(null)
   const [locationTime, setLocationTime] = useState(null)
-  const [locating, setLocating] = useState(false)
-  const [locationError, setLocationError] = useState('')
+  // Both seeded from a module constant: whether the browser has a
+  // geolocation API is fixed for the page, and the watch below starts
+  // immediately when it does — so discovering either inside an effect and
+  // setState-ing the result just costs an extra render before first paint.
+  const [locating, setLocating] = useState(GEOLOCATION_SUPPORTED)
+  const [locationError, setLocationError] = useState(
+    GEOLOCATION_SUPPORTED ? '' : 'Geolocation not supported in this browser'
+  )
   const [error, setError] = useState('')
   const [showHeat, setShowHeat] = useState(false)
   const [heatPoints, setHeatPoints] = useState([])
@@ -56,11 +63,8 @@ export default function MapDashboard() {
   // the browser/device reports fresher fixes. This keeps "My location" truly
   // current rather than frozen at the first fix.
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocationError('Geolocation not supported in this browser')
-      return undefined
-    }
-    setLocating(true)
+    // The unsupported case is already reflected in initial state above.
+    if (!GEOLOCATION_SUPPORTED) return undefined
     const onOk = ({ coords, timestamp }) => {
       setUserCenter([coords.latitude, coords.longitude])
       setLocationAccuracy(coords.accuracy)
@@ -206,7 +210,7 @@ export default function MapDashboard() {
                 onClick={() => setUrgencyFilter(f)}
                 className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
                   urgencyFilter === f
-                    ? 'border-orange-500 bg-gradient-to-b from-orange-500/30 to-orange-500/10 text-orange-200 shadow-sm shadow-orange-500/20'
+                    ? 'border-orange-500 bg-linear-to-b from-orange-500/30 to-orange-500/10 text-orange-200 shadow-xs shadow-orange-500/20'
                     : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
                 }`}
               >
@@ -217,7 +221,7 @@ export default function MapDashboard() {
               </button>
             ))}
           </div>
-          <span className="text-gray-500 text-[11px] sm:text-xs ml-auto w-full sm:w-auto order-last sm:order-none">
+          <span className="text-gray-500 text-[11px] sm:text-xs ml-auto w-full sm:w-auto order-last sm:order-0">
             {loading
               ? t('map_loading')
               : error
@@ -240,7 +244,7 @@ export default function MapDashboard() {
               onClick={() => setCategoryFilter(cat)}
               className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
                 categoryFilter === cat
-                  ? 'border-blue-500 bg-gradient-to-b from-blue-500/30 to-blue-500/10 text-blue-200 shadow-sm shadow-blue-500/20'
+                  ? 'border-blue-500 bg-linear-to-b from-blue-500/30 to-blue-500/10 text-blue-200 shadow-xs shadow-blue-500/20'
                   : 'border-gray-700 text-gray-500 hover:border-blue-500/40 hover:text-gray-300'
               }`}
             >
@@ -271,7 +275,7 @@ export default function MapDashboard() {
               onClick={() => setShowHeat((v) => !v)}
               className={`text-xs border px-2 py-0.5 rounded-md transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
                 showHeat
-                  ? 'border-orange-500 bg-gradient-to-b from-orange-500/30 to-orange-500/10 text-orange-200 shadow-sm shadow-orange-500/20'
+                  ? 'border-orange-500 bg-linear-to-b from-orange-500/30 to-orange-500/10 text-orange-200 shadow-xs shadow-orange-500/20'
                   : 'border-gray-700 text-gray-300 hover:border-orange-500/40'
               }`}
               title="Toggle 72-hour heatmap overlay"

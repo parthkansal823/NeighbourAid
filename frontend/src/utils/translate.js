@@ -3,10 +3,31 @@
  * so a reporter's native-language description stays comprehensible to a
  * volunteer viewing the feed in a different language.
  *
+ * PRIVACY — read before wiring this into a new call site.
+ *
+ * Every call sends the supplied text to `translate.googleapis.com`. In this
+ * app that text is user-reported crisis content: medical details, domestic
+ * abuse reports, missing-person descriptions. Some of it arrives through the
+ * anonymous endpoint, whose entire purpose is letting someone report without
+ * identifying themselves — forwarding the body of that report to a third
+ * party works against the guarantee the rest of the app makes.
+ *
+ * Two rules follow from that:
+ *   1. Never call this automatically. Bulk auto-translation is gated behind
+ *      the `autoTranslate` preference, which defaults to OFF and is disclosed
+ *      where it is toggled. Per-alert manual translation is fine — that is a
+ *      deliberate choice by a user about one specific message.
+ *   2. Do not widen what gets sent. Pass the single string being displayed,
+ *      never the whole alert object (location, reporter, contact details).
+ *
+ * The endpoint is also undocumented and unversioned, so it can change shape
+ * or start rate-limiting without notice — hence the fail-soft behaviour.
+ *
  * Design notes:
  *   - Results are cached in-memory AND in localStorage (keyed by text+target)
- *     so repeat views are free and translations survive page reloads.
- *   - Batched: multiple texts in a single gtx call amortise the network hop.
+ *     so repeat views are free and translations survive page reloads. Note
+ *     that this means translated crisis text persists on the device; see
+ *     `clearTranslationCache()` for the escape hatch.
  *   - Best-effort: on any failure we return the original text so UI never
  *     hangs waiting on the translation service.
  */

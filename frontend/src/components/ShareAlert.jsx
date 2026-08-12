@@ -84,7 +84,7 @@ export default function ShareAlert({ alert }) {
       </button>
       {open && (
         <div
-          className="fixed inset-0 z-[950] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-4"
+          className="fixed inset-0 z-950 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 sm:p-4"
           onClick={() => setOpen(false)}
           role="dialog"
           aria-modal="true"

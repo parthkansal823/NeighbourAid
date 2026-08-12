@@ -8,6 +8,7 @@ import { translateText } from '../utils/translate'
 import { useToast } from './Toast'
 import ShareAlert from './ShareAlert'
 import AutoDispatch from './AutoDispatch'
+import { useTimeAgo } from '../hooks/useTimeAgo'
 import {
   Bot,
   CategoryIcon,
@@ -29,38 +30,21 @@ import {
 } from './icons'
 
 const URGENCY_STYLES = {
-  CRITICAL: 'border-red-500/70 bg-gradient-to-br from-red-950/60 via-red-950/30 to-gray-900/40 hover:shadow-red-500/20',
-  HIGH: 'border-orange-500/70 bg-gradient-to-br from-orange-950/60 via-orange-950/30 to-gray-900/40 hover:shadow-orange-500/20',
-  MEDIUM: 'border-yellow-500/60 bg-gradient-to-br from-yellow-950/50 via-yellow-950/25 to-gray-900/40 hover:shadow-yellow-500/15',
-  LOW: 'border-green-500/60 bg-gradient-to-br from-green-950/50 via-green-950/25 to-gray-900/40 hover:shadow-green-500/15',
+  CRITICAL: 'border-red-500/70 bg-linear-to-br from-red-950/60 via-red-950/30 to-gray-900/40 hover:shadow-red-500/20',
+  HIGH: 'border-orange-500/70 bg-linear-to-br from-orange-950/60 via-orange-950/30 to-gray-900/40 hover:shadow-orange-500/20',
+  MEDIUM: 'border-yellow-500/60 bg-linear-to-br from-yellow-950/50 via-yellow-950/25 to-gray-900/40 hover:shadow-yellow-500/15',
+  LOW: 'border-green-500/60 bg-linear-to-br from-green-950/50 via-green-950/25 to-gray-900/40 hover:shadow-green-500/15',
 }
 
 const URGENCY_BADGE = {
-  CRITICAL: 'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm shadow-red-500/40',
-  HIGH: 'bg-gradient-to-b from-orange-400 to-orange-500 text-white shadow-sm shadow-orange-500/40',
-  MEDIUM: 'bg-gradient-to-b from-yellow-400 to-yellow-500 text-black shadow-sm shadow-yellow-500/40',
-  LOW: 'bg-gradient-to-b from-green-500 to-green-600 text-white shadow-sm shadow-green-500/30',
+  CRITICAL: 'bg-linear-to-b from-red-500 to-red-600 text-white shadow-xs shadow-red-500/40',
+  HIGH: 'bg-linear-to-b from-orange-400 to-orange-500 text-white shadow-xs shadow-orange-500/40',
+  MEDIUM: 'bg-linear-to-b from-yellow-400 to-yellow-500 text-black shadow-xs shadow-yellow-500/40',
+  LOW: 'bg-linear-to-b from-green-500 to-green-600 text-white shadow-xs shadow-green-500/30',
 }
 
 // Category icons live in components/icons.jsx so the card, the map pins and
 // the volunteer feed can't drift apart.
-
-function useTimeAgo(iso) {
-  const { t } = useI18n()
-  const [, tick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 30000)
-    return () => clearInterval(id)
-  }, [])
-  if (!iso) return ''
-  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (Number.isNaN(diff)) return ''
-  if (diff < 0) return `0${t('t_sec')}`
-  if (diff < 60) return `${diff}${t('t_sec')}`
-  if (diff < 3600) return `${Math.floor(diff / 60)}${t('t_min')}`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}${t('t_hr')}`
-  return `${Math.floor(diff / 86400)}${t('t_day')}`
-}
 
 function scoreBand(score, t) {
   if (score >= 70) return { label: t('card_high_conf'), color: 'text-emerald-400', bar: 'bg-emerald-500' }
@@ -132,7 +116,7 @@ function TranslatableText({ text, sourceLang }) {
 
   return (
     <div>
-      <p className="text-gray-200 text-sm whitespace-pre-wrap break-words">{display}</p>
+      <p className="text-gray-200 text-sm whitespace-pre-wrap wrap-break-word">{display}</p>
       {canTranslate && (
         <button
           type="button"
@@ -223,7 +207,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
       </div>
       {open != null && (
         <div
-          className="fixed inset-0 z-[1050] bg-black/85 flex items-center justify-center p-4"
+          className="fixed inset-0 z-1050 bg-black/85 flex items-center justify-center p-4"
           onClick={() => setOpen(null)}
           role="dialog"
           aria-modal="true"
@@ -466,7 +450,7 @@ export default function AlertCard({ alert, onUpdate }) {
       }`}
     >
       {isSkillMatch && (
-        <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-gradient-to-r from-amber-500/30 to-amber-500/10 text-amber-200 border border-amber-700/70 px-2 py-0.5 rounded-full shadow-sm shadow-amber-500/20">
+        <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-linear-to-r from-amber-500/30 to-amber-500/10 text-amber-200 border border-amber-700/70 px-2 py-0.5 rounded-full shadow-xs shadow-amber-500/20">
           <Sparkles className="h-3 w-3 animate-pulse" aria-hidden /> Matches your skills
         </div>
       )}
@@ -490,7 +474,7 @@ export default function AlertCard({ alert, onUpdate }) {
             {alert.urgency}
           </span>
           {typeof alert.your_distance_km === 'number' && (
-            <span className="text-[11px] text-gray-400 bg-gray-900/70 border border-gray-800 px-2 py-0.5 rounded-full backdrop-blur-sm">
+            <span className="text-[11px] text-gray-400 bg-gray-900/70 border border-gray-800 px-2 py-0.5 rounded-full backdrop-blur-xs">
               {alert.your_distance_km.toFixed(1)} km
             </span>
           )}
@@ -577,7 +561,7 @@ export default function AlertCard({ alert, onUpdate }) {
         ) : null}
       </div>
 
-      <div className="bg-gray-900/60 border border-gray-800 rounded-lg px-3 py-2 mb-3 backdrop-blur-sm">
+      <div className="bg-gray-900/60 border border-gray-800 rounded-lg px-3 py-2 mb-3 backdrop-blur-xs">
         <div className="flex items-center justify-between text-xs mb-1.5">
           <span className={`font-semibold ${band.color}`}>{band.label}</span>
           <span className="text-gray-500 tabular-nums">{score}/100</span>
@@ -670,7 +654,7 @@ export default function AlertCard({ alert, onUpdate }) {
             <button
               onClick={witness}
               disabled={loading === 'witness'}
-              className="text-xs bg-amber-600/80 hover:bg-amber-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-sm shadow-amber-500/20 hover:shadow-amber-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+              className="text-xs bg-amber-600/80 hover:bg-amber-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-xs shadow-amber-500/20 hover:shadow-amber-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
               title={t('card_see_too_tip')}
             >
               {loading === 'witness' ? '…' : t('card_see_too')}
@@ -680,7 +664,7 @@ export default function AlertCard({ alert, onUpdate }) {
             <button
               onClick={accept}
               disabled={loading === 'accept'}
-              className="text-xs bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-sm shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+              className="text-xs bg-linear-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-xs shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
             >
               {t('card_accept')}
             </button>
@@ -689,7 +673,7 @@ export default function AlertCard({ alert, onUpdate }) {
             <button
               onClick={resolve}
               disabled={loading === 'resolve'}
-              className="text-xs bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-sm shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+              className="text-xs bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-xs shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
             >
               {t('card_resolve')}
             </button>
@@ -719,7 +703,7 @@ export default function AlertCard({ alert, onUpdate }) {
                 onKeyDown={(e) => e.key === 'Enter' && postUpdate()}
                 placeholder={t('card_update_ph')}
                 maxLength={500}
-                className="flex-1 min-w-0 bg-gray-950 border border-gray-800 text-xs text-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-orange-500"
+                className="flex-1 min-w-0 bg-gray-950 border border-gray-800 text-xs text-gray-200 rounded-lg px-3 py-1.5 focus:outline-hidden focus:border-orange-500"
               />
               <button
                 onClick={postUpdate}

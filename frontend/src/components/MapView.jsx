@@ -2,6 +2,13 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from
 import L from 'leaflet'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import HeatLayer from './HeatLayer'
+// Marker images come from the installed leaflet package so the bundler emits
+// them as local assets. They used to be hot-linked from unpkg, which meant
+// every pin on the crisis map depended on a third-party CDN being reachable —
+// in an app whose whole point is working when the network is degraded.
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 // `Circle` is already taken by react-leaflet in this file, so the lucide dot
 // comes in under an explicit alias.
 import {
@@ -20,9 +27,9 @@ import {
 // Fix leaflet default icon path broken by bundlers
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
 })
 
 const URGENCY_COLORS = {
@@ -148,9 +155,9 @@ function ResizeWatcher() {
 
 function Legend() {
   return (
-    <div className="absolute bottom-3 right-3 z-[400] bg-gray-900/90 backdrop-blur border border-gray-800 rounded-xl px-3 py-2 text-[11px] text-gray-300 space-y-1 shadow-xl shadow-black/40 max-w-[160px] reveal-up">
+    <div className="absolute bottom-3 right-3 z-400 bg-gray-900/90 backdrop-blur-sm border border-gray-800 rounded-xl px-3 py-2 text-[11px] text-gray-300 space-y-1 shadow-xl shadow-black/40 max-w-[160px] reveal-up">
       <div className="font-semibold text-gray-100 mb-1 flex items-center gap-1">
-        <span className="inline-block w-1 h-3 bg-gradient-to-b from-orange-400 to-red-500 rounded-full" />
+        <span className="inline-block w-1 h-3 bg-linear-to-b from-orange-400 to-red-500 rounded-full" />
         Urgency
       </div>
       {Object.entries(URGENCY_COLORS).map(([level, color]) => (
@@ -208,7 +215,7 @@ function stepIcon(step) {
 
 function RoutePanel({ route, loading, error, onClear, destination }) {
   return (
-    <div className="absolute top-3 left-3 z-[400] bg-gradient-to-b from-gray-900/95 to-gray-900/85 backdrop-blur border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-200 shadow-2xl shadow-black/50 max-w-[240px] reveal-up">
+    <div className="absolute top-3 left-3 z-400 bg-linear-to-b from-gray-900/95 to-gray-900/85 backdrop-blur-sm border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-200 shadow-2xl shadow-black/50 max-w-[240px] reveal-up">
       <div className="flex items-center gap-2 mb-1">
         <Compass className="h-4 w-4" aria-hidden />
         <span className="font-semibold text-white">Route</span>
@@ -337,7 +344,7 @@ function useOsrmRoute(from, to) {
 
 function RichRoutePanel({ route, loading, error, onClear, destination }) {
   return (
-    <div className="absolute top-3 left-3 z-[410] bg-gradient-to-b from-gray-900/95 to-gray-900/85 backdrop-blur border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-200 shadow-2xl shadow-black/50 max-w-[280px] reveal-up">
+    <div className="absolute top-3 left-3 z-410 bg-linear-to-b from-gray-900/95 to-gray-900/85 backdrop-blur-sm border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-200 shadow-2xl shadow-black/50 max-w-[280px] reveal-up">
       <div className="flex items-center gap-2 mb-1">
         <Compass className="h-4 w-4" aria-hidden />
         <span className="font-semibold text-white">Live directions</span>

@@ -20,7 +20,7 @@ export default function EmptyState({
   return (
     <div
       role="status"
-      className={`relative bg-gradient-to-b from-gray-900/80 to-gray-900/40 border border-gray-800 rounded-2xl p-8 sm:p-10 text-center reveal-up overflow-hidden ${className}`}
+      className={`relative bg-linear-to-b from-gray-900/80 to-gray-900/40 border border-gray-800 rounded-2xl p-8 sm:p-10 text-center reveal-up overflow-hidden ${className}`}
     >
       <div
         aria-hidden

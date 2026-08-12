@@ -1,114 +1,36 @@
-@import 'leaflet/dist/leaflet.css';
+@import 'leaflet/dist/leaflet.css' layer(base);
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-body {
-  @apply bg-gray-950 text-gray-100 font-sans;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-text-size-adjust: 100%;
+@theme {
+  --color-critical: #ef4444;
+  --color-high: #f97316;
+  --color-medium: #eab308;
+  --color-low: #22c55e;
 }
 
-/* Subtle ambient gradient on the app shell — gives depth without
- * fighting the content. Pinned to the top so it doesn't scroll. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background:
-    radial-gradient(60% 50% at 80% -10%, rgba(249, 115, 22, 0.10), transparent 70%),
-    radial-gradient(50% 40% at -10% 20%, rgba(59, 130, 246, 0.06), transparent 70%),
-    radial-gradient(40% 30% at 50% 110%, rgba(168, 85, 247, 0.05), transparent 70%);
-}
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
 
-/* iOS Safari zooms in on form inputs with font-size < 16px. */
-@media (max-width: 640px) {
-  input[type='text'],
-  input[type='email'],
-  input[type='password'],
-  input[type='number'],
-  input[type='tel'],
-  input[type='search'],
-  textarea,
-  select {
-    font-size: 16px;
-  }
-}
-
-/* Larger touch targets for tap pointers. */
-@media (pointer: coarse) {
-  button,
-  a[role='button'],
-  [role='option'] {
-    min-height: 36px;
-  }
-}
-
-/* Honour the user's reduced-motion preference everywhere. */
-@media (prefers-reduced-motion: reduce) {
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
   *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
   }
 }
 
-/* Custom scrollbar — slim, dark, doesn't fight the design. */
-@media (pointer: fine) {
-  ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #0b0f19;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #1f2937;
-    border-radius: 8px;
-    border: 2px solid #0b0f19;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #374151;
-  }
-}
-
-/* Visible focus ring for keyboard users — replaces the ugly browser
- * default outline with one that matches the orange brand. */
-:focus-visible {
-  outline: 2px solid #f97316;
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-button:focus-visible,
-a:focus-visible {
-  outline-offset: 3px;
-}
-
-/* Lock Leaflet popup text to system font. */
-.leaflet-popup-content {
-  margin: 8px 10px;
-  line-height: 1.35;
-}
-
-.leaflet-container {
-  background: #0b0f19;
-}
-
-/* ------------------------------------------------------------- */
-/* Reusable utility classes                                       */
-/* ------------------------------------------------------------- */
-
-@layer utilities {
+@utility skeleton {
   /* Shimmer skeleton — used in place of "Loading…" text for cards/lists. */
-  .skeleton {
-    @apply relative overflow-hidden bg-gray-800 rounded-md;
-  }
-  .skeleton::after {
+  @apply relative overflow-hidden bg-gray-800 rounded-md;
+  &::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -121,105 +43,131 @@ a:focus-visible {
     );
     animation: skeleton-shimmer 1.5s infinite;
   }
+}
 
+@utility fade-in {
   /* Soft fade-in for content that swaps in (e.g. translated text). */
-  .fade-in {
-    animation: fade-in 0.22s cubic-bezier(0.2, 0.8, 0.4, 1);
-  }
+  animation: fade-in 0.22s cubic-bezier(0.2, 0.8, 0.4, 1);
+}
 
+@utility reveal-up {
   /* Slide-up reveal — used for hero content + page-level intros. */
-  .reveal-up {
-    animation: reveal-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  }
+  animation: reveal-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
 
+@utility stagger-1 {
   /* Stagger helpers — apply alongside .reveal-up on a child to delay it. */
-  .stagger-1 { animation-delay: 60ms; }
-  .stagger-2 { animation-delay: 120ms; }
-  .stagger-3 { animation-delay: 180ms; }
-  .stagger-4 { animation-delay: 240ms; }
-  .stagger-5 { animation-delay: 300ms; }
-  .stagger-6 { animation-delay: 360ms; }
+  animation-delay: 60ms;
+}
 
+@utility stagger-2 {
+  animation-delay: 120ms;
+}
+
+@utility stagger-3 {
+  animation-delay: 180ms;
+}
+
+@utility stagger-4 {
+  animation-delay: 240ms;
+}
+
+@utility stagger-5 {
+  animation-delay: 300ms;
+}
+
+@utility stagger-6 {
+  animation-delay: 360ms;
+}
+
+@utility card-hoverable {
   /* Lift-on-hover for cards. Smoother easing + elevated shadow + brighter
    * border. Adds a faint top-edge highlight so the lift feels physical. */
-  .card-hoverable {
-    @apply transition-all duration-200;
-    will-change: transform;
-  }
-  .card-hoverable:hover {
+  @apply transition-all duration-200;
+  will-change: transform;
+  &:hover {
     @apply border-gray-700 shadow-xl shadow-black/50;
     transform: translateY(-2px);
   }
-  .card-hoverable:active {
+  &:active {
     transform: translateY(0);
     transition-duration: 80ms;
   }
+}
 
+@utility card-gradient-border {
   /* Gradient-border card — wraps the existing dark card with a subtle
    * conic-gradient border that brightens on hover. Use as a wrapper. */
-  .card-gradient-border {
-    position: relative;
-    isolation: isolate;
-  }
-  .card-gradient-border::before {
+  position: relative;
+  isolation: isolate;
+  &::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, rgba(249, 115, 22, 0.35), rgba(59, 130, 246, 0.15) 50%, rgba(255, 255, 255, 0.04));
-    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    background: linear-gradient(
+      135deg,
+      rgba(249, 115, 22, 0.35),
+      rgba(59, 130, 246, 0.15) 50%,
+      rgba(255, 255, 255, 0.04)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
-            mask-composite: exclude;
+    mask-composite: exclude;
     pointer-events: none;
     opacity: 0.6;
     transition: opacity 0.25s ease;
   }
-  .card-gradient-border:hover::before {
+  &:hover::before {
     opacity: 1;
   }
+}
 
+@utility glass {
   /* Glass surface — translucent + blurred, for navbars/dropdowns/sheets. */
-  .glass {
-    background: rgba(17, 24, 39, 0.75);
-    backdrop-filter: saturate(140%) blur(10px);
-    -webkit-backdrop-filter: saturate(140%) blur(10px);
-  }
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+}
 
+@utility pop-in {
   /* Used by Toast / native popups */
-  .pop-in {
-    animation: pop-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
-  }
+  animation: pop-in 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
 
+@utility slide-in-right {
   /* Slide-in-from-right — used for toasts so they feel directional. */
-  .slide-in-right {
-    animation: slide-in-right 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
+  animation: slide-in-right 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 
+@utility press {
   /* Press-down feedback for primary actions (e.g. SOS, post-alert). */
-  .press {
-    transition: transform 0.12s ease, box-shadow 0.2s ease;
-  }
-  .press:active {
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.2s ease;
+  &:active {
     transform: translateY(1px) scale(0.98);
   }
+}
 
+@utility text-gradient-brand {
   /* Animated gradient text — used for headings/hero titles. */
-  .text-gradient-brand {
-    background-image: linear-gradient(120deg, #fb923c, #fcd34d 40%, #f97316 80%);
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-            background-clip: text;
-    color: transparent;
-    animation: gradient-pan 8s ease-in-out infinite;
-  }
+  background-image: linear-gradient(120deg, #fb923c, #fcd34d 40%, #f97316 80%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-pan 8s ease-in-out infinite;
+}
 
+@utility pulse-dot {
   /* Pulsing halo — for live-status dots. */
-  .pulse-dot {
-    position: relative;
-    display: inline-flex;
-  }
-  .pulse-dot::before {
+  position: relative;
+  display: inline-flex;
+  &::before {
     content: '';
     position: absolute;
     inset: -4px;
@@ -228,16 +176,130 @@ a:focus-visible {
     opacity: 0.35;
     animation: pulse-halo 1.6s ease-out infinite;
   }
+}
 
+@utility glow-orange {
   /* Soft outer glow — used on critical CTA buttons (SOS, Report). */
-  .glow-orange {
-    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.5);
-    animation: glow-orange 2.4s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.5);
+  animation: glow-orange 2.4s ease-in-out infinite;
+}
+
+@utility glow-red {
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+  animation: glow-red 2.4s ease-in-out infinite;
+}
+
+@layer utilities {
+  body {
+    @apply bg-gray-950 text-gray-100 font-sans;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
   }
-  .glow-red {
-    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
-    animation: glow-red 2.4s ease-in-out infinite;
+
+  /* Subtle ambient gradient on the app shell — gives depth without
+ * fighting the content. Pinned to the top so it doesn't scroll. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background:
+      radial-gradient(
+        60% 50% at 80% -10%,
+        rgba(249, 115, 22, 0.1),
+        transparent 70%
+      ),
+      radial-gradient(
+        50% 40% at -10% 20%,
+        rgba(59, 130, 246, 0.06),
+        transparent 70%
+      ),
+      radial-gradient(
+        40% 30% at 50% 110%,
+        rgba(168, 85, 247, 0.05),
+        transparent 70%
+      );
   }
+
+  /* iOS Safari zooms in on form inputs with font-size < 16px. */
+  @media (max-width: 640px) {
+    input[type='text'],
+    input[type='email'],
+    input[type='password'],
+    input[type='number'],
+    input[type='tel'],
+    input[type='search'],
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
+
+  /* Larger touch targets for tap pointers. */
+  @media (pointer: coarse) {
+    button,
+    a[role='button'],
+    [role='option'] {
+      min-height: 36px;
+    }
+  }
+
+  /* Honour the user's reduced-motion preference everywhere. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Custom scrollbar — slim, dark, doesn't fight the design. */
+  @media (pointer: fine) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1f2937;
+      border-radius: 8px;
+      border: 2px solid #0b0f19;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #374151;
+    }
+  }
+
+  /* Visible focus ring for keyboard users — replaces the ugly browser
+ * default outline with one that matches the orange brand. */
+  :focus-visible {
+    outline: 2px solid #f97316;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button:focus-visible,
+  a:focus-visible {
+    outline-offset: 3px;
+  }
+
+  /* Lock Leaflet popup text to system font. */
+  .leaflet-popup-content {
+    margin: 8px 10px;
+    line-height: 1.35;
+  }
+
+  .leaflet-container {
+    background: #0b0f19;
+  }
+
+  /* ------------------------------------------------------------- */
+  /* Reusable utility classes                                       */
+  /* ------------------------------------------------------------- */
 }
 
 @keyframes skeleton-shimmer {

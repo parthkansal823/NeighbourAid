@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLatest } from './useLatest'
 
 /**
  * Web Speech API wrapper. Lets a reporter dictate the crisis description
@@ -16,8 +17,7 @@ export function useVoice({ lang = 'en-IN', onResult } = {}) {
   const [listening, setListening] = useState(false)
   const [error, setError] = useState('')
   const recRef = useRef(null)
-  const onResultRef = useRef(onResult)
-  onResultRef.current = onResult
+  const onResultRef = useLatest(onResult)
 
   const start = useCallback(() => {
     if (!supported) {
@@ -51,7 +51,10 @@ export function useVoice({ lang = 'en-IN', onResult } = {}) {
     } catch {
       setError('Failed to start microphone')
     }
-  }, [supported, lang, Recognition])
+    // onResultRef is a useRef container — its identity is stable for the
+    // life of the hook, so listing it satisfies the linter without
+    // re-creating the callback on every keystroke.
+  }, [supported, lang, Recognition, onResultRef])
 
   const stop = useCallback(() => {
     recRef.current?.stop()

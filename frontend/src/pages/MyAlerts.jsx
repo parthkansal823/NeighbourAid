@@ -6,6 +6,7 @@ import { useI18n } from '../utils/i18n'
 import { SkeletonAlertList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import ResponderTracker from '../components/ResponderTracker'
+import { useTimeAgo } from '../hooks/useTimeAgo'
 import {
   AlertTriangle,
   ArrowRight,
@@ -17,10 +18,10 @@ import {
 } from '../components/icons'
 
 const URGENCY_BADGE = {
-  CRITICAL: 'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-sm shadow-red-500/40',
-  HIGH: 'bg-gradient-to-b from-orange-400 to-orange-500 text-white shadow-sm shadow-orange-500/40',
-  MEDIUM: 'bg-gradient-to-b from-yellow-400 to-yellow-500 text-black shadow-sm shadow-yellow-500/40',
-  LOW: 'bg-gradient-to-b from-green-500 to-green-600 text-white shadow-sm shadow-green-500/30',
+  CRITICAL: 'bg-linear-to-b from-red-500 to-red-600 text-white shadow-xs shadow-red-500/40',
+  HIGH: 'bg-linear-to-b from-orange-400 to-orange-500 text-white shadow-xs shadow-orange-500/40',
+  MEDIUM: 'bg-linear-to-b from-yellow-400 to-yellow-500 text-black shadow-xs shadow-yellow-500/40',
+  LOW: 'bg-linear-to-b from-green-500 to-green-600 text-white shadow-xs shadow-green-500/30',
 }
 
 const STATUS_BADGE = {
@@ -35,28 +36,12 @@ const STATUS_DOT = {
   resolved: 'bg-gray-500',
 }
 
-function useTimeAgo(iso) {
-  const { t } = useI18n()
-  const [, tick] = useState(0)
-  useEffect(() => {
-    const id = setInterval(() => tick((n) => n + 1), 30000)
-    return () => clearInterval(id)
-  }, [])
-  if (!iso) return ''
-  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (Number.isNaN(diff) || diff < 0) return `0${t('t_sec')}`
-  if (diff < 60) return `${diff}${t('t_sec')}`
-  if (diff < 3600) return `${Math.floor(diff / 60)}${t('t_min')}`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}${t('t_hr')}`
-  return `${Math.floor(diff / 86400)}${t('t_day')}`
-}
-
 function AlertRow({ a, onCancel, cancelling, index = 0 }) {
   const { t } = useI18n()
   const ago = useTimeAgo(a.created_at)
   return (
     <div
-      className="bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-700 hover:shadow-lg hover:shadow-black/40 reveal-up"
+      className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-700 hover:shadow-lg hover:shadow-black/40 reveal-up"
       style={{ animationDelay: `${index * 60}ms` }}
     >
       <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
@@ -72,7 +57,7 @@ function AlertRow({ a, onCancel, cancelling, index = 0 }) {
         </div>
         <span className="text-xs text-gray-500 shrink-0 tabular-nums">{ago}</span>
       </div>
-      <p className="text-gray-300 text-sm break-words">{a.description}</p>
+      <p className="text-gray-300 text-sm wrap-break-word">{a.description}</p>
       {a.address && (
         <p className="text-gray-500 text-xs mt-1.5 flex gap-1">
           <MapPin className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
@@ -113,8 +98,13 @@ export default function MyAlerts() {
   const [error, setError] = useState('')
   const [cancelling, setCancelling] = useState(null)
 
+  // `load` deliberately sets no flags on its synchronous path — it only
+  // lowers them once the request settles. Raising a flag before the first
+  // `await` makes it reachable synchronously from the mount effect, which
+  // costs an extra render pass before paint. Callers that want a spinner
+  // (the poll tick, the Refresh button) raise it themselves; the initial
+  // load needs nothing, because `loading` already starts true.
   const load = useCallback(async () => {
-    setLoading(true)
     try {
       const { data } = await api.get('/api/alerts/mine')
       setAlerts(data)
@@ -127,7 +117,7 @@ export default function MyAlerts() {
   }, [t])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
   const cancel = async (id) => {
@@ -159,7 +149,7 @@ export default function MyAlerts() {
         </div>
         <Link
           to="/post-alert"
-          className="bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] whitespace-nowrap"
+          className="bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] whitespace-nowrap"
         >
           + {t('mine_new')}
         </Link>
@@ -181,7 +171,7 @@ export default function MyAlerts() {
           action={
             <Link
               to="/post-alert"
-              className="inline-block bg-gradient-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+              className="inline-block bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
             >
               {t('mine_post_first')}
               <ArrowRight className="h-4 w-4 inline-block ml-1.5 -mt-0.5" aria-hidden />

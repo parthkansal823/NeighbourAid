@@ -223,39 +223,139 @@ def _heuristic_triage(text: str) -> Triage:
     )
 
 
-def triage(text: str) -> Triage:
-    classifier = _get_classifier()
-    if classifier is None:
+class _ClaudeTriage(BaseModel):
+    """Schema Claude's response is constrained to.
+
+    Structured outputs guarantee the shape, so there is no JSON parsing or
+    retry loop to write — an invalid response can't come back. Field
+    descriptions are the actual instructions the model classifies against;
+    keep them concrete, because they do more work here than the prompt does.
+    """
+
+    urgency: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW"] = Field(
+        description=(
+            "CRITICAL: life is in immediate danger (not breathing, severe "
+            "bleeding, drowning, cardiac arrest, active violence). "
+            "HIGH: serious harm likely within the hour (fire, flood entering a "
+            "home, trapped person, fracture, someone vulnerable alone). "
+            "MEDIUM: real need, no immediate danger to life. "
+            "LOW: informational, or help wanted at some later time."
+        )
+    )
+    urgency_confidence: float = Field(
+        ge=0.0, le=1.0, description="How certain you are of the urgency label."
+    )
+    urgency_reason: str = Field(
+        max_length=140,
+        description=(
+            "One short clause a volunteer reads to understand the ranking, "
+            "e.g. 'unconscious, not breathing'. No preamble."
+        ),
+    )
+    vulnerability: Literal["child", "elderly", "pregnant", "disabled", "none"] = Field(
+        description="The most at-risk person mentioned, or 'none' if unstated."
+    )
+    time_sensitivity: Literal["immediate", "hours", "days"] = Field(
+        description="How soon help must arrive to change the outcome."
+    )
+    language: str = Field(
+        max_length=10,
+        description=(
+            "BCP-47 tag for the language the report is written in: 'en', 'hi' "
+            "(Devanagari), 'hi-Latn' (romanised Hindi/Hinglish), 'pa', 'bn', "
+            "'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'ur', 'or', 'as'."
+        ),
+    )
+    triggers: list[str] = Field(
+        max_length=4,
+        description=(
+            "Up to 4 short phrases quoted from the report that drove the "
+            "urgency call. These are shown to volunteers as the explanation, "
+            "so quote the reporter's own words rather than paraphrasing."
+        ),
+    )
+
+
+_TRIAGE_SYSTEM = (
+    "You are the triage step in a hyperlocal emergency dispatch system in "
+    "India. A neighbour has reported an incident in free text; nearby "
+    "volunteers are ranked and notified based on what you return.\n\n"
+    "Reports arrive in English, Hindi (Devanagari or romanised), and other "
+    "Indian languages, often mixed together, from someone under stress — "
+    "expect typos, fragments, and no punctuation. Classify what is actually "
+    "described. Do not soften a life-threatening report because it is written "
+    "calmly, and do not escalate an ordinary request because it is written in "
+    "capitals or with many exclamation marks.\n\n"
+    "Both directions of error are costly: over-escalation pulls volunteers "
+    "away from someone who is genuinely dying, and under-escalation means "
+    "nobody arrives in time. When a report is ambiguous, weigh the plausible "
+    "readings by how bad it would be to get each one wrong."
+)
+
+
+def _to_triage(parsed: _ClaudeTriage) -> Triage:
+    """Map Claude's response onto the app's existing Triage shape."""
+    vuln = None if parsed.vulnerability == "none" else parsed.vulnerability
+    return Triage(
+        urgency=parsed.urgency,
+        urgency_confidence=round(parsed.urgency_confidence, 3),
+        urgency_reason=parsed.urgency_reason.strip(),
+        vulnerability=vuln,
+        time_sensitivity=parsed.time_sensitivity,
+        language=parsed.language,
+        triggers=[t.strip() for t in parsed.triggers if t.strip()][:4],
+        priority_score=_compute_priority(
+            parsed.urgency, vuln, parsed.time_sensitivity, parsed.urgency_confidence
+        ),
+    )
+
+
+async def triage(text: str) -> Triage:
+    """Classify a crisis report.
+
+    Claude does the classification; the keyword heuristic below it is the
+    fallback for every way that can fail — no key configured, network down,
+    timeout, rate limit, or a safety refusal. Crisis reports describe
+    violence, self-harm and injury, so refusals are a realistic outcome
+    rather than a theoretical one, and an alert must never fail to post
+    because triage was unavailable. Every failure degrades to a usable
+    result instead of raising.
+    """
+    client = _get_client()
+    if client is None:
         return _heuristic_triage(text)
 
     try:
-        urg_res = classifier(text, URGENCY_LABELS)
-        vuln_res = classifier(text, VULNERABILITY_LABELS)
-        time_res = classifier(text, TIME_LABELS)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("AI triage runtime failure, falling back to heuristic: %s", exc)
+        response = await client.messages.parse(
+            model=settings.AI_MODEL,
+            max_tokens=1024,
+            system=_TRIAGE_SYSTEM,
+            # Thinking stays on (the Opus 5 default) at low effort: this is a
+            # short classification on a latency-critical path, and low effort
+            # is both faster and cheaper than disabling thinking outright.
+            output_config={"effort": "low"},
+            messages=[{"role": "user", "content": text}],
+            output_format=_ClaudeTriage,
+        )
+    except anthropic.APIStatusError as exc:
+        log.warning("Claude triage HTTP %s, using heuristic: %s", exc.status_code, exc)
+        return _heuristic_triage(text)
+    except (anthropic.APIConnectionError, anthropic.APITimeoutError) as exc:
+        log.warning("Claude triage unreachable, using heuristic: %s", exc)
         return _heuristic_triage(text)
 
-    top_u = urg_res["labels"][0]
-    confidence = float(urg_res["scores"][0])
-    urgency = URGENCY_MAP.get(top_u, "MEDIUM")
-    vuln = VULNERABILITY_MAP.get(vuln_res["labels"][0])
-    time_s = TIME_MAP.get(time_res["labels"][0], "hours")
+    # A safety classifier can decline the request; `content` is then empty or
+    # partial, so this has to be checked before reading the parsed output.
+    if response.stop_reason == "refusal":
+        category = getattr(response.stop_details, "category", None)
+        log.info("Claude declined to triage (%s), using heuristic", category)
+        return _heuristic_triage(text)
 
-    # triggering terms: pull the heuristic matches (real explanation would
-    # need attention/attribution — heuristic overlap is good enough for UX)
-    _, _, triggers, _ = _heuristic_urgency(text)
+    if response.parsed_output is None:
+        log.warning("Claude returned no parsed triage output, using heuristic")
+        return _heuristic_triage(text)
 
-    return Triage(
-        urgency=urgency,
-        urgency_confidence=round(confidence, 3),
-        urgency_reason=top_u,
-        vulnerability=vuln,
-        time_sensitivity=time_s,
-        language=detect_language(text),
-        triggers=triggers,
-        priority_score=_compute_priority(urgency, vuln, time_s, confidence),
-    )
+    return _to_triage(response.parsed_output)
 
 
 # --------------------------------------------------------------------------

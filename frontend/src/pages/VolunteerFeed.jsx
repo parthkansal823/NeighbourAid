@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useVolunteerSocket } from '../hooks/useWebSocket'
+import { useLatest } from '../hooks/useLatest'
+import { GEOLOCATION_SUPPORTED, GEO_UNSUPPORTED_MESSAGE } from '../utils/geo'
 import { useToast } from '../components/Toast'
 import { useNotifications } from '../hooks/useNotifications'
 import { ttsLocaleFor, useVoiceAlert } from '../hooks/useVoiceAlert'
@@ -62,9 +64,14 @@ export default function VolunteerFeed() {
   const [alerts, setAlerts] = useState([])
   const [coords, setCoords] = useState(null)
   const [status, setStatus] = useState('connecting')
-  const [loading, setLoading] = useState(true)
+  // Seed both from a module constant rather than discovering the capability
+  // inside an effect: if the browser has no geolocation API we already know
+  // at first render that there is nothing to load and what to say about it.
+  const [loading, setLoading] = useState(GEOLOCATION_SUPPORTED)
   const [error, setError] = useState('')
-  const [geoError, setGeoError] = useState('')
+  const [geoError, setGeoError] = useState(
+    GEOLOCATION_SUPPORTED ? '' : GEO_UNSUPPORTED_MESSAGE
+  )
   const knownIds = useRef(new Set())
   const watchIdRef = useRef(null)
 
@@ -77,11 +84,8 @@ export default function VolunteerFeed() {
   // volunteer someone else's neighbourhood while hiding the emergencies on
   // their own street.
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setGeoError('This browser cannot share your location, so nearby alerts cannot be found.')
-      setLoading(false)
-      return undefined
-    }
+    // The unsupported case is already reflected in initial state above.
+    if (!GEOLOCATION_SUPPORTED) return undefined
     navigator.geolocation.getCurrentPosition(
       ({ coords: c }) => {
         setGeoError('')
@@ -124,9 +128,13 @@ export default function VolunteerFeed() {
   useEffect(() => {
     if (!coords) return undefined
     let cancelled = false
+    // `background` covers both the poll ticks and the very first load: on
+    // mount `loading` already starts true, and re-raising it synchronously
+    // from the effect body just forces an extra render before paint. On a
+    // coords change we'd rather keep showing the previous alerts than blank
+    // the feed behind a skeleton.
     const loadAlerts = async (background = false) => {
       const [lng, lat] = coords
-      if (!background) setLoading(true)
       try {
         const { data } = await api.get('/api/alerts/nearby', {
           params: { lat, lng, km: 10 },
@@ -164,14 +172,13 @@ export default function VolunteerFeed() {
     }
   }, [coords, t])
 
-  const notifyRef = useRef(notif.notify)
-  notifyRef.current = notif.notify
-  // voiceAlert.speak captures language inside its closure — keep both fresh
+  // voiceAlert.speak captures language inside its closure — keep these fresh
   // via refs so onAlert's dep array stays stable across language switches.
-  const voiceSpeakRef = useRef(voiceAlert.speak)
-  voiceSpeakRef.current = voiceAlert.speak
-  const langRef = useRef(lang)
-  langRef.current = lang
+  // useLatest updates them after commit; mutating during render is unsafe
+  // under React 19's concurrent rendering.
+  const notifyRef = useLatest(notif.notify)
+  const voiceSpeakRef = useLatest(voiceAlert.speak)
+  const langRef = useLatest(lang)
 
   const onAlert = useCallback(
     (incoming) => {
@@ -217,7 +224,9 @@ export default function VolunteerFeed() {
         })
       }
     },
-    [toast, navigate]
+    // The *Ref entries are stable useRef containers — listed so the
+    // dependency array is honest, without destabilising the callback.
+    [toast, navigate, langRef, notifyRef, voiceSpeakRef]
   )
 
   useVolunteerSocket({ token, coordinates: coords, onAlert, onStatus: setStatus })
@@ -284,13 +293,13 @@ export default function VolunteerFeed() {
       )}
 
       {notif.permission === 'default' && (
-        <div className="bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl px-4 py-3 mb-6 flex flex-col sm:flex-row sm:items-center gap-3 reveal-up stagger-1 shadow-md shadow-black/20">
+        <div className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl px-4 py-3 mb-6 flex flex-col sm:flex-row sm:items-center gap-3 reveal-up stagger-1 shadow-md shadow-black/20">
           <div className="text-sm text-gray-300 flex-1">
             {t('vol_enable_notif')}
           </div>
           <button
             onClick={notif.request}
-            className="text-xs bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-3 py-1.5 rounded-lg shadow-sm shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 whitespace-nowrap self-start sm:self-auto inline-flex items-center gap-1.5"
+            className="text-xs bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-3 py-1.5 rounded-lg shadow-xs shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 whitespace-nowrap self-start sm:self-auto inline-flex items-center gap-1.5"
           >
             <Bell className="h-3.5 w-3.5" aria-hidden />
             {t('vol_enable')}
@@ -307,7 +316,7 @@ export default function VolunteerFeed() {
           onClick={() => voiceAlert.setEnabled((v) => !v)}
           className={`text-[11px] mb-4 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
             voiceAlert.enabled
-              ? 'border-blue-700 bg-blue-950/40 text-blue-300 shadow-sm shadow-blue-500/15'
+              ? 'border-blue-700 bg-blue-950/40 text-blue-300 shadow-xs shadow-blue-500/15'
               : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-blue-500/40'
           }`}
           title="Read out CRITICAL alerts via your device's voice"

@@ -19,6 +19,21 @@ export const FALLBACK_CENTER_LNGLAT = [76.7794, 30.7333]
 export const FALLBACK_CENTER_LATLNG = [30.7333, 76.7794]
 
 /**
+ * Whether this browser can do geolocation at all.
+ *
+ * A constant, not state: the answer is fixed for the lifetime of the page.
+ * Several screens used to discover it inside an effect and then `setState`
+ * an error message, which forced an extra render before first paint purely
+ * to record something already knowable at module load.
+ */
+export const GEOLOCATION_SUPPORTED =
+  typeof navigator !== 'undefined' && 'geolocation' in navigator
+
+/** Copy shown when the browser itself has no geolocation API. */
+export const GEO_UNSUPPORTED_MESSAGE =
+  'This browser cannot share your location, so nearby alerts cannot be found.'
+
+/**
  * Resolve the browser's position for a browse-only screen.
  *
  * Resolves `{ coords: [lng, lat], isFallback }` — never rejects, so callers

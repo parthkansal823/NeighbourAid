@@ -342,11 +342,11 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 sm:gap-4 reveal-up stagger-3">
           <Link
             to={heroPrimary.to}
-            className={`group relative overflow-hidden bg-gradient-to-r ${heroPrimary.tone} text-white font-semibold px-6 sm:px-8 py-3 rounded-xl transition-all duration-300 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]`}
+            className={`group relative overflow-hidden bg-linear-to-r ${heroPrimary.tone} text-white font-semibold px-6 sm:px-8 py-3 rounded-xl transition-all duration-300 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]`}
           >
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
+              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
             />
             <span className="relative">{heroPrimary.label}</span>
           </Link>
@@ -361,7 +361,7 @@ export default function Home() {
 
       {personalStats.length > 0 && (
         <section className="max-w-4xl mx-auto px-4 sm:px-6 -mt-4 sm:-mt-8 mb-6 reveal-up stagger-4">
-          <div className="bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-4 sm:p-5 shadow-xl shadow-black/30">
+          <div className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-4 sm:p-5 shadow-xl shadow-black/30">
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div>
                 <h2 className="text-lg font-semibold text-white">
@@ -436,7 +436,7 @@ export default function Home() {
 
       {user && (
         <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-8 sm:pb-10">
-          <div className="bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-4 sm:p-5 shadow-xl shadow-black/30 reveal-up">
+          <div className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-4 sm:p-5 shadow-xl shadow-black/30 reveal-up">
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div>
                 <h2 className="text-lg font-semibold text-white">Readiness checklist</h2>
@@ -488,14 +488,14 @@ export default function Home() {
           ].map(({ step, title, desc }, i) => (
             <div
               key={step}
-              className="group relative bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-5 sm:p-6 card-hoverable reveal-up overflow-hidden"
+              className="group relative bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-5 sm:p-6 card-hoverable reveal-up overflow-hidden"
               style={{ animationDelay: `${100 + i * 100}ms` }}
             >
               <div
                 aria-hidden
                 className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-orange-500/0 group-hover:bg-orange-500/10 blur-2xl transition-all duration-500"
               />
-              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500/30 to-orange-500/5 text-orange-300 text-xl font-black mb-3 border border-orange-500/30 shadow-inner shadow-orange-500/10 group-hover:scale-110 transition-transform duration-300">
+              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl bg-linear-to-br from-orange-500/30 to-orange-500/5 text-orange-300 text-xl font-black mb-3 border border-orange-500/30 shadow-inner shadow-orange-500/10 group-hover:scale-110 transition-transform duration-300">
                 {step}
               </div>
               <h3 className="relative font-semibold text-white mb-2">{title}</h3>
@@ -511,7 +511,7 @@ export default function Home() {
             {t('home_leaderboard_title')}{' '}
             <span className="text-gray-500 text-base font-normal block sm:inline">. {t('home_leaderboard_since')}</span>
           </h2>
-          <div className="bg-gradient-to-b from-gray-900 to-gray-900/70 border border-gray-800 rounded-xl divide-y divide-gray-800/70 overflow-hidden shadow-lg shadow-black/30">
+          <div className="bg-linear-to-b from-gray-900 to-gray-900/70 border border-gray-800 rounded-xl divide-y divide-gray-800/70 overflow-hidden shadow-lg shadow-black/30">
             {leaderboard.map((v, i) => {
               const trust = v.trust
               const trustStyle =
@@ -538,7 +538,7 @@ export default function Home() {
                 >
                   <span
                     aria-hidden
-                    className="absolute left-0 top-0 bottom-0 w-0.5 bg-gradient-to-b from-orange-400 to-amber-300 scale-y-0 group-hover:scale-y-100 origin-top transition-transform duration-300"
+                    className="absolute left-0 top-0 bottom-0 w-0.5 bg-linear-to-b from-orange-400 to-amber-300 scale-y-0 group-hover:scale-y-100 origin-top transition-transform duration-300"
                   />
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-lg font-black text-orange-400 w-7 text-center shrink-0 tabular-nums">
@@ -611,11 +611,11 @@ export default function Home() {
                   href={n.link}
                   target="_blank"
                   rel="noreferrer"
-                  className="group relative bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 block card-hoverable overflow-hidden"
+                  className="group relative bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 block card-hoverable overflow-hidden"
                 >
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -top-px left-1/2 h-px w-1/2 -translate-x-1/2 bg-gradient-to-r from-transparent via-orange-400/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="pointer-events-none absolute -top-px left-1/2 h-px w-1/2 -translate-x-1/2 bg-linear-to-r from-transparent via-orange-400/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
                   />
                   <div className="flex items-center gap-2 flex-wrap text-[11px] mb-2">
                     <span className={`px-1.5 py-0.5 rounded-full border uppercase font-semibold ${topicColor}`}>
@@ -656,7 +656,7 @@ export default function Home() {
           {urgencyLevels.map(({ level, color, example }, i) => (
             <div
               key={level}
-              className="flex items-center gap-3 sm:gap-4 bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 card-hoverable reveal-up"
+              className="flex items-center gap-3 sm:gap-4 bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 card-hoverable reveal-up"
               style={{ animationDelay: `${i * 70}ms` }}
             >
               <div
@@ -679,7 +679,7 @@ function FlowCard({ card, index }) {
   return (
     <Link
       to={card.to}
-      className={`group bg-gradient-to-br ${card.tone} border rounded-2xl p-4 sm:p-5 reveal-up hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 transition-all duration-300`}
+      className={`group bg-linear-to-br ${card.tone} border rounded-2xl p-4 sm:p-5 reveal-up hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 transition-all duration-300`}
       style={{ animationDelay: `${index * 70}ms` }}
     >
       <div className="flex items-center justify-between gap-3 mb-3">
@@ -709,12 +709,12 @@ function FlowCard({ card, index }) {
 function StatTile({ value, label, accent = 'text-orange-400', delay = 0 }) {
   return (
     <div
-      className="group relative bg-gradient-to-br from-gray-900/90 to-gray-900/60 backdrop-blur border border-gray-800 rounded-xl py-3 px-3 sm:px-4 text-center card-hoverable overflow-hidden reveal-up"
+      className="group relative bg-linear-to-br from-gray-900/90 to-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl py-3 px-3 sm:px-4 text-center card-hoverable overflow-hidden reveal-up"
       style={{ animationDelay: `${delay}ms` }}
     >
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-orange-400/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+        className="pointer-events-none absolute inset-x-0 -top-px h-px bg-linear-to-r from-transparent via-orange-400/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
       />
       <div className={`text-xl sm:text-2xl font-bold tabular-nums ${accent} transition-transform duration-300 group-hover:scale-110`}>
         {value}

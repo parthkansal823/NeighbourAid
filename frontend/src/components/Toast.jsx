@@ -43,7 +43,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ push, dismiss }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-[1000] flex flex-col gap-2 w-[340px] max-w-[calc(100vw-2rem)]">
+      <div className="fixed bottom-4 right-4 z-1000 flex flex-col gap-2 w-[340px] max-w-[calc(100vw-2rem)]">
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onClose={() => dismiss(t.id)} />
         ))}
@@ -117,7 +117,7 @@ function ToastItem({ toast, onClose }) {
           <div className="min-w-0">
             {toast.title && <div className="font-semibold mb-0.5 truncate">{toast.title}</div>}
             {toast.body && (
-              <div className="text-gray-300 text-xs leading-relaxed break-words">
+              <div className="text-gray-300 text-xs leading-relaxed wrap-break-word">
                 {toast.body}
               </div>
             )}

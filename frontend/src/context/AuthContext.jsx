@@ -74,11 +74,12 @@ export function AuthProvider({ children }) {
     if (!user?.exp) return undefined
     const MAX_DELAY = 2 ** 31 - 1
     const ms = user.exp * 1000 - Date.now()
-    if (ms <= 0) {
-      logout()
-      return undefined
-    }
-    const id = setTimeout(logout, Math.min(ms, MAX_DELAY))
+    // Clamp to [0, MAX_DELAY] rather than branching to an immediate logout():
+    // a 0 ms timer still fires right away, but the state change now happens
+    // from a timer callback instead of synchronously inside the effect body.
+    // (An already-expired token is filtered out by parseToken before it ever
+    // reaches state, so this floor is belt-and-braces for clock skew.)
+    const id = setTimeout(logout, Math.min(Math.max(ms, 0), MAX_DELAY))
     return () => clearTimeout(id)
   }, [user, logout])
 

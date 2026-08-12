@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useLatest } from './useLatest'
 
 function wsBase() {
   if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
@@ -18,14 +19,12 @@ function wsBase() {
  */
 export function useVolunteerSocket({ token, coordinates, onAlert, onStatus }) {
   const wsRef = useRef(null)
-  const onAlertRef = useRef(onAlert)
-  const onStatusRef = useRef(onStatus)
   const retryRef = useRef(null)
-  const coordsRef = useRef(coordinates)
-
-  onAlertRef.current = onAlert
-  onStatusRef.current = onStatus
-  coordsRef.current = coordinates
+  // These are read from socket callbacks, never during render, so tracking
+  // the last committed value is exactly right.
+  const onAlertRef = useLatest(onAlert)
+  const onStatusRef = useLatest(onStatus)
+  const coordsRef = useLatest(coordinates)
 
   // Connect once per token. Coords live in a ref so we can pick them up at
   // onopen time without re-running this effect on every move.
@@ -80,7 +79,9 @@ export function useVolunteerSocket({ token, coordinates, onAlert, onStatus }) {
       wsRef.current?.close(1000)
       wsRef.current = null
     }
-  }, [token])
+    // The three *Ref values are stable useRef containers; including them
+    // keeps exhaustive-deps satisfied without reconnecting the socket.
+  }, [token, coordsRef, onAlertRef, onStatusRef])
 
   // Push coord updates over the existing socket as the volunteer moves.
   // If the socket isn't open yet, we drop the update — the next onopen

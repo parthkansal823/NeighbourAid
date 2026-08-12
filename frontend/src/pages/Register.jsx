@@ -84,19 +84,19 @@ export default function Register() {
   const [lng, lat] = form.location.coordinates
 
   const inputCls =
-    'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 text-base placeholder:text-gray-600'
+    'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 text-base placeholder:text-gray-600'
 
   return (
     <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 overflow-hidden">
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-[36rem] rounded-full bg-orange-500/10 blur-3xl"
+        className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-xl rounded-full bg-orange-500/10 blur-3xl"
       />
       <div
         aria-hidden
         className="pointer-events-none absolute -bottom-24 left-1/4 h-56 w-72 rounded-full bg-emerald-500/10 blur-3xl"
       />
-      <div className="relative bg-gradient-to-b from-gray-900/95 to-gray-900/80 backdrop-blur border border-gray-800 rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl shadow-black/50 reveal-up">
+      <div className="relative bg-linear-to-b from-gray-900/95 to-gray-900/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl shadow-black/50 reveal-up">
         <h1 className="text-2xl font-bold text-white mb-2">{t('register_title')}</h1>
         <p className="text-gray-400 text-sm mb-6 sm:mb-8">{t('register_subtitle')}</p>
 
@@ -166,7 +166,7 @@ export default function Register() {
                   onClick={() => setForm({ ...form, role: r })}
                   className={`py-3 rounded-xl border font-semibold capitalize transition-all duration-200 text-sm sm:text-base hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] ${
                     form.role === r
-                      ? 'border-orange-500 bg-gradient-to-b from-orange-500/25 to-orange-500/10 text-orange-300 shadow-md shadow-orange-500/15'
+                      ? 'border-orange-500 bg-linear-to-b from-orange-500/25 to-orange-500/10 text-orange-300 shadow-md shadow-orange-500/15'
                       : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200 hover:bg-gray-800/40'
                   }`}
                 >
@@ -216,7 +216,7 @@ export default function Register() {
                 type="button"
                 onClick={detectLocation}
                 disabled={locLoading}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm transition-all duration-200 disabled:opacity-50 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shadow-sm shadow-black/40"
+                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm transition-all duration-200 disabled:opacity-50 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shadow-xs shadow-black/40"
               >
                 {locLoading ? (
                   <span className="inline-flex items-center gap-2">
@@ -248,11 +248,11 @@ export default function Register() {
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+            className="group relative w-full bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
           >
             <span
               aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
+              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
             />
             <span className="relative inline-flex items-center justify-center gap-2">
               {loading && (

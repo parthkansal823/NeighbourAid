@@ -51,6 +51,39 @@ describe('I18nProvider', () => {
     expect(screen.getByTestId('lang')).toHaveTextContent('en')
   })
 
+  it('leaves auto-translate OFF unless the user has opted in', () => {
+    // Auto-translate ships alert bodies — including anonymous reports — to
+    // Google's translate endpoint. It previously defaulted to ON with no UI
+    // to disable it. Flipping this default back would silently re-introduce
+    // that, so it is pinned here rather than left to code review.
+    localStorage.removeItem('autoTranslate')
+    function Probe2() {
+      const { autoTranslate } = useI18n()
+      return <span data-testid="auto">{String(autoTranslate)}</span>
+    }
+    render(
+      <I18nProvider>
+        <Probe2 />
+      </I18nProvider>
+    )
+    expect(screen.getByTestId('auto')).toHaveTextContent('false')
+  })
+
+  it('honours an explicit opt-in to auto-translate', () => {
+    localStorage.setItem('autoTranslate', '1')
+    function Probe3() {
+      const { autoTranslate } = useI18n()
+      return <span data-testid="auto">{String(autoTranslate)}</span>
+    }
+    render(
+      <I18nProvider>
+        <Probe3 />
+      </I18nProvider>
+    )
+    expect(screen.getByTestId('auto')).toHaveTextContent('true')
+    localStorage.removeItem('autoTranslate')
+  })
+
   it('falls back to English when a key is missing in the active language', () => {
     function MissingKey() {
       const { t } = useI18n()

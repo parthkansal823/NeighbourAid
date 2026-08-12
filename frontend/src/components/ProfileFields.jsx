@@ -111,7 +111,7 @@ export function EmergencyContactsEditor({ value, onChange, max = 5 }) {
             onChange={(e) => update(i, { name: e.target.value })}
             placeholder="Name (e.g. Mom)"
             maxLength={80}
-            className="w-full bg-gray-900 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+            className="w-full bg-gray-900 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-orange-500"
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input
@@ -121,7 +121,7 @@ export function EmergencyContactsEditor({ value, onChange, max = 5 }) {
               onChange={(e) => update(i, { phone: e.target.value })}
               placeholder="Phone (optional)"
               maxLength={32}
-              className="bg-gray-900 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+              className="bg-gray-900 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-orange-500"
             />
             <input
               type="email"
@@ -130,7 +130,7 @@ export function EmergencyContactsEditor({ value, onChange, max = 5 }) {
               onChange={(e) => update(i, { email: e.target.value })}
               placeholder="Email (optional)"
               maxLength={120}
-              className="bg-gray-900 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500"
+              className="bg-gray-900 border border-gray-800 text-white rounded-lg px-3 py-2 text-sm focus:outline-hidden focus:border-orange-500"
             />
           </div>
         </div>

@@ -29,9 +29,13 @@ export default function Profile() {
   const [vehicleDraft, setVehicleDraft] = useState(false)
   const [contactsDraft, setContactsDraft] = useState([])
 
+  // `load` deliberately sets no flags on its synchronous path — it only
+  // lowers them once the request settles. Raising a flag before the first
+  // `await` makes it reachable synchronously from the mount effect, which
+  // costs an extra render pass before paint. Callers that want a spinner
+  // (the poll tick, the Refresh button) raise it themselves; the initial
+  // load needs nothing, because `loading` already starts true.
   const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
     try {
       const [meRes, statsRes] = await Promise.all([
         api.get('/api/users/me'),
@@ -50,7 +54,7 @@ export default function Profile() {
   }, [t])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
 
   const detectAndUpdate = async () => {
@@ -147,15 +151,15 @@ export default function Profile() {
     (contactCount === 0 ? 1 : 0)
 
   const sectionCls =
-    'bg-gradient-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 shadow-lg shadow-black/20'
+    'bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 shadow-lg shadow-black/20'
   const saveBtnCls =
-    'group relative bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden'
+    'group relative bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden'
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 sm:py-10 space-y-5 sm:space-y-6">
       <div className="reveal-up">
         <h1 className="text-xl sm:text-2xl font-bold text-white">{t('profile_title')}</h1>
-        <p className="text-gray-500 text-sm break-words">
+        <p className="text-gray-500 text-sm wrap-break-word">
           {t('profile_signed_as')} <span className="text-gray-300">{me?.email}</span>
         </p>
         <div className="flex flex-wrap gap-2 mt-3 text-xs">
@@ -202,7 +206,7 @@ export default function Profile() {
         </h2>
         <dl className="grid grid-cols-3 gap-y-2 text-sm">
           <dt className="text-gray-500">{t('profile_name')}</dt>
-          <dd className="col-span-2 text-gray-200 break-words">{me?.name}</dd>
+          <dd className="col-span-2 text-gray-200 wrap-break-word">{me?.name}</dd>
           <dt className="text-gray-500">{t('profile_role')}</dt>
           <dd className="col-span-2 capitalize text-gray-200">{me?.role}</dd>
           <dt className="text-gray-500">{t('profile_joined')}</dt>
@@ -220,7 +224,7 @@ export default function Profile() {
           <button
             onClick={detectAndUpdate}
             disabled={locLoading || saving}
-            className="text-xs bg-gradient-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-3 py-1.5 rounded-lg disabled:opacity-50 shadow-sm shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+            className="text-xs bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-3 py-1.5 rounded-lg disabled:opacity-50 shadow-xs shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
           >
             {locLoading ? t('profile_detecting') : saving ? t('profile_saving') : t('profile_update_loc')}
           </button>
@@ -255,7 +259,7 @@ export default function Profile() {
             >
               <span
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
+                className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
               />
               <span className="relative">{saving ? 'Saving…' : 'Save skills'}</span>
             </button>
@@ -286,7 +290,7 @@ export default function Profile() {
         >
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
+            className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
           />
           <span className="relative">{saving ? 'Saving…' : 'Save contacts'}</span>
         </button>

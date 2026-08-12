@@ -17,13 +17,27 @@ export default defineConfig({
   // Split the bundle by responsibility so the user only downloads the
   // map-related code on first visit to /map, not on /login. Cuts the
   // initial JS payload roughly in half on the auth pages.
+  //
+  // Written as a function rather than the old object form: Vite 8 bundles
+  // with Rolldown, which only accepts the callback signature.
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'leaflet-vendor': ['leaflet', 'react-leaflet'],
-          'auth-vendor': ['axios', 'jwt-decode'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return undefined
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) {
+            return 'react-vendor'
+          }
+          if (/[\\/]node_modules[\\/](leaflet|react-leaflet|@react-leaflet)[\\/]/.test(id)) {
+            return 'leaflet-vendor'
+          }
+          if (/[\\/]node_modules[\\/](axios|jwt-decode)[\\/]/.test(id)) {
+            return 'auth-vendor'
+          }
+          if (/[\\/]node_modules[\\/]lucide-react[\\/]/.test(id)) {
+            return 'icons-vendor'
+          }
+          return undefined
         },
       },
     },
