@@ -4,15 +4,19 @@ Everything below is free, and needs no credit card.
 
 | Piece | Host | Cost |
 |---|---|---|
-| Backend (FastAPI + WebSockets) | Render, free web service, Singapore | Free |
+| Backend (FastAPI + WebSockets) | Hugging Face Space, **Gradio** SDK | Free |
 | Database | MongoDB Atlas M0, Mumbai (`ap-south-1`) | Free |
-| Frontend (React SPA) | Cloudflare Pages **or** Workers | Free |
+| Frontend (React SPA) | Cloudflare Workers (static assets) | Free |
 | Uptime + keep-warm | UptimeRobot → `/health/ready` | Free |
+| AI triage | Multilingual keyword heuristic, in-process | Free |
 
-> Hugging Face Spaces was the earlier recommendation, and the Docker files
-> for it are still in `deploy/huggingface/` if your account has Docker Spaces
-> available. They are gated behind a paid plan on some accounts, which is why
-> Render is the default here.
+> **Gradio, not Docker.** Docker Spaces are a paid feature on some Hugging
+> Face accounts; Gradio and Static are free. A Gradio Space just runs
+> `app.py` and proxies port 7860 — it never checks that what you started is
+> actually Gradio, so it serves FastAPI perfectly well. Verified end to end:
+> `/health`, `/health/ready`, `/docs` and `/api/...` all respond, at ~150 MB.
+> The Docker files are still in `deploy/huggingface/` if your account has
+> Docker Spaces.
 
 ## The constraint behind these choices
 
@@ -27,22 +31,26 @@ dict. Two consequences shape everything below:
    `--workers 1` for exactly this reason. Lifting that ceiling means moving
    the registry behind Redis pub/sub first.
 
-## Why Render free (and how the sleep problem is solved)
+## No Anthropic key needed
 
-Render's free plan sleeps after **15 minutes** without an inbound request and
-takes roughly **50 seconds** to wake. For a side project that is a shrug; for
-a crisis app it is unacceptable, because the first request after a quiet spell
-is someone pressing SOS.
+Triage used to load a 1.6 GB HuggingFace model into your own process, which
+is where "the AI won't run on a free tier" came from. That is no longer true.
+Urgency classification now runs on the keyword heuristic in
+`app/services/vocab.py`: pure Python, no dependencies, no network, under a
+millisecond, and **free forever**.
 
-The fix is step 4: an UptimeRobot monitor polls `/health/ready` every 5
-minutes, so the idle timer never reaches 15. Free instance-hours are 750 a
-month against a calendar month's ~730, so one always-warm service fits — but
-only one. A second free service on the same account pushes you over and both
-get suspended.
+It covers all eight languages the UI ships in — English, Hindi in both
+Devanagari and romanised form, Bengali, Tamil, Telugu, Marathi, Gujarati and
+Punjabi. A real Tamil report posted through the running API classifies as:
 
-The trade versus paid hosting is 512 MB RAM and 0.1 vCPU. That is fine here:
-triage runs either on Anthropic's servers or on a keyword match, so nothing
-heavy runs in your process.
+```
+CRITICAL   vulnerability=elderly   time=immediate   lang=ta   score=115
+triggers: ['மயக்கமட', 'மூச்சு விடவில்லை']
+```
+
+Setting `ANTHROPIC_API_KEY` upgrades triage to Claude, which reads intent
+rather than keywords and handles unusual phrasing far better. It is a genuine
+improvement, and it is entirely optional — leave it unset and nothing breaks.
 
 ---
 
@@ -62,21 +70,29 @@ heavy runs in your process.
 Indexes — including the `2dsphere` geo index the map and radius queries need —
 are created on startup. Nothing to run by hand.
 
-## 2. Backend — Hugging Face Space
+## 2. Backend — Hugging Face Space (Gradio SDK)
 
-Create the Space first: [huggingface.co/new-space](https://huggingface.co/new-space)
-→ SDK **Docker**, template **blank**, visibility public.
+Create the Space: [huggingface.co/new-space](https://huggingface.co/new-space)
 
-Then push from this repo:
+- **SDK:** Gradio (free — Docker is the paid one)
+- **Template:** Blank
+- **Hardware:** CPU basic (free)
+
+Push from this repo:
 
 ```bash
-./deploy/huggingface/push-space.sh <your-hf-username> neighbouraid-api
+./deploy/huggingface/push-gradio-space.sh <your-hf-username> neighbouraid-api
 ```
 
-The script runs the backend test suite, assembles the Space tree (`app/`,
-`requirements.txt`, and the Docker/README files from `deploy/huggingface/`),
-and force-pushes. The Space is a build artefact — edit code here, never in the
-Space UI, or the next push discards it.
+It runs the backend test suite first, then assembles the Space tree
+(`app/`, `requirements.txt` + gradio, and `deploy/huggingface/gradio/app.py`
+as the entry point) and force-pushes. The Space is a build artefact — edit
+code here, never in the Space UI, or the next push discards it.
+
+`app.py` mounts a small Gradio landing page at `/ui` and serves the real API
+everywhere else. Gradio is mounted at `/ui` rather than `/` on purpose: at
+`/` its catch-all would swallow `/api/...` requests, and the failure looks
+like a FastAPI routing bug.
 
 Then set secrets under **Settings → Variables and secrets**:
 
@@ -85,7 +101,7 @@ Then set secrets under **Settings → Variables and secrets**:
 | `MONGO_URL` | the Atlas string from step 1 |
 | `JWT_SECRET` | `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `ENVIRONMENT` | `production` |
-| `ANTHROPIC_API_KEY` | optional — see step 5 |
+| `ANTHROPIC_API_KEY` | optional — leave unset to stay free |
 
 `ENVIRONMENT=production` makes the app refuse to boot on the public dev
 signing key committed in this repo, so a forgotten `JWT_SECRET` fails loudly
@@ -99,34 +115,63 @@ curl https://<user>-neighbouraid-api.hf.space/health/ready  # database + ai stat
 ```
 
 If `/health/ready` returns `503 database: unreachable`, the connection string
-or the Network Access rule is wrong.
+or the Atlas Network Access rule is wrong.
 
-## 3. Frontend — Cloudflare Pages
+## 3. Frontend — Cloudflare Workers
 
-1. **Workers & Pages → Create → Pages → Connect to Git**.
-2. Build settings:
-   - Framework preset **Vite**, root directory `frontend`
-   - Build command `npm run build`, output directory `dist`
-3. Environment variables, for Production **and** Preview:
+The config already exists at [`frontend/wrangler.jsonc`](frontend/wrangler.jsonc):
+it serves `./dist` with `not_found_handling: "single-page-application"`, so
+React Router deep links work at the edge.
 
-   ```
-   VITE_API_URL = https://<user>-neighbouraid-api.hf.space
-   VITE_WS_URL  = wss://<user>-neighbouraid-api.hf.space
-   ```
+Deploy with:
 
-   `wss://`, not `ws://`. A browser on an https:// page blocks insecure
-   WebSockets, and it fails silently — the volunteer feed simply never
-   receives anything, with no error to explain why.
+```bash
+cd frontend
+npm run deploy          # = npm run build && wrangler deploy
+```
 
-Two files in `frontend/public/` already do work here:
-[`_headers`](frontend/public/_headers) applies the CSP and security headers at
-the edge, and [`_redirects`](frontend/public/_redirects) rewrites all paths to
-`index.html` so a shared link to `/map` or a specific alert loads the app
-instead of a 404.
+Set the API URLs first, or the app builds fine and talks to nothing:
 
-CORS needs no change: the regex in `app/main.py` already allows both
-`*.pages.dev` and `*.hf.space`. On a custom domain, add
-`FRONTEND_ORIGINS=https://your-domain.com` to the Space secrets.
+```bash
+# frontend/.env.production
+VITE_API_URL=https://<user>-neighbouraid-api.hf.space
+VITE_WS_URL=wss://<user>-neighbouraid-api.hf.space
+```
+
+`wss://`, not `ws://`. A browser on an https:// page blocks insecure
+WebSockets, and it fails silently — the volunteer feed simply never receives
+anything, with no error explaining why.
+
+### If you deploy from the Cloudflare dashboard instead
+
+**This is the setting that breaks deploys.** Cloudflare must build before it
+uploads, because `frontend/dist/` is gitignored — a Git-connected build with
+no build command has no `dist/` at all and ends up serving the *source*
+directory. The symptom is unmistakable:
+
+```
+Failed to load module script: ... MIME type of "text/jsx"   (main.jsx)
+GET /manifest.webmanifest  404
+GET /service-worker.js     404
+```
+
+The browser is asking for `/src/main.jsx`, which only the source `index.html`
+references — the built one points at `/assets/index-*.js`. Confirm it by
+requesting `/package.json` on the live site: if that returns 200, you are
+serving source. Correct settings:
+
+| Field | Value |
+|---|---|
+| Root directory | `frontend` |
+| Build command | `npm ci && npm run build` |
+| Deploy command | `npx wrangler deploy` |
+
+`npm run deploy` avoids the whole class of problem, because the `&&` makes it
+impossible to ship without building.
+
+CORS needs no change: the regex in `app/main.py` allows `*.workers.dev`,
+`*.pages.dev`, `*.hf.space`, `*.vercel.app` and `*.netlify.app`. For a custom
+domain, add `FRONTEND_ORIGINS=https://your-domain.com` to the Space secrets.
 
 ## 4. Keeping everything warm — UptimeRobot
 

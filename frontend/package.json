@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:dry": "npm run build && wrangler deploy --dry-run",
     "mobile:build": "npm run build && npx cap sync",
     "mobile:copy": "npm run build && npx cap copy",
     "mobile:sync": "npm run build && npx cap sync",
@@ -53,9 +55,10 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wrangler": "^4.42.0"
   },
-  "_overrides_note": "Transitive deps of build-time tooling (never shipped to the browser) that had open advisories with no released parent version picking up the fix. brace-expansion is scoped per-parent on purpose: the advisory covers <=1.1.17 and 3.0.0-5.0.8, so 1.1.18 and 5.0.9 are both clean — but a single global range cannot serve both, because legacy minimatch@3 needs the 1.x export shape while minimatch@10 needs 5.x. Forcing one globally breaks ESLint with 'expand is not a function'. Drop an entry once its parent depends on a clean version by itself.",
+  "_overrides_note": "Transitive deps of build-time tooling (never shipped to the browser) that had open advisories with no released parent version picking up the fix. brace-expansion is scoped per-parent on purpose: the advisory covers <=1.1.17 and 3.0.0-5.0.8, so 1.1.18 and 5.0.9 are both clean \u2014 but a single global range cannot serve both, because legacy minimatch@3 needs the 1.x export shape while minimatch@10 needs 5.x. Forcing one globally breaks ESLint with 'expand is not a function'. Drop an entry once its parent depends on a clean version by itself.",
   "overrides": {
     "tar": ">=7.5.21",
     "uuid": ">=11.1.1",
