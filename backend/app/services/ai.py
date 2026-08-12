@@ -30,6 +30,26 @@ import anthropic
 from pydantic import BaseModel, Field
 
 from ..core.config import settings
+# Heuristic vocabulary lives in vocab.py: it is data, and long enough that
+# inlining it here buried the logic. Covers all eight languages the UI ships
+# in — see that module for why matching uses stems, not inflected forms.
+from .vocab import (
+    CRITICAL_TERMS as _CRITICAL_TERMS,
+    HIGH_TERMS as _HIGH_TERMS,
+    IMMEDIATE_TERMS as _IMMEDIATE_TERMS,
+    LATER_TERMS as _LATER_TERMS,
+    LOW_TERMS as _LOW_TERMS,
+    VULNERABLE as _VULNERABLE,
+    detect_language,
+)
+
+__all__ = [
+    "triage",
+    "classify_urgency",
+    "detect_language",
+    "ai_status",
+    "close_client",
+]
 
 log = logging.getLogger(__name__)
 
@@ -52,48 +72,6 @@ _client: "anthropic.AsyncAnthropic | None" = None
 _client_disabled = False
 _client_retry_after = 0.0
 _CLIENT_RETRY_BACKOFF_SECONDS = 60.0
-
-
-# --------------------------------------------------------------------------
-# Indian-English + Hinglish vocabulary for the heuristic fallback
-# --------------------------------------------------------------------------
-
-_CRITICAL_TERMS = (
-    "unconscious", "behosh", "cardiac", "heart attack", "not breathing",
-    "saans nahi", "bleeding heavily", "khoon bahut", "stabbed", "shot",
-    "gunshot", "drowning", "doob", "choking", "seizure", "convulsion",
-    "stroke", "dead", "dying", "suicidal", "khudkushi", "marne wala",
-)
-_HIGH_TERMS = (
-    "fire", "aag", "flood", "baadh", "trapped", "phansa", "collapse",
-    "earthquake", "bhukamp", "fracture", "accident", "durghatna", "injury",
-    "injured", "ghayal", "urgent", "zaroori", "help immediately", "madad",
-    "ambulance", "rescue", "elderly alone", "pregnant in pain",
-)
-_LOW_TERMS = (
-    "stray", "minor", "question", "tomorrow", "kal", "next week", "later",
-    "information", "general inquiry",
-)
-
-_VULNERABLE = {
-    "child": ("child", "baby", "infant", "kid", "bachcha", "bacha", "shishu", "minor"),
-    "elderly": ("elderly", "old man", "old woman", "senior citizen", "buzurg", "budha", "budhi"),
-    "pregnant": ("pregnant", "garbhvati", "expecting mother"),
-    "disabled": ("disabled", "handicapped", "divyang", "wheelchair", "blind", "deaf"),
-}
-
-_DEVANAGARI_RE = re.compile(r"[ऀ-ॿ]")
-_HINGLISH_MARKERS = ("hai ", "nahi", "kya ", "madad", "yahan", "mera ", "meri ", "bhai")
-
-
-def detect_language(text: str) -> str:
-    """Very rough — enough to flag Hindi/Hinglish for volunteers who can help."""
-    if _DEVANAGARI_RE.search(text):
-        return "hi"
-    low = f" {text.lower()} "
-    if any(m in low for m in _HINGLISH_MARKERS):
-        return "hi-Latn"
-    return "en"
 
 
 # --------------------------------------------------------------------------
@@ -200,9 +178,9 @@ def _heuristic_vulnerability(text: str) -> Optional[str]:
 
 def _heuristic_time(text: str) -> str:
     low = text.lower()
-    if any(w in low for w in ("immediately", "right now", "minute", "abhi", "turant", "jaldi")):
+    if any(w in low for w in _IMMEDIATE_TERMS):
         return "immediate"
-    if any(w in low for w in ("tomorrow", "next week", "later", "kal", "agle")):
+    if any(w in low for w in _LATER_TERMS):
         return "days"
     return "hours"
 
