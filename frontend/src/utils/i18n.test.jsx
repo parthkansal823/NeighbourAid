@@ -51,11 +51,9 @@ describe('I18nProvider', () => {
     expect(screen.getByTestId('lang')).toHaveTextContent('en')
   })
 
-  it('leaves auto-translate OFF unless the user has opted in', () => {
-    // Auto-translate ships alert bodies — including anonymous reports — to
-    // Google's translate endpoint. It previously defaulted to ON with no UI
-    // to disable it. Flipping this default back would silently re-introduce
-    // that, so it is pinned here rather than left to code review.
+  it('turns auto-translate on by default', () => {
+    // On by default is the product decision: a volunteer who can't read the
+    // report can't act on it.
     localStorage.removeItem('autoTranslate')
     function Probe2() {
       const { autoTranslate } = useI18n()
@@ -66,11 +64,15 @@ describe('I18nProvider', () => {
         <Probe2 />
       </I18nProvider>
     )
-    expect(screen.getByTestId('auto')).toHaveTextContent('false')
+    expect(screen.getByTestId('auto')).toHaveTextContent('true')
   })
 
-  it('honours an explicit opt-in to auto-translate', () => {
-    localStorage.setItem('autoTranslate', '1')
+  it('honours an explicit opt-out and does not silently re-enable', () => {
+    // The counterweight to defaulting on: alert bodies go to a third-party
+    // translation endpoint, so a user who turned it off must stay off across
+    // reloads. A regression here would resume transmitting after they
+    // declined, which is worse than never offering the toggle.
+    localStorage.setItem('autoTranslate', '0')
     function Probe3() {
       const { autoTranslate } = useI18n()
       return <span data-testid="auto">{String(autoTranslate)}</span>
@@ -80,7 +82,7 @@ describe('I18nProvider', () => {
         <Probe3 />
       </I18nProvider>
     )
-    expect(screen.getByTestId('auto')).toHaveTextContent('true')
+    expect(screen.getByTestId('auto')).toHaveTextContent('false')
     localStorage.removeItem('autoTranslate')
   })
 

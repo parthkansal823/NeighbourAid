@@ -6,6 +6,10 @@ uvicorn[standard]>=0.38.0
 # of PyMongo's built-in async driver, which 4.9 introduced. app/db/client.py
 # uses AsyncMongoClient directly.
 pymongo>=4.17.0
+# Claude powers alert triage (app/services/ai.py). Without an API key the app
+# still runs — triage degrades to the keyword heuristic — but the SDK itself is
+# a core dependency now, not an optional extra.
+anthropic>=0.121.0
 # PyJWT replaces python-jose: the pinned jose 3.3.0 had 5 CVEs and drags in
 # `ecdsa`, whose timing-attack advisory has no fixed release.
 pyjwt>=2.10.1
@@ -22,14 +26,6 @@ httpx>=0.28.0
 pytest-asyncio>=0.24.0
 gunicorn>=23.0.0
 feedparser>=6.0.11
-
-# The optional local AI model (transformers + torch) is NOT here — it lives
-# in requirements-ai.txt. It is ~2.5 GB of wheels plus a 1.6 GB model for a
-# feature that is disabled by default in tests, CI and the Docker image, and
-# app/services/ai.py falls back to a keyword heuristic that handles English,
-# Hindi and Hinglish when the import fails. Keeping it out of the default
-# install removes that entire dependency tree — and its CVE surface — from
-# every deployment that does not explicitly ask for it.
 
 # Transitive pins that pip-audit flagged; listed explicitly so a fresh
 # install can't resolve back to a vulnerable version.

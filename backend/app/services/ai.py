@@ -1,20 +1,20 @@
 """Multi-aspect crisis triage.
 
-Runs three zero-shot classifiers in parallel on `facebook/bart-large-mnli`:
-  1. Urgency                        (critical / high / medium / low)
-  2. Vulnerability signal           (child / elderly / pregnant / disabled / none)
-  3. Time-sensitivity               (immediate / hours / days)
+Claude classifies each report across three aspects at once — urgency,
+vulnerability signal, and time-sensitivity — plus the language it was
+written in and the phrases that drove the call ("explainability"), so a
+volunteer can see WHY an alert outranked another rather than just its label.
 
-Each aspect comes with a confidence score and the top triggering keywords
-("explainability") so volunteers can see WHY the system classified the way
-it did, not just the final label.
+The response is constrained by a schema (structured outputs), so the shape
+is guaranteed: there is no JSON to parse, nothing to repair, and no retry
+loop for malformed output.
 
-If the HF model can't load (tight VM, offline dev, test environment), a
-richer keyword heuristic fills in — with vocabulary covering English,
-Hindi transliterations (Hinglish), and common Indian crisis idioms.
-
-All paths are safe: classification never raises, so an alert submission
-never fails because of an AI blip.
+Underneath sits a keyword heuristic covering English, Hindi (Devanagari and
+romanised) and common Indian crisis idioms. It is the fallback for every way
+the model call can fail — no API key, network down, timeout, rate limit, or
+a safety refusal on a report describing violence or self-harm. Nothing here
+raises: an alert must never fail to post because triage was unavailable, and
+a slower-but-working classification always beats an error page.
 """
 
 from __future__ import annotations
@@ -23,57 +23,20 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional
+
+import anthropic
+from pydantic import BaseModel, Field
+
+from ..core.config import settings
 
 log = logging.getLogger(__name__)
 
+# Set NA_DISABLE_AI_MODEL=1 to force the heuristic path. Tests rely on this
+# so classification stays deterministic and offline.
 _DISABLE = os.getenv("NA_DISABLE_AI_MODEL", "").lower() in ("1", "true", "yes")
-_classifier = None
-_load_failed = False
-
-
-# --------------------------------------------------------------------------
-# Zero-shot label sets
-# --------------------------------------------------------------------------
-
-URGENCY_LABELS = [
-    "critical life-threatening emergency",
-    "high urgency",
-    "medium urgency",
-    "low urgency",
-]
-URGENCY_MAP = {
-    "critical life-threatening emergency": "CRITICAL",
-    "high urgency": "HIGH",
-    "medium urgency": "MEDIUM",
-    "low urgency": "LOW",
-}
-
-VULNERABILITY_LABELS = [
-    "a child or infant is affected",
-    "an elderly person is affected",
-    "a pregnant woman is affected",
-    "a disabled or seriously injured person is affected",
-    "no vulnerable person is mentioned",
-]
-VULNERABILITY_MAP = {
-    "a child or infant is affected": "child",
-    "an elderly person is affected": "elderly",
-    "a pregnant woman is affected": "pregnant",
-    "a disabled or seriously injured person is affected": "disabled",
-    "no vulnerable person is mentioned": None,
-}
-
-TIME_LABELS = [
-    "help is needed within minutes",
-    "help is needed within hours",
-    "help is needed within a day or later",
-]
-TIME_MAP = {
-    "help is needed within minutes": "immediate",
-    "help is needed within hours": "hours",
-    "help is needed within a day or later": "days",
-}
+_client: "anthropic.AsyncAnthropic | None" = None
+_client_failed = False
 
 
 # --------------------------------------------------------------------------
@@ -443,6 +406,6 @@ def is_duplicate(a: str, b: str, threshold: float = 0.55) -> bool:
 # Back-compat shim for older callers & tests
 # --------------------------------------------------------------------------
 
-def classify_urgency(text: str) -> tuple[str, str]:
-    t = triage(text)
+async def classify_urgency(text: str) -> tuple[str, str]:
+    t = await triage(text)
     return t.urgency, t.urgency_reason

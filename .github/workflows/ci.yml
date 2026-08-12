@@ -138,10 +138,7 @@ jobs:
         # printed report and let humans triage.
         run: |
           cd backend
-          # Audit the optional AI stack too — it is not installed by default,
-          # but anyone opting in still deserves to see its advisories.
           pip-audit -r requirements.txt --skip-editable || true
-          pip-audit -r requirements-ai.txt --skip-editable || true
 
       - uses: actions/setup-node@v4
         with:
@@ -168,12 +165,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build backend image (without the optional AI model)
+      - name: Build backend image
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           push: false
-          build-args: WITH_AI=0
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

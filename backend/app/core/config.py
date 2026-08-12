@@ -29,6 +29,18 @@ class Settings(BaseSettings):
     # rather than as a silent authentication bypass in production.
     ENVIRONMENT: str = "development"
 
+    # Claude powers alert triage (app/services/ai.py). Leave the key empty and
+    # the app still works — triage falls back to a keyword heuristic covering
+    # English, Hindi and Hinglish, which is what CI and the tests exercise.
+    ANTHROPIC_API_KEY: str = ""
+    AI_MODEL: str = "claude-opus-5"
+
+    # Alert creation awaits triage, so this is a user-facing latency budget,
+    # not a generic network timeout. The SDK's own default is 10 minutes —
+    # far too long for a reporter staring at a spinner mid-emergency. On
+    # timeout the heuristic answers instead, so a low ceiling is safe.
+    AI_TIMEOUT_SECONDS: float = 8.0
+
     # Optional outbound webhook fired on every new alert. Designed for n8n /
     # Zapier / Make / custom cron runners — point this at a webhook trigger
     # and the automation can fan out to Slack, WhatsApp Business, email,

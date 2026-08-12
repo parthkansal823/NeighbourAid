@@ -13,6 +13,7 @@ from .core.security import decode_token_safe
 from .core.security_headers import SecurityHeadersMiddleware
 from .db.client import connect, disconnect, get_db
 from .routes import alerts, auth, inbound, news, resources, safety, stats, users
+from .services.ai import close_client as close_ai_client
 from .services.websocket import manager
 
 log = logging.getLogger("neighbouraid")
@@ -24,6 +25,9 @@ async def lifespan(app: FastAPI):
     await connect()
     yield
     await disconnect()
+    # The Anthropic client holds an HTTP connection pool; close it so a
+    # reload or test teardown doesn't leak sockets.
+    await close_ai_client()
 
 
 app = FastAPI(title="NeighbourAid API", version="1.0.0", lifespan=lifespan)

@@ -10,11 +10,6 @@ services:
   backend:
     build:
       context: ./backend
-      args:
-        # Local AI model is opt-in. Set WITH_AI=1 in .env to install torch +
-        # transformers and bake the 1.6 GB model into the image; the default
-        # build uses the keyword heuristic in app/services/ai.py.
-        WITH_AI: ${WITH_AI:-0}
     ports:
       - "8000:8000"
     environment:

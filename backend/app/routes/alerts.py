@@ -357,7 +357,7 @@ async def create_alert(
     reporter_id = payload["sub"]
 
     # 1. AI multi-aspect triage (local HF with heuristic fallback)
-    t = ai_triage(alert.description)
+    t = await ai_triage(alert.description)
 
     # 2. Multi-source verification signals, fetched concurrently
     address, weather, corroborating = await asyncio.gather(
@@ -472,7 +472,7 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
 
     db = get_db()
     lng, lat = alert.location.coordinates[0], alert.location.coordinates[1]
-    t = ai_triage(alert.description)
+    t = await ai_triage(alert.description)
     address, weather, corroborating = await asyncio.gather(
         reverse_geocode(lat, lng),
         current_weather(lat, lng),
