@@ -120,6 +120,12 @@ export default {
   post_location_required:
     'Tap "Use GPS" to set your real location — volunteers are sent to this exact spot.',
   post_location_placeholder: 'Not set yet — tap "Use GPS"',
+  post_photos_label: 'Photo (optional)',
+  post_photo_take: 'Take photo',
+  post_photo_processing: 'Processing…',
+  post_photos_hint: 'Up to 3 · camera only, so photos cannot be picked from your gallery',
+  post_location_captured: 'Location captured',
+  post_retry_location: 'Retry',
   post_submit: 'Post Alert Now',
   post_submitting: 'Posting alert…',
   post_min_chars: 'Please provide a more detailed description (min 10 chars)',
@@ -131,6 +137,12 @@ export default {
   cat_fire: 'fire',
   cat_missing: 'missing',
   cat_power: 'power',
+  cat_accident: 'Accident',
+  cat_violence: 'Violence',
+  cat_animal: 'Animal',
+  cat_gas: 'Gas leak',
+  cat_water: 'Water',
+  cat_structure: 'Building',
   cat_other: 'other',
 
   // Map dashboard
@@ -244,6 +256,8 @@ export default {
 
   // Alert card
   card_directions: 'Directions',
+  card_navigate: 'Navigate',
+  card_navigate_tip: 'Open turn-by-turn directions in your maps app',
   card_updates: 'Updates',
   card_see_too: 'I see this too',
   card_see_too_tip: 'Confirm you also see this incident',

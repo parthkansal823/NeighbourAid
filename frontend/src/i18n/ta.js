@@ -120,6 +120,12 @@ export default {
   post_location_required:
     'உங்கள் உண்மையான இருப்பிடத்தை அமைக்க "GPS பயன்படுத்து" அழுத்துங்கள் — தன்னார்வலர்கள் இதே இடத்திற்கே அனுப்பப்படுவார்கள்.',
   post_location_placeholder: 'இன்னும் அமைக்கவில்லை — "GPS பயன்படுத்து" அழுத்துங்கள்',
+  post_photos_label: 'புகைப்படம் (விருப்பம்)',
+  post_photo_take: 'புகைப்படம் எடு',
+  post_photo_processing: 'செயலாக்கம்…',
+  post_photos_hint: 'அதிகபட்சம் 3 · கேமரா மட்டும் — கேலரியில் இருந்து தேர்வு செய்ய முடியாது',
+  post_location_captured: 'இருப்பிடம் கிடைத்தது',
+  post_retry_location: 'மீண்டும் முயற்சி',
   post_submit: 'இப்போதே அனுப்பு',
   post_submitting: 'அனுப்பப்படுகிறது…',
   post_min_chars: 'தயவுசெய்து இன்னும் விரிவாக எழுதுங்கள் (குறைந்தது 10 எழுத்துகள்)',
@@ -131,6 +137,12 @@ export default {
   cat_fire: 'தீ',
   cat_missing: 'காணவில்லை',
   cat_power: 'மின்சாரம்',
+  cat_accident: 'விபத்து',
+  cat_violence: 'வன்முறை',
+  cat_animal: 'விலங்கு',
+  cat_gas: 'எரிவாயு கசிவு',
+  cat_water: 'தண்ணீர்',
+  cat_structure: 'கட்டிடம்',
   cat_other: 'பிற',
 
   // Map dashboard
@@ -244,6 +256,8 @@ export default {
 
   // Alert card
   card_directions: 'வழி',
+  card_navigate: 'வழி காட்டு',
+  card_navigate_tip: 'உங்கள் வரைபட செயலியில் வழியைத் திறக்கவும்',
   card_updates: 'புதுப்பிப்புகள்',
   card_see_too: 'நானும் பார்க்கிறேன்',
   card_see_too_tip: 'இந்தச் சம்பவத்தை நீங்களும் பார்ப்பதை உறுதிப்படுத்துங்கள்',

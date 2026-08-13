@@ -120,6 +120,12 @@ export default {
   post_location_required:
     'अपना असली स्थान सेट करने के लिए "GPS उपयोग करें" दबाएँ — वॉलंटियर इसी जगह भेजे जाएँगे।',
   post_location_placeholder: 'अभी सेट नहीं — "GPS उपयोग करें" दबाएँ',
+  post_photos_label: 'फ़ोटो (वैकल्पिक)',
+  post_photo_take: 'फ़ोटो लें',
+  post_photo_processing: 'प्रोसेस हो रहा है…',
+  post_photos_hint: 'अधिकतम 3 · सिर्फ़ कैमरा — गैलरी से फ़ोटो नहीं चुनी जा सकती',
+  post_location_captured: 'स्थान मिल गया',
+  post_retry_location: 'फिर कोशिश करें',
   post_submit: 'अलर्ट भेजें',
   post_submitting: 'अलर्ट भेजा जा रहा है…',
   post_min_chars: 'कृपया अधिक विस्तृत विवरण दें (कम से कम 10 अक्षर)',
@@ -131,6 +137,12 @@ export default {
   cat_fire: 'आग',
   cat_missing: 'लापता',
   cat_power: 'बिजली',
+  cat_accident: 'दुर्घटना',
+  cat_violence: 'हिंसा',
+  cat_animal: 'जानवर',
+  cat_gas: 'गैस रिसाव',
+  cat_water: 'पानी',
+  cat_structure: 'इमारत',
   cat_other: 'अन्य',
 
   // Map dashboard
@@ -244,6 +256,8 @@ export default {
 
   // Alert card
   card_directions: 'दिशा',
+  card_navigate: 'रास्ता',
+  card_navigate_tip: 'अपने मैप ऐप में रास्ता खोलें',
   card_updates: 'अपडेट',
   card_see_too: 'मुझे भी दिख रहा है',
   card_see_too_tip: 'पुष्टि करें कि आप यह घटना देख रहे हैं',

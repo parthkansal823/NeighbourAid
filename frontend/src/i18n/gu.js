@@ -120,6 +120,12 @@ export default {
   post_location_required:
     'તમારું ખરું સ્થાન નક્કી કરવા "GPS વાપરો" દબાવો — સ્વયંસેવકોને બરાબર આ જ જગ્યાએ મોકલવામાં આવશે.',
   post_location_placeholder: 'હજી નક્કી નથી — "GPS વાપરો" દબાવો',
+  post_photos_label: 'ફોટો (વૈકલ્પિક)',
+  post_photo_take: 'ફોટો લો',
+  post_photo_processing: 'પ્રક્રિયા થઈ રહી છે…',
+  post_photos_hint: 'વધુમાં વધુ 3 · ફક્ત કેમેરા — ગેલેરીમાંથી પસંદ કરી શકાશે નહીં',
+  post_location_captured: 'સ્થાન મળ્યું',
+  post_retry_location: 'ફરી પ્રયાસ',
   post_submit: 'હમણાં જ અલર્ટ મોકલો',
   post_submitting: 'અલર્ટ મોકલાઈ રહ્યું છે…',
   post_min_chars: 'કૃપા કરીને વધુ વિગત આપો (ઓછામાં ઓછા ૧૦ અક્ષર)',
@@ -131,6 +137,12 @@ export default {
   cat_fire: 'આગ',
   cat_missing: 'ગુમ',
   cat_power: 'વીજળી',
+  cat_accident: 'અકસ્માત',
+  cat_violence: 'હિંસા',
+  cat_animal: 'પ્રાણી',
+  cat_gas: 'ગેસ લીક',
+  cat_water: 'પાણી',
+  cat_structure: 'ઇમારત',
   cat_other: 'અન્ય',
 
   // Map dashboard
@@ -244,6 +256,8 @@ export default {
 
   // Alert card
   card_directions: 'દિશા',
+  card_navigate: 'રસ્તો',
+  card_navigate_tip: 'તમારી નકશા એપમાં રસ્તો ખોલો',
   card_updates: 'અપડેટ',
   card_see_too: 'મને પણ દેખાય છે',
   card_see_too_tip: 'આ ઘટના તમને પણ દેખાય છે તેની પુષ્ટિ કરો',

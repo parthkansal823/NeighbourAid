@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import { useVoice } from '../hooks/useVoice'
+import LiveCamera from '../components/LiveCamera'
 import { useI18n, speechLocaleFor } from '../utils/i18n'
 import { approxKb, compressImage } from '../utils/photo'
 import {
@@ -24,7 +25,23 @@ import {
   WifiOff,
 } from '../components/icons'
 
-const CATEGORIES = ['medical', 'flood', 'fire', 'missing', 'power', 'other']
+// Order is deliberate: life-threatening first, because this grid is scanned
+// under stress and the top-left button is the one a panicking thumb finds.
+// Must stay in step with AlertCategory in backend/app/models/alert.py.
+const CATEGORIES = [
+  'medical',
+  'fire',
+  'flood',
+  'accident',
+  'missing',
+  'violence',
+  'animal',
+  'gas',
+  'power',
+  'water',
+  'structure',
+  'other',
+]
 const MAX_PHOTOS = 3
 
 export default function PostAlert() {
@@ -37,7 +54,6 @@ export default function PostAlert() {
   // know they can't call the reporter back for details.
   const isAnonymous = !user
   const endpoint = isAnonymous ? '/api/alerts/anonymous' : '/api/alerts/'
-  const fileInputRef = useRef(null)
   const [form, setForm] = useState({
     category: 'medical',
     description: '',
@@ -48,6 +64,11 @@ export default function PostAlert() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [locationSet, setLocationSet] = useState(false)
+  // Coordinates are unreadable to a human. A rough address is how a reporter
+  // notices the fix landed on the wrong side of the city before sending
+  // volunteers there. Never blocks submit — see the catch below.
+  const [address, setAddress] = useState('')
+  const [cameraOpen, setCameraOpen] = useState(false)
   const [photoProcessing, setPhotoProcessing] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [online, setOnline] = useState(
@@ -114,6 +135,14 @@ export default function PostAlert() {
         }))
         setLocationSet(true)
         setLocLoading(false)
+        // Fire-and-forget. A missing address is cosmetic; the coordinates
+        // are what actually dispatch a volunteer and they are already set.
+        api
+          .get('/api/geo/reverse', {
+            params: { lat: coords.latitude, lng: coords.longitude },
+          })
+          .then((r) => setAddress(r.data?.address || ''))
+          .catch(() => setAddress(''))
       },
       (err) => {
         setLocLoading(false)
@@ -130,30 +159,20 @@ export default function PostAlert() {
     detectLocation()
   }, [detectLocation])
 
-  const onPhotoPick = async (e) => {
-    const files = Array.from(e.target.files || [])
-    if (!files.length) return
+  const onCameraCapture = async (dataUrl) => {
     setPhotoProcessing(true)
     setError('')
     try {
-      const room = Math.max(0, MAX_PHOTOS - photos.length)
-      const picks = files.slice(0, room)
-      const compressed = []
-      for (const f of picks) {
-        try {
-          const data = await compressImage(f)
-          compressed.push(data)
-        } catch (err) {
-          setError(err.message || 'Could not process photo')
-        }
-      }
-      if (compressed.length) {
-        setPhotos((prev) => [...prev, ...compressed].slice(0, MAX_PHOTOS))
-      }
+      // compressImage takes a Blob, and the camera hands us a data URL.
+      const blob = await (await fetch(dataUrl)).blob()
+      const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      const compressed = await compressImage(file)
+      setPhotos((prev) => [...prev, compressed].slice(0, MAX_PHOTOS))
+      setCameraOpen(false)
+    } catch (err) {
+      setError(err.message || 'Could not process photo')
     } finally {
       setPhotoProcessing(false)
-      // Reset the file input so the same file can be re-selected
-      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -296,21 +315,27 @@ export default function PostAlert() {
                 {t('post_description')}{' '}
                 <span className="text-gray-600 hidden sm:inline">{t('post_description_hint')}</span>
               </label>
+              {/*
+                Deliberately large. This is the accessibility path for anyone
+                who cannot type quickly or at all, pressed one-handed under
+                stress. The old text-xs / py-1 chip was well under the ~44px
+                minimum touch target and easy to miss twice before hitting.
+              */}
               {voice.supported && (
                 <button
                   type="button"
                   onClick={voice.listening ? voice.stop : voice.start}
-                  className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                  className={`min-h-11 px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
                     voice.listening
                       ? 'border-red-500 bg-red-500/20 text-red-300 animate-pulse'
-                      : 'border-gray-700 text-gray-400 hover:border-gray-500'
+                      : 'border-gray-600 text-gray-200 hover:border-orange-500 hover:text-orange-300 hover:bg-orange-500/5'
                   }`}
                   title={voice.listening ? t('post_voice_tip_stop') : t('post_voice_tip_start')}
                 >
                   {voice.listening ? (
-                    <MicOff className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />
+                    <MicOff className="h-5 w-5 inline-block mr-1.5 -mt-0.5" aria-hidden />
                   ) : (
-                    <Mic className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />
+                    <Mic className="h-5 w-5 inline-block mr-1.5 -mt-0.5" aria-hidden />
                   )}
                   {voice.listening ? t('post_voice_recording') : t('post_voice_speak')}
                 </button>
@@ -361,7 +386,7 @@ export default function PostAlert() {
 
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">
-              Photos (optional) <span className="text-gray-600">· boosts AI confidence</span>
+              {t('post_photos_label')}
             </label>
             <div className="grid grid-cols-3 gap-2 mb-2">
               {photos.map((src, i) => (
@@ -381,32 +406,31 @@ export default function PostAlert() {
                 </div>
               ))}
               {photos.length < MAX_PHOTOS && (
-                <label
-                  className={`aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-xs cursor-pointer transition-colors ${
+                <button
+                  type="button"
+                  onClick={() => setCameraOpen(true)}
+                  disabled={photoProcessing}
+                  className={`aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-xs transition-colors ${
                     photoProcessing
                       ? 'border-gray-700 text-gray-500'
                       : 'border-gray-700 text-gray-400 hover:border-orange-500 hover:text-orange-400'
                   }`}
                 >
                   <Camera className="h-6 w-6 mb-1" aria-hidden />
-                  {photoProcessing ? 'Processing…' : 'Add photo'}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    multiple
-                    onChange={onPhotoPick}
-                    className="hidden"
-                    disabled={photoProcessing}
-                  />
-                </label>
+                  {photoProcessing ? t('post_photo_processing') : t('post_photo_take')}
+                </button>
               )}
             </div>
-            <p className="text-[11px] text-gray-500">
-              Up to {MAX_PHOTOS} photos · auto-compressed · AI scans them for visual evidence.
-            </p>
+            <p className="text-[11px] text-gray-500">{t('post_photos_hint')}</p>
           </div>
+
+          {cameraOpen && (
+            <LiveCamera
+              busy={photoProcessing}
+              onCapture={onCameraCapture}
+              onClose={() => setCameraOpen(false)}
+            />
+          )}
 
           <div>
             <label className="block text-sm text-gray-400 mb-1.5">{t('post_location')}</label>
@@ -426,33 +450,57 @@ export default function PostAlert() {
                     : 'border-amber-700/70 text-amber-300/90'
                 }`}
               />
-              <button
-                type="button"
-                onClick={detectLocation}
-                disabled={locLoading}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm transition-all duration-200 disabled:opacity-50 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shadow-xs shadow-black/40"
-              >
-                {locLoading ? (
-                  <svg className="animate-spin h-4 w-4 inline" viewBox="0 0 24 24" fill="none" aria-hidden>
+              {/*
+                Only shown once the automatic fix has FAILED. Location is
+                requested on mount and is mandatory to submit, so in the
+                normal case there is nothing for this button to do — it just
+                asked people to press a button for something that had already
+                happened. It earns its place only as a retry, which is a real
+                need: the first attempt times out indoors often enough.
+              */}
+              {!locationSet && !locLoading && (
+                <button
+                  type="button"
+                  onClick={detectLocation}
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm transition-all duration-200 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shadow-xs shadow-black/40"
+                >
+                  <MapPin className="h-4 w-4 inline-block mr-1 -mt-0.5" aria-hidden />
+                  {t('post_retry_location')}
+                </button>
+              )}
+              {locLoading && (
+                <span className="px-4 py-2.5 text-sm text-gray-400 whitespace-nowrap inline-flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
                     <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
-                ) : (
-                  <>
-                    <MapPin className="h-4 w-4 inline-block mr-1 -mt-0.5" aria-hidden />
-                    {t('post_use_gps')}
-                  </>
-                )}
-              </button>
+                </span>
+              )}
             </div>
             {locationSet ? (
-              <p className="text-[11px] text-emerald-400 mt-1 pop-in inline-flex items-center gap-1">
-                <Check className="h-3.5 w-3.5" aria-hidden />
-                GPS location captured
-              </p>
+              <div className="mt-1 pop-in">
+                <p className="text-[11px] text-emerald-400 inline-flex items-center gap-1">
+                  <Check className="h-3.5 w-3.5" aria-hidden />
+                  {t('post_location_captured')}
+                </p>
+                {/*
+                  The address is the check a human can actually perform.
+                  Coordinates look plausible whatever they say, so a fix that
+                  landed in the wrong sector is invisible until volunteers
+                  arrive somewhere nobody needs them. Absent while the lookup
+                  is in flight, and permanently absent if it fails — it is a
+                  reassurance, not a requirement.
+                */}
+                {address && (
+                  <p className="text-xs text-gray-300 mt-1 flex items-start gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-500" aria-hidden />
+                    <span>{address}</span>
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="text-[11px] text-amber-400/90 mt-1">
-                {t('post_location_required')}
+                {locLoading ? t('post_locating') : t('post_location_required')}
               </p>
             )}
           </div>

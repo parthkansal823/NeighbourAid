@@ -120,6 +120,12 @@ export default {
   post_location_required:
     'ਆਪਣਾ ਅਸਲੀ ਟਿਕਾਣਾ ਸੈੱਟ ਕਰਨ ਲਈ "GPS ਵਰਤੋ" ਦਬਾਓ — ਵਲੰਟੀਅਰ ਇਸੇ ਥਾਂ ਭੇਜੇ ਜਾਣਗੇ।',
   post_location_placeholder: 'ਹਾਲੇ ਸੈੱਟ ਨਹੀਂ — "GPS ਵਰਤੋ" ਦਬਾਓ',
+  post_photos_label: 'ਫੋਟੋ (ਵਿਕਲਪਿਕ)',
+  post_photo_take: 'ਫੋਟੋ ਲਵੋ',
+  post_photo_processing: 'ਪ੍ਰੋਸੈਸ ਹੋ ਰਿਹਾ…',
+  post_photos_hint: 'ਵੱਧ ਤੋਂ ਵੱਧ 3 · ਸਿਰਫ਼ ਕੈਮਰਾ — ਗੈਲਰੀ ਤੋਂ ਨਹੀਂ ਚੁਣ ਸਕਦੇ',
+  post_location_captured: 'ਟਿਕਾਣਾ ਮਿਲ ਗਿਆ',
+  post_retry_location: 'ਮੁੜ ਕੋਸ਼ਿਸ਼',
   post_submit: 'ਅਲਰਟ ਭੇਜੋ',
   post_submitting: 'ਅਲਰਟ ਭੇਜਿਆ ਜਾ ਰਿਹਾ…',
   post_min_chars: 'ਕਿਰਪਾ ਕਰਕੇ ਵਧੇਰੇ ਵੇਰਵਾ ਦਿਓ (ਘੱਟੋ-ਘੱਟ 10 ਅੱਖਰ)',
@@ -131,6 +137,12 @@ export default {
   cat_fire: 'ਅੱਗ',
   cat_missing: 'ਗੁੰਮ',
   cat_power: 'ਬਿਜਲੀ',
+  cat_accident: 'ਹਾਦਸਾ',
+  cat_violence: 'ਹਿੰਸਾ',
+  cat_animal: 'ਜਾਨਵਰ',
+  cat_gas: 'ਗੈਸ ਲੀਕ',
+  cat_water: 'ਪਾਣੀ',
+  cat_structure: 'ਇਮਾਰਤ',
   cat_other: 'ਹੋਰ',
 
   // Map dashboard
@@ -244,6 +256,8 @@ export default {
 
   // Alert card
   card_directions: 'ਦਿਸ਼ਾ',
+  card_navigate: 'ਰਸਤਾ',
+  card_navigate_tip: 'ਆਪਣੀ ਨਕਸ਼ਾ ਐਪ ਵਿੱਚ ਰਸਤਾ ਖੋਲ੍ਹੋ',
   card_updates: 'ਅਪਡੇਟ',
   card_see_too: 'ਮੈਂ ਵੀ ਵੇਖ ਰਿਹਾ ਹਾਂ',
   card_see_too_tip: 'ਪੁਸ਼ਟੀ ਕਰੋ ਕਿ ਤੁਸੀਂ ਵੀ ਇਹ ਦੇਖ ਰਹੇ ਹੋ',

@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from .core.security import decode_token_safe
 from .core.security_headers import SecurityHeadersMiddleware
 from .db.client import connect, disconnect, get_db
-from .routes import alerts, auth, inbound, news, resources, safety, stats, users
+from .routes import alerts, auth, geo, inbound, news, resources, safety, stats, users
 from .services.websocket import manager
 
 log = logging.getLogger("neighbouraid")
@@ -71,6 +71,7 @@ app.include_router(safety.router)
 app.include_router(news.router)
 app.include_router(resources.router)
 app.include_router(inbound.router)
+app.include_router(geo.router)
 
 
 def _safe_errors(errors):

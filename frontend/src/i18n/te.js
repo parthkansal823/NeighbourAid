@@ -120,6 +120,12 @@ export default {
   post_location_required:
     'మీ నిజమైన స్థానాన్ని సెట్ చేయడానికి "GPS వాడండి" నొక్కండి — వాలంటీర్లు సరిగ్గా ఈ ప్రదేశానికే పంపబడతారు.',
   post_location_placeholder: 'ఇంకా సెట్ చేయలేదు — "GPS వాడండి" నొక్కండి',
+  post_photos_label: 'ఫోటో (ఐచ్ఛికం)',
+  post_photo_take: 'ఫోటో తీయండి',
+  post_photo_processing: 'ప్రాసెస్ అవుతోంది…',
+  post_photos_hint: 'గరిష్ఠం 3 · కెమెరా మాత్రమే — గ్యాలరీ నుండి ఎంచుకోలేరు',
+  post_location_captured: 'స్థానం లభించింది',
+  post_retry_location: 'మళ్లీ ప్రయత్నించండి',
   post_submit: 'ఇప్పుడే అలర్ట్ పంపండి',
   post_submitting: 'అలర్ట్ పంపుతోంది…',
   post_min_chars: 'దయచేసి మరింత వివరంగా రాయండి (కనీసం 10 అక్షరాలు)',
@@ -131,6 +137,12 @@ export default {
   cat_fire: 'అగ్ని',
   cat_missing: 'కనిపించడం లేదు',
   cat_power: 'కరెంట్',
+  cat_accident: 'ప్రమాదం',
+  cat_violence: 'హింస',
+  cat_animal: 'జంతువు',
+  cat_gas: 'గ్యాస్ లీక్',
+  cat_water: 'నీరు',
+  cat_structure: 'భవనం',
   cat_other: 'ఇతర',
 
   // Map dashboard
@@ -244,6 +256,8 @@ export default {
 
   // Alert card
   card_directions: 'దారి',
+  card_navigate: 'దారి',
+  card_navigate_tip: 'మీ మ్యాప్ యాప్‌లో దారి తెరవండి',
   card_updates: 'అప్‌డేట్‌లు',
   card_see_too: 'నేనూ చూస్తున్నాను',
   card_see_too_tip: 'ఈ ఘటనను మీరూ చూస్తున్నారని ధృవీకరించండి',

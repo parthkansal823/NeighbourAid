@@ -11,7 +11,7 @@ from ..core.security import decode_token_safe, get_current_user, require_role
 from ..db.client import get_db
 from ..models.alert import AlertCreate, AlertUpdateCreate, ETAUpdate
 from ..services.ai import generate_headline, triage as ai_triage
-from ..services.geocode import reverse_geocode
+from ..services.enrich import enrich_alert
 from ..services.photo import analyze_photos
 from ..services.ratelimit import anonymous_alert_limiter
 from ..services.verification import (
@@ -21,7 +21,7 @@ from ..services.verification import (
     filter_corroborating,
     find_corroborating_alerts,
 )
-from ..services.weather import current_weather, supports_category
+from ..services.weather import supports_category
 from ..services.webhook import fire_alert_created
 from ..services.websocket import (
     CATEGORY_PREFERRED_SKILLS,
@@ -31,6 +31,11 @@ from ..services.websocket import (
 )
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+
+# Strong references to in-flight background tasks. asyncio only holds a weak
+# reference to a task, so without this a running enrichment can be collected
+# partway through and simply vanish.
+_background_tasks: set = set()
 
 
 # Open alerts older than this with no volunteer accept are auto-resolved on
@@ -359,15 +364,18 @@ async def create_alert(
     # 1. AI multi-aspect triage (local HF with heuristic fallback)
     t = ai_triage(alert.description)
 
-    # 2. Multi-source verification signals, fetched concurrently
-    address, weather, corroborating = await asyncio.gather(
-        reverse_geocode(lat, lng),
-        current_weather(lat, lng),
-        find_corroborating_alerts(db, alert.category.value, [lng, lat]),
-        return_exceptions=False,
+    # 2. Only the signal we can compute from our own database. Address and
+    #    weather are third-party HTTP calls and used to be awaited here,
+    #    putting 500-1500 ms of somebody else's latency between "send" and
+    #    the alert existing. They now run after the insert — see
+    #    services/enrich.py — and the card fills in over the WebSocket.
+    corroborating = await find_corroborating_alerts(
+        db, alert.category.value, [lng, lat]
     )
 
-    weather_match = supports_category(alert.category.value, weather)
+    address = None
+    weather = None
+    weather_match = False
     # Keep only corroborating alerts whose text is semantically close —
     # avoids same-category-same-area-but-different-incident false positives.
     corroborating = filter_corroborating(alert.description, corroborating)
@@ -437,6 +445,27 @@ async def create_alert(
     await manager.broadcast_nearby(serialized_light)
 
     # Fan out to any external automation (n8n / Zapier / etc.). Fire-and-forget.
+    # Address + weather run after the alert is live. `create_task` not
+    # `await`: the reporter's response must not wait on a third-party
+    # lookup, and the enricher re-broadcasts when it lands so open feeds
+    # update without a refresh.
+    task = asyncio.create_task(
+        enrich_alert(
+            db,
+            doc["_id"],
+            lat,
+            lng,
+            alert.category.value,
+            witnesses=doc["witnesses"],
+            corroborating_count=len(corroborating_ids),
+            photo_evidence_score=photo_analysis["photo_evidence_score"],
+        )
+    )
+    # asyncio holds only a weak reference to a task, so without this a
+    # running enrichment can be collected partway through and vanish.
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
     fire_alert_created(serialized_light)
 
     # Return the full doc with photos so the reporter can see what they posted
@@ -473,12 +502,14 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
     db = get_db()
     lng, lat = alert.location.coordinates[0], alert.location.coordinates[1]
     t = ai_triage(alert.description)
-    address, weather, corroborating = await asyncio.gather(
-        reverse_geocode(lat, lng),
-        current_weather(lat, lng),
-        find_corroborating_alerts(db, alert.category.value, [lng, lat]),
-        return_exceptions=False,
+    # Deferred exactly as in create_alert: an anonymous report is often the
+    # most urgent kind — nobody can be called back for details — so it is the
+    # last place to spend a reporter's time on a street name.
+    corroborating = await find_corroborating_alerts(
+        db, alert.category.value, [lng, lat]
     )
+    address = None
+    weather = None
     weather_match = supports_category(alert.category.value, weather)
     corroborating = filter_corroborating(alert.description, corroborating)
     corroborating_ids = [c["_id"] for c in corroborating]
@@ -538,6 +569,27 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
 
     serialized_light = _serialize({**doc}, include_photos=False)
     await manager.broadcast_nearby(serialized_light)
+    # Address + weather run after the alert is live. `create_task` not
+    # `await`: the reporter's response must not wait on a third-party
+    # lookup, and the enricher re-broadcasts when it lands so open feeds
+    # update without a refresh.
+    task = asyncio.create_task(
+        enrich_alert(
+            db,
+            doc["_id"],
+            lat,
+            lng,
+            alert.category.value,
+            witnesses=doc["witnesses"],
+            corroborating_count=len(corroborating_ids),
+            photo_evidence_score=photo_analysis["photo_evidence_score"],
+        )
+    )
+    # asyncio holds only a weak reference to a task, so without this a
+    # running enrichment can be collected partway through and vanish.
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
     fire_alert_created(serialized_light)
     return _serialize(doc, include_photos=True)
 

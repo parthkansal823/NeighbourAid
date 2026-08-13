@@ -120,6 +120,12 @@ export default {
   post_location_required:
     'আপনার প্রকৃত অবস্থান দিতে "GPS ব্যবহার করুন" চাপুন — স্বেচ্ছাসেবকদের ঠিক এই জায়গাতেই পাঠানো হবে।',
   post_location_placeholder: 'এখনও দেওয়া হয়নি — "GPS ব্যবহার করুন" চাপুন',
+  post_photos_label: 'ছবি (ঐচ্ছিক)',
+  post_photo_take: 'ছবি তুলুন',
+  post_photo_processing: 'প্রক্রিয়া চলছে…',
+  post_photos_hint: 'সর্বোচ্চ ৩ · শুধু ক্যামেরা — গ্যালারি থেকে ছবি বাছা যাবে না',
+  post_location_captured: 'অবস্থান পাওয়া গেছে',
+  post_retry_location: 'আবার চেষ্টা',
   post_submit: 'এখনই অ্যালার্ট পাঠান',
   post_submitting: 'অ্যালার্ট পাঠানো হচ্ছে…',
   post_min_chars: 'অনুগ্রহ করে আরও বিস্তারিত লিখুন (কমপক্ষে ১০ অক্ষর)',
@@ -131,6 +137,12 @@ export default {
   cat_fire: 'আগুন',
   cat_missing: 'নিখোঁজ',
   cat_power: 'বিদ্যুৎ',
+  cat_accident: 'দুর্ঘটনা',
+  cat_violence: 'সহিংসতা',
+  cat_animal: 'প্রাণী',
+  cat_gas: 'গ্যাস লিক',
+  cat_water: 'পানি',
+  cat_structure: 'ভবন',
   cat_other: 'অন্যান্য',
 
   // Map dashboard
@@ -244,6 +256,8 @@ export default {
 
   // Alert card
   card_directions: 'পথ',
+  card_navigate: 'পথ দেখাও',
+  card_navigate_tip: 'আপনার ম্যাপ অ্যাপে দিকনির্দেশ খুলুন',
   card_updates: 'আপডেট',
   card_see_too: 'আমিও দেখছি',
   card_see_too_tip: 'আপনিও এই ঘটনা দেখছেন তা নিশ্চিত করুন',

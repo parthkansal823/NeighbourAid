@@ -6,11 +6,27 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class AlertCategory(str, Enum):
+    """Report categories.
+
+    Additive only. Existing alerts carry the old values, and a removed member
+    would make every historical alert fail validation on read.
+
+    Category drives volunteer routing (see CATEGORY_PREFERRED_SKILLS in
+    services/websocket.py), so a new member should be added there too or it
+    silently gets the default radius and no skill matching.
+    """
+
     medical = "medical"
-    flood = "flood"
     fire = "fire"
+    flood = "flood"
+    accident = "accident"
     missing = "missing"
+    violence = "violence"
+    animal = "animal"
+    gas = "gas"
     power = "power"
+    water = "water"
+    structure = "structure"
     other = "other"
 
 

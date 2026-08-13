@@ -16,6 +16,7 @@ import {
   Car,
   CloudRain,
   Compass,
+  Navigation,
   Dna,
   Flag,
   Globe,
@@ -433,6 +434,22 @@ export default function AlertCard({ alert, onUpdate }) {
   const isOwn = user?.id && alert.reporter_id === user.id
   const [lng, lat] = alert.location?.coordinates ?? [0, 0]
   const mapsUrl = `/map?dest=${lat},${lng}&focus=${alert.id}`
+  // Turn-by-turn in whatever maps app the volunteer already uses.
+  //
+  // The in-app map above shows WHERE the alert is; it cannot route anyone
+  // there. A volunteer who accepts an alert needs actual navigation, and
+  // until now the only way to get it was to copy coordinates out by hand —
+  // on a phone, mid-emergency.
+  //
+  // The universal Google Maps URL is deliberate: it opens the installed app
+  // on Android and iOS and falls back to the browser on desktop, needs no
+  // API key, and costs nothing. A `geo:` URI would be more neutral but does
+  // nothing on desktop and is unreliable on iOS.
+  //
+  // Routed by coordinates, never by the address string — the coordinates are
+  // exact and the address is a best-effort label that is sometimes just a
+  // town name.
+  const navigateUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
 
   const canSetEta =
     user?.role === 'volunteer' &&
@@ -639,6 +656,22 @@ export default function AlertCard({ alert, onUpdate }) {
             <Compass className="h-3.5 w-3.5" aria-hidden />
             {t('card_directions')}
           </Link>
+          {/*
+            Styled brighter than the surrounding links because for a
+            responding volunteer this is the action, not a detail. rel
+            includes noopener: target=_blank without it hands the opened page
+            a reference back to this window.
+          */}
+          <a
+            href={navigateUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-emerald-300 hover:text-emerald-200 px-2 py-1 rounded-lg transition-colors hover:bg-emerald-500/10 inline-flex items-center gap-1"
+            title={t('card_navigate_tip')}
+          >
+            <Navigation className="h-3.5 w-3.5" aria-hidden />
+            {t('card_navigate')}
+          </a>
           {user && !isOwn && !flagged && (
             <button
               onClick={flag}

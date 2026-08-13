@@ -9,10 +9,20 @@ from fastapi import WebSocket
 # extended radius). Keeps useful helpers aware of alerts that match them.
 CATEGORY_PREFERRED_SKILLS: Dict[str, List[str]] = {
     "medical": ["medical", "cpr", "elderly_care", "child_care"],
-    "flood": ["swim", "driver"],
     "fire": ["medical", "driver"],
+    "flood": ["swim", "driver"],
+    "accident": ["medical", "cpr", "driver"],
     "missing": ["driver"],
+    # No "security" skill exists, and sending untrained volunteers toward
+    # violence would be worse than sending nobody. Medical covers the
+    # aftermath; the rest is a police matter, which the emergency dialer
+    # surfaces separately.
+    "violence": ["medical"],
+    "animal": [],
+    "gas": ["driver"],
     "power": ["electrician"],
+    "water": [],
+    "structure": ["medical", "driver"],
     "other": [],
 }
 

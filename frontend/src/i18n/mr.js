@@ -120,6 +120,12 @@ export default {
   post_location_required:
     'तुमचे खरे ठिकाण नोंदवण्यासाठी "GPS वापरा" दाबा — स्वयंसेवकांना नेमके याच ठिकाणी पाठवले जाईल.',
   post_location_placeholder: 'अजून नोंदवले नाही — "GPS वापरा" दाबा',
+  post_photos_label: 'फोटो (ऐच्छिक)',
+  post_photo_take: 'फोटो काढा',
+  post_photo_processing: 'प्रक्रिया सुरू…',
+  post_photos_hint: 'जास्तीत जास्त 3 · फक्त कॅमेरा — गॅलरीतून फोटो निवडता येणार नाही',
+  post_location_captured: 'ठिकाण मिळाले',
+  post_retry_location: 'पुन्हा प्रयत्न',
   post_submit: 'आत्ताच अलर्ट पाठवा',
   post_submitting: 'अलर्ट पाठवत आहे…',
   post_min_chars: 'कृपया अधिक तपशील द्या (किमान १० अक्षरे)',
@@ -131,6 +137,12 @@ export default {
   cat_fire: 'आग',
   cat_missing: 'हरवले',
   cat_power: 'वीज',
+  cat_accident: 'अपघात',
+  cat_violence: 'हिंसा',
+  cat_animal: 'प्राणी',
+  cat_gas: 'गॅस गळती',
+  cat_water: 'पाणी',
+  cat_structure: 'इमारत',
   cat_other: 'इतर',
 
   // Map dashboard
@@ -244,6 +256,8 @@ export default {
 
   // Alert card
   card_directions: 'दिशा',
+  card_navigate: 'मार्ग',
+  card_navigate_tip: 'तुमच्या नकाशा अ‍ॅपमध्ये मार्ग उघडा',
   card_updates: 'अपडेट',
   card_see_too: 'मलाही दिसतंय',
   card_see_too_tip: 'ही घटना तुम्हालाही दिसते याची पुष्टी करा',
