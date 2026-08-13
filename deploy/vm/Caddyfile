@@ -1,0 +1,38 @@
+# Caddy obtains and renews a Let's Encrypt certificate automatically — the
+# only requirement is that DOMAIN's A record points at this VM before the
+# first start, because the ACME challenge is served over port 80.
+
+{
+	email {$TLS_EMAIL}
+}
+
+{$DOMAIN} {
+	# WebSockets need no special handling in Caddy 2: reverse_proxy upgrades
+	# the connection on its own. It is worth knowing, because a stray
+	# Connection/Upgrade header rewrite is a classic way to break the
+	# volunteer feed while leaving every REST route working.
+	reverse_proxy api:8000 {
+		# Without these the API sees Caddy's container IP as the client, so
+		# the per-IP rate limiters in app/services/ratelimit.py would treat
+		# every user in the world as one caller and throttle them together.
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Real-IP {remote_host}
+	}
+
+	encode gzip zstd
+
+	# The API already sets its own security headers (SecurityHeadersMiddleware),
+	# so only the transport-level one belongs here — Caddy is the component
+	# that actually knows TLS is terminated.
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	log {
+		output file /data/access.log {
+			roll_size 10MiB
+			roll_keep 3
+		}
+	}
+}

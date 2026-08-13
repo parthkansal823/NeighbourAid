@@ -6,7 +6,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)](backend/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](frontend/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](frontend/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-6-47A248?logo=mongodb&logoColor=white)](docker-compose.yml)
+[![MongoDB](https://img.shields.io/badge/MongoDB-6-47A248?logo=mongodb&logoColor=white)](deploy/vm/docker-compose.yml)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)](frontend/public/manifest.webmanifest)
 
 > Real-time, multi-source-verified community crisis response for India.
@@ -227,7 +227,8 @@ First build is ~10 min (HF model pre-download). Set
 ### One-command Ubuntu VM
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pk23nk21/NeighbourAid/main/deploy.sh | bash
+git clone https://github.com/pk23nk21/NeighbourAid.git
+cd NeighbourAid && bash deploy/vm/setup.sh
 ```
 
 Works on AWS Lightsail, EC2, Oracle Always Free, DigitalOcean,
@@ -251,7 +252,7 @@ Hetzner — anywhere with Docker.
 | PWA | **Vite manifest + Service Worker** | Installable, SW-routed notifications |
 | Container | **Docker + docker-compose** | One-command local + prod |
 | CI | **GitHub Actions** | Multi-version pytest + ruff + lint + Vitest + Docker + audit |
-| Deploy | **Render free / Oracle Always Free / any Docker VM** | `deploy.sh` works on any Ubuntu/Debian |
+| Deploy | **Any Docker VM** (DigitalOcean, EC2, …) + Cloudflare for the frontend | `deploy/vm/setup.sh` installs Docker and Caddy with automatic HTTPS |
 
 ---
 
@@ -417,10 +418,11 @@ click-by-click guide. Summary:
 ### One-command Ubuntu
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pk23nk21/NeighbourAid/main/deploy.sh | bash
+git clone https://github.com/pk23nk21/NeighbourAid.git
+cd NeighbourAid && bash deploy/vm/setup.sh
 ```
 
-[`deploy.sh`](deploy.sh) is idempotent — installs Docker, clones
+[`deploy/vm/setup.sh`](deploy/vm/setup.sh) is idempotent — installs Docker, clones
 the repo, generates `JWT_SECRET`, runs `docker compose up -d`.
 
 ---

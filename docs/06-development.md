@@ -228,7 +228,7 @@ Recommended VS Code extensions:
 - **Python** + **Pylance** — for the backend.
 - **ESLint** + **Tailwind CSS IntelliSense** — for the frontend.
 - **Even Better TOML** — for `pyproject.toml` (when you add ruff config).
-- **Docker** — for `docker-compose.yml`.
+- **Docker** — for `deploy/vm/docker-compose.yml`.
 
 The repo doesn't ship workspace settings; configure your IDE on
 your own.

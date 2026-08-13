@@ -104,8 +104,7 @@ neighbouraid/
 │   ├── ci.yml               ← multi-version pytest, lint, build, audit
 │   └── deploy.yml           ← Render deploy hook
 ├── docs/                    ← This folder
-├── docker-compose.yml
-├── deploy.sh                ← One-command Ubuntu install
+├── deploy/vm/               ← One-command VM install (Docker + Caddy TLS)
 ├── .env.example
 └── README.md
 ```

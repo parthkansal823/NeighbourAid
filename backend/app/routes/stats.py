@@ -31,7 +31,14 @@ async def stats():
     # top category in the last 24 hours
     top_category = None
     try:
-        cursor = db.alerts.aggregate(
+        # `await` is required: PyMongo's async driver returns a coroutine that
+        # resolves to the cursor, where Motor returned the cursor directly.
+        # Without it the coroutine was never awaited, `async for` iterated
+        # nothing, and top_category silently stayed None on every request —
+        # a wrong answer rather than an error, and the broad `except` below
+        # meant nothing ever surfaced. It showed up only as a RuntimeWarning
+        # buried in the container log.
+        cursor = await db.alerts.aggregate(
             [
                 {"$match": last_24h_filter},
                 {"$group": {"_id": "$category", "n": {"$sum": 1}}},
@@ -120,7 +127,9 @@ async def leaderboard(limit: int = 5, days: int = 30):
     ]
     top = []
     try:
-        async for row in db.alerts.aggregate(pipeline):
+        # Same await as above — the leaderboard was silently always empty.
+        cursor = await db.alerts.aggregate(pipeline)
+        async for row in cursor:
             top.append(row)
     except Exception:  # noqa: BLE001
         return {"window_days": days, "top": []}

@@ -274,10 +274,11 @@ the GitHub repo are independent.
 ### One-command Ubuntu VM (if you ever get a VM)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pk23nk21/NeighbourAid/main/deploy.sh | bash
+git clone https://github.com/pk23nk21/NeighbourAid.git
+cd NeighbourAid && bash deploy/vm/setup.sh
 ```
 
-[`deploy.sh`](../deploy.sh) is idempotent — installs Docker, clones
+[`deploy/vm/setup.sh`](../deploy/vm/setup.sh) is idempotent — installs Docker, clones
 the repo, generates `JWT_SECRET`, runs `docker compose up -d`. Works
 on AWS Lightsail, EC2, Oracle Always Free, DigitalOcean, Hetzner.
 

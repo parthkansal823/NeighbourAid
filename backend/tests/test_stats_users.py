@@ -4,6 +4,28 @@ from bson import ObjectId
 from app.core.security import create_token
 
 
+class _cursor:
+    """Stand-in for AsyncCommandCursor: async-iterable, nothing else.
+
+    Deliberately not a MagicMock. The bug this guards against was a mock that
+    was *too* accommodating — it iterated happily whether or not the caller
+    awaited, so the route's missing `await` never showed up.
+    """
+
+    def __init__(self, rows):
+        self._rows = list(rows)
+
+    def __aiter__(self):
+        self._it = iter(self._rows)
+        return self
+
+    async def __anext__(self):
+        try:
+            return next(self._it)
+        except StopIteration:
+            raise StopAsyncIteration
+
+
 def _token(role="reporter"):
     return create_token({"sub": str(ObjectId()), "role": role})
 
@@ -13,10 +35,10 @@ async def test_stats_public_no_auth_needed(client):
     c, db = client
     db.alerts.count_documents = AsyncMock(return_value=0)
 
-    async def empty_agg(*args, **kwargs):
-        if False:
-            yield
-    db.alerts.aggregate = MagicMock(return_value=empty_agg())
+    # PyMongo's async driver: `await coll.aggregate(...)` resolves to an
+    # async-iterable cursor. The old mock returned the iterable directly,
+    # which matched Motor and silently reproduced a bug in the route.
+    db.alerts.aggregate = AsyncMock(return_value=_cursor([]))
 
     resp = await c.get("/api/stats/")
     assert resp.status_code == 200
@@ -94,3 +116,41 @@ async def test_my_stats_reporter_shape(client):
     body = resp.json()
     assert body["role"] == "reporter"
     assert body["posted"] == 3
+
+
+@pytest.mark.asyncio
+async def test_top_category_is_actually_computed(client):
+    """Regression: the aggregate coroutine was never awaited.
+
+    `async for` over an un-awaited coroutine yields nothing, so top_category
+    silently stayed None on every request while the route returned 200. The
+    broad `except Exception` in the handler meant nothing surfaced — the only
+    evidence was a RuntimeWarning buried in the container log. A test that
+    only asserts status 200, or only that the key exists, cannot see this.
+    """
+    c, db = client
+    db.alerts.count_documents = AsyncMock(return_value=3)
+    db.alerts.aggregate = AsyncMock(
+        return_value=_cursor([{"_id": "medical", "n": 7}])
+    )
+
+    resp = await c.get("/api/stats/")
+    assert resp.status_code == 200
+    assert resp.json()["top_category"] == {"category": "medical", "count": 7}
+
+
+@pytest.mark.asyncio
+async def test_leaderboard_is_actually_computed(client):
+    """Same missing await, same silent empty result."""
+    c, db = client
+    vol_id = ObjectId()
+    db.alerts.aggregate = AsyncMock(
+        return_value=_cursor([{"_id": vol_id, "accepted": 5, "resolved": 4}])
+    )
+    db.users.find = MagicMock(
+        return_value=_cursor([{"_id": vol_id, "name": "Asha"}])
+    )
+
+    resp = await c.get("/api/stats/leaderboard")
+    assert resp.status_code == 200
+    assert resp.json()["top"], "leaderboard came back empty despite matching rows"
