@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen, act, waitFor } from '@testing-library/react'
-import { I18nProvider, LANGUAGES, isSupportedLang, useI18n } from './i18n'
+import { I18nProvider, LANGUAGES, isSupportedLang, speechLocaleFor, useI18n } from './i18n'
 
 import bn from '../i18n/bn'
 import en from '../i18n/en'
@@ -174,4 +174,34 @@ describe('translation catalogues', () => {
       expect(copied).toEqual([])
     }
   )
+})
+
+describe('speech locales', () => {
+  // Voice is the accessibility path: someone chooses the mic because typing
+  // is hard, or because they cannot type their script at all. Falling back to
+  // en-IN does not fail loudly — the browser confidently transcribes their
+  // Tamil as English nonsense, which is worse than refusing.
+  it('maps every offered language to its own speech locale', () => {
+    const seen = new Map()
+    for (const { code } of LANGUAGES) {
+      const locale = speechLocaleFor(code)
+      expect(locale, `${code} has no speech locale`).toBeTruthy()
+      expect(locale).toMatch(/^[a-z]{2}-[A-Z]{2}$/)
+      if (code !== 'en') {
+        expect(
+          locale.startsWith(`${code}-`),
+          `${code} falls back to '${locale}' — speech input would be transcribed as the wrong language`
+        ).toBe(true)
+      }
+      seen.set(code, locale)
+    }
+    // No two languages may share a locale, which is what a silent fallback
+    // to en-IN looks like from the outside.
+    expect(new Set(seen.values()).size).toBe(LANGUAGES.length)
+  })
+
+  it('falls back to en-IN for an unknown code rather than returning undefined', () => {
+    expect(speechLocaleFor('xx')).toBe('en-IN')
+    expect(speechLocaleFor(undefined)).toBe('en-IN')
+  })
 })

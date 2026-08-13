@@ -4,9 +4,18 @@ import { useLatest } from './useLatest'
 /**
  * Web Speech API wrapper. Lets a reporter dictate the crisis description
  * with a mic button — useful in India where low-literacy users are a real
- * audience. Zero cost, zero server dependency, zero API key.
+ * audience. Zero cost, zero API key.
  *
- * Passes through en-IN by default so Indian-English accents are handled best.
+ * NOT on-device, despite running in the browser. Chrome streams the audio to
+ * Google's speech service for recognition; Safari uses Apple's. Only the
+ * transcript comes back. So this is a third-party data path, and callers
+ * must disclose it — PostAlert renders `post_voice_privacy` next to the mic,
+ * with a stronger `post_voice_privacy_anon` on the anonymous flow, where a
+ * voiceprint would undo the anonymity the page promises.
+ *
+ * `lang` is a BCP-47 locale and should come from speechLocaleFor(lang) in
+ * utils/i18n, not be hard-coded: recognition in the wrong language does not
+ * fail, it returns confident nonsense.
  */
 export function useVoice({ lang = 'en-IN', onResult } = {}) {
   const Recognition =

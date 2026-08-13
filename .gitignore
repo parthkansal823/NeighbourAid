@@ -61,3 +61,28 @@ Desktop.ini
 # --- Docker / CI scratch ---
 docker-compose.override.yml
 *.log
+
+# --- Local model weights ---
+#
+# Downloaded, not authored: multi-gigabyte binaries that git stores badly and
+# cannot diff. A single 7B checkpoint is ~4.7 GB, which is larger than every
+# other file in this repo combined and above GitHub's 100 MB per-file hard
+# limit — a push would be rejected after uploading the lot.
+#
+# models/README.md documents which weights to fetch and pins the exact repo
+# and filename, so the directory is reproducible from a clone without the
+# bytes living in history.
+# Contents, not the directory itself: git does not descend into an ignored
+# directory, so `models/` + `!models/README.md` would leave the README
+# unreachable and untracked.
+models/*
+!models/README.md
+
+# Weight formats, wherever they land — a stray checkpoint outside models/
+# should not slip in either.
+*.gguf
+*.onnx
+*.safetensors
+*.bin
+*.pt
+*.pth

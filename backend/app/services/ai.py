@@ -28,6 +28,7 @@ from typing import Optional
 # inlining it here buried the logic. Covers all eight languages the UI ships
 # in - see that module for why matching uses stems, not inflected forms.
 from .vocab import (
+    CRITICAL_PATTERN_RES as _CRITICAL_PATTERNS,
     CRITICAL_TERMS as _CRITICAL_TERMS,
     HIGH_TERMS as _HIGH_TERMS,
     IMMEDIATE_TERMS as _IMMEDIATE_TERMS,
@@ -57,6 +58,22 @@ log = logging.getLogger(__name__)
 def _heuristic_urgency(text: str) -> tuple[str, str, list[str], float]:
     """Returns (urgency, reason, triggers, heuristic_confidence)."""
     low = text.lower()
+
+    # Patterns run before plain keywords, because a report that matches one
+    # usually contains no urgent keyword at all — that is precisely why the
+    # patterns exist. Checking keywords first would let a stray HIGH term
+    # ("madad") settle a report whose real signal is "bol nahi rahe".
+    pattern_hits = [m.group(0).strip() for r in _CRITICAL_PATTERNS
+                    if (m := r.search(text))]
+    if pattern_hits:
+        # Same confidence as an explicit CRITICAL keyword, deliberately.
+        # Confidence feeds priority_score, so discounting it would sort "baba
+        # bol nahi rahe" below "unconscious" — two reports of the same
+        # emergency, ordered by which layer happened to match. The patterns
+        # are narrow enough to earn parity: zero false CRITICALs across the
+        # eval set in tests/eval_dataset.py.
+        return "CRITICAL", "pattern:vital-signs", pattern_hits[:3], 0.8
+
     hits = [w for w in _CRITICAL_TERMS if w in low]
     if hits:
         return "CRITICAL", "keyword:critical", hits[:3], 0.8

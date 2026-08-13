@@ -111,6 +111,8 @@ export default {
   post_voice_speak: 'बोला',
   post_voice_recording: 'रेकॉर्ड होत आहे…',
   post_voice_tip_start: 'टाइप करण्याऐवजी बोला. Chrome/Edge मध्ये चालते',
+  post_voice_privacy: 'आवाजाचे मजकुरात रूपांतर करण्यासाठी तुमचा ब्राउझर ऑडिओ त्याच्या स्पीच सेवेला (Chrome मध्ये Google) पाठवतो.',
+  post_voice_privacy_anon: 'तुम्ही निनावी कळवत आहात — पण तुमच्या आवाजावरून तुमची ओळख पटू शकते. गरज असल्यास टाइप करा.',
   post_voice_tip_stop: 'थांबवण्यासाठी दाबा',
   post_location: 'ठिकाण',
   post_use_gps: 'GPS वापरा',

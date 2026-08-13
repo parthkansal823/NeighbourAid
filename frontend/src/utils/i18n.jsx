@@ -40,6 +40,33 @@ export function isSupportedLang(code) {
   return code === 'en' || Object.hasOwn(LOADERS, code)
 }
 
+// BCP-47 locales for the Web Speech APIs — speech recognition (the mic on
+// the report form) and speech synthesis (spoken alerts in the volunteer
+// feed). Both need a locale, not the bare language code.
+//
+// This lives here, beside LANGUAGES, because it was previously duplicated in
+// two places and both had drifted: each handled only hi and pa and silently
+// fell back to en-IN. A Tamil speaker pressing the mic got English
+// recognition, which does not fail — it transcribes confident nonsense. For
+// a user who chose voice because typing is hard, that is the worst outcome.
+//
+// Adding a language to LANGUAGES without adding it here is a silent
+// regression, so a test asserts the two stay in step.
+const SPEECH_LOCALES = {
+  en: 'en-IN',
+  hi: 'hi-IN',
+  bn: 'bn-IN',
+  mr: 'mr-IN',
+  te: 'te-IN',
+  ta: 'ta-IN',
+  gu: 'gu-IN',
+  pa: 'pa-IN',
+}
+
+export function speechLocaleFor(code) {
+  return SPEECH_LOCALES[code] ?? SPEECH_LOCALES.en
+}
+
 // Module-level cache, deliberately outside React: a dictionary fetched once
 // stays available for the rest of the session, so toggling back to a language
 // is instant and re-mounting the provider costs nothing.

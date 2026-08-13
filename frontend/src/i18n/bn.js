@@ -111,6 +111,8 @@ export default {
   post_voice_speak: 'বলুন',
   post_voice_recording: 'রেকর্ড হচ্ছে…',
   post_voice_tip_start: 'টাইপ না করে বলুন। Chrome/Edge-এ কাজ করে',
+  post_voice_privacy: 'লেখায় রূপান্তরের জন্য আপনার ব্রাউজার অডিও তার স্পিচ সার্ভিসে (Chrome-এ Google) পাঠায়।',
+  post_voice_privacy_anon: 'আপনি বেনামে জানাচ্ছেন — কিন্তু আপনার কণ্ঠস্বর আপনাকে শনাক্ত করতে পারে। প্রয়োজনে টাইপ করুন।',
   post_voice_tip_stop: 'থামাতে চাপুন',
   post_location: 'অবস্থান',
   post_use_gps: 'GPS ব্যবহার করুন',

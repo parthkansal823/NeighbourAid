@@ -81,6 +81,71 @@ CRITICAL_TERMS: tuple[str, ...] = (
 )
 
 # --------------------------------------------------------------------------
+# CRITICAL patterns — danger that is described but never named
+# --------------------------------------------------------------------------
+#
+# Plain keywords are blind to the most frightening reports, because the
+# frightening ones often contain no frightening word. Measured on the eval
+# set in tests/eval_dataset.py, keyword matching scored 0/7 on this class:
+#
+#   "He has been in the closed garage with the car running and won't answer"
+#   "Baba ko subah se hilna dulna band hai, bol nahi rahe"
+#   "बच्चा नाले में गिर गया और अब दिख नहीं रहा"
+#
+# Nothing there says unconscious, drowning or poisoning. What they share is a
+# structure: a PERSON plus a NEGATED VITAL FUNCTION — not answering, not
+# moving, not speaking, no longer visible. Someone who has stopped doing one
+# of those things is in a life-threatening state whatever words the reporter
+# reached for.
+#
+# Regex rather than substrings because negation and verb are usually
+# separated ("bol NAHI rahe", "जवाब नहीं दे रही") and word order varies.
+#
+# Kept deliberately narrow. A false CRITICAL costs a volunteer a wasted trip;
+# a false MEDIUM here is the case that started this — a drowning child ranked
+# below a power cut.
+CRITICAL_PATTERNS: tuple[str, ...] = (
+    # --- English ---
+    r"\b(?:wo?n'?t|not|never|cannot|can'?t|doesn'?t|is\s+not)\s+(?:\w+\s+){0,2}"
+    r"(?:answer\w*|respond\w*|wake\w*|mov\w+|speak\w*|breath\w*)\b",
+    r"\bno\s+(?:response|movement|pulse|breathing)\b",
+    r"\bunresponsive\b",
+    r"\b(?:whole|entire|full)\s+(?:bottle|strip|packet)\s+of\s+\w*\s*(?:tablets|pills|medicine)",
+    r"\b(?:gone|went)\s+under\b",
+    r"\bhas\s+not\s+come\s+(?:back\s+)?up\b",
+
+    # --- Hindi / Urdu romanised ---
+    r"\b(?:jawab|jawaab|bol|hil|uth|dikh|saans|sans|hosh)\w*\s+nah[ií]\b",
+    r"\bnah[ií]\s+(?:bol|hil|uth|dikh)\w*",
+    r"\b(?:saari|puri|poori)\s+(?:goliyan|goli|dawai)\b",
+
+    # --- Devanagari (Hindi + Marathi) ---
+    r"(?:जवाब|बोल|हिल|उठ|दिख|होश|हलत|बोलत|दिसत|प्रतिसाद)\S*\s*नह[ीं]+",
+    r"नहीं\s*(?:बोल|हिल|उठ|दिख)",
+    r"(?:पूरी|सारी)\s*(?:बोतल|गोलियां|गोलियाँ|दवाई)",
+
+    # --- Bengali ---
+    r"(?:সাড়া|নড়|কথা\s*বল|দেখা\s*যা)\S*\s*(?:দিচ্ছে|ছে)?\s*না",
+
+    # --- Tamil ---
+    r"(?:பதில்|அசைவ|பேச|தெரிய)\S*\s*(?:இல்லை|வில்லை)",
+
+    # --- Telugu ---
+    r"(?:స్పందించ|కదల|మాట్లాడ|కనిపించ)\S*\s*(?:డం)?\s*లేదు",
+
+    # --- Gujarati ---
+    r"(?:જવાબ|હલ|બોલ|દેખા)\S*\s*નથી",
+
+    # --- Punjabi ---
+    r"(?:ਜਵਾਬ|ਹਿੱਲ|ਬੋਲ|ਦਿਖ)\S*\s*ਨਹੀਂ",
+)
+
+CRITICAL_PATTERN_RES: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pat, re.IGNORECASE) for pat in CRITICAL_PATTERNS
+)
+
+
+# --------------------------------------------------------------------------
 # HIGH — serious, needs a fast response, not necessarily life-threatening
 # this minute.
 # --------------------------------------------------------------------------
@@ -90,13 +155,20 @@ HIGH_TERMS: tuple[str, ...] = (
     "fire", "flood", "trapped", "collapse", "earthquake", "fracture",
     "accident", "injury", "injured", "urgent", "help immediately",
     "ambulance", "rescue", "elderly alone", "pregnant in pain", "landslide",
-    "gas leak", "building fell",
+    "gas leak", "gas leaking", "cylinder leak", "cylinder is leaking",
+    "smell of gas", "gas smell", "building fell",
     # --- Hindi / Urdu, romanised ---
     "aag", "baadh", "phansa", "phanse", "bhukamp", "durghatna", "ghayal",
     "zaroori", "jaroori", "madad", "bachao", "ambulance chahiye",
     "imarat gir",
     # --- Hindi / Marathi (Devanagari) ---
-    "आग", "आगीत", "बाढ़", "पूर", "फंस", "अडक", "भूकंप", "दुर्घटना", "अपघात",
+    # "पूर" alone (Marathi: flood) is NOT safe here: it is a substring of the
+    # everyday Hindi word "पूरे" (entire), so "पूरे सेक्टर में बिजली नहीं"
+    # — a power cut — was being ranked HIGH as a flood. Stems are the right
+    # default for these languages, but they need checking against the OTHER
+    # languages' common words, not just their own.
+    "आग", "आगीत", "बाढ़", "महापूर", "पूर आ", "पुराच", "पूरग्रस्त",
+    "फंस", "अडक", "भूकंप", "दुर्घटना", "अपघात",
     "घायल", "जखमी", "ज़रूरी", "जरूरी", "तातडी", "मदद", "मदत", "बचाओ", "वाचवा",
     "एम्बुलेंस", "रुग्णवाहिका", "इमारत गिर", "कोसळ", "भूस्खलन", "गैस लीक",
     "गर्भवती", "फ्रैक्चर", "हड्डी टूट",

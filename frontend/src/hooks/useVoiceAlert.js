@@ -1,3 +1,4 @@
+import { speechLocaleFor } from '../utils/i18n'
 import { useCallback, useEffect, useState } from 'react'
 
 /**
@@ -66,8 +67,9 @@ export function useVoiceAlert() {
  * which voices are pre-installed, so picking a recognised BCP-47 tag
  * gives the best chance of a non-fallback voice firing.
  */
+// Kept as a named export because callers and tests already use this name;
+// the mapping itself now lives in utils/i18n so the mic and the spoken
+// alerts cannot drift apart again.
 export function ttsLocaleFor(lang) {
-  if (lang === 'hi') return 'hi-IN'
-  if (lang === 'pa') return 'pa-IN'
-  return 'en-IN'
+  return speechLocaleFor(lang)
 }

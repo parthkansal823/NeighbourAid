@@ -111,6 +111,8 @@ export default {
   post_voice_speak: 'બોલો',
   post_voice_recording: 'રેકોર્ડ થઈ રહ્યું છે…',
   post_voice_tip_start: 'ટાઇપ કરવાને બદલે બોલો. Chrome/Edge માં ચાલે છે',
+  post_voice_privacy: 'અવાજને લખાણમાં ફેરવવા તમારું બ્રાઉઝર ઓડિયો તેની સ્પીચ સેવાને (Chrome માં Google) મોકલે છે.',
+  post_voice_privacy_anon: 'તમે અનામી રીતે જણાવી રહ્યા છો — પણ તમારો અવાજ તમને ઓળખાવી શકે છે. જરૂર હોય તો ટાઇપ કરો.',
   post_voice_tip_stop: 'બંધ કરવા દબાવો',
   post_location: 'સ્થાન',
   post_use_gps: 'GPS વાપરો',

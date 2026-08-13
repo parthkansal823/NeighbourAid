@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import { useVoice } from '../hooks/useVoice'
-import { useI18n } from '../utils/i18n'
+import { useI18n, speechLocaleFor } from '../utils/i18n'
 import { approxKb, compressImage } from '../utils/photo'
 import {
   OFFLINE_QUEUE_EVENT,
@@ -54,7 +54,10 @@ export default function PostAlert() {
     typeof navigator !== 'undefined' ? navigator.onLine : true
   )
 
-  const voiceLang = lang === 'hi' ? 'hi-IN' : lang === 'pa' ? 'pa-IN' : 'en-IN'
+  // Recognition locale follows the language the reporter actually chose.
+  // Hard-coding this to a 3-way check meant Tamil, Telugu, Bengali,
+  // Marathi and Gujarati speakers were transcribed as English.
+  const voiceLang = speechLocaleFor(lang)
   const voice = useVoice({
     lang: voiceLang,
     onResult: (text, isFinal) => {
@@ -313,6 +316,33 @@ export default function PostAlert() {
                 </button>
               )}
             </div>
+
+            {/*
+              Where the audio goes, stated on screen rather than in a title
+              tooltip. This app is used on phones, where a tooltip is not a
+              disclosure — it is invisible.
+
+              Chrome's Web Speech API is not on-device: it streams the audio
+              to Google for recognition. That is worth saying plainly here,
+              and it matters most on the anonymous path, whose whole purpose
+              (per the endpoint's own docstring) is domestic abuse and cases
+              where the reporter cannot safely identify themselves. A voice
+              recording identifies a person more strongly than a name, so
+              offering a mic under a promise of anonymity without saying so
+              would undercut the guarantee the rest of the app makes.
+
+              Shown only while the mic is actually available — an unusable
+              warning about an absent feature is noise.
+            */}
+            {voice.supported && (
+              <p
+                className={`text-[11px] leading-snug mb-1.5 ${
+                  isAnonymous ? 'text-amber-300/90' : 'text-gray-500'
+                }`}
+              >
+                {isAnonymous ? t('post_voice_privacy_anon') : t('post_voice_privacy')}
+              </p>
+            )}
             <textarea
               required
               rows={4}

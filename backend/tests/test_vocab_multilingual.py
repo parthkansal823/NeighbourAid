@@ -162,3 +162,71 @@ def test_critical_and_low_bands_do_not_overlap():
     first, which is exactly the kind of bug that hides until it matters."""
     assert set(vocab.CRITICAL_TERMS) & set(vocab.LOW_TERMS) == set()
     assert set(vocab.HIGH_TERMS) & set(vocab.LOW_TERMS) == set()
+
+
+# ---------------------------------------------------------------------------
+# Implied danger — reports where nothing urgent is named
+# ---------------------------------------------------------------------------
+#
+# Measured, these were 0/7 before CRITICAL_PATTERNS existed: every one landed
+# on MEDIUM, i.e. shown to volunteers below a power cut. They are the reason
+# the pattern layer exists, so they get individual tests rather than a
+# summary statistic.
+
+IMPLIED_CRITICAL = [
+    ("en", "He has been in the closed garage with the car running for 20 minutes and won't answer"),
+    ("en", "She took the whole bottle of her tablets after we argued and is very sleepy now"),
+    ("hi", "बच्चा नाले में गिर गया और अब दिख नहीं रहा"),
+    ("hi-Latn", "Baba ko subah se hilna dulna band hai, aankh khuli hai par bol nahi rahe"),
+    ("hi", "बिजली के तार पर गिरे आदमी को छूने पर झटका लगा, अब वो हिल नहीं रहा"),
+]
+
+
+@pytest.mark.parametrize("lang,text", IMPLIED_CRITICAL, ids=lambda v: v)
+def test_danger_described_but_not_named_is_still_critical(lang, text):
+    urgency, reason, triggers, _ = ai._heuristic_urgency(text)
+    assert urgency == "CRITICAL", f"{lang} gave {urgency} ({reason})"
+    assert triggers, "a volunteer must be able to see what triggered this"
+
+
+def test_patterns_win_over_keywords():
+    """Ordering is load-bearing.
+
+    These reports usually contain no urgent keyword — that is the point — but
+    they often contain an incidental one ("madad"). If keyword bands were
+    checked first, a stray HIGH term would settle a report whose real signal
+    is "bol nahi rahe", and the pattern layer would never get a say.
+    """
+    urgency, reason, _, _ = ai._heuristic_urgency(
+        "madad chahiye, baba bol nahi rahe"
+    )
+    assert urgency == "CRITICAL"
+    assert reason == "pattern:vital-signs"
+
+
+def test_pura_does_not_match_inside_the_hindi_word_for_entire():
+    """Regression: cross-language substring collision.
+
+    "पूर" is Marathi for flood and a substring of the everyday Hindi word
+    "पूरे" (entire), so "पूरे सेक्टर में बिजली नहीं" — a power cut — was
+    ranked HIGH as a flood. Stems are right for these languages, but they
+    have to be checked against the other languages' common words too.
+    """
+    urgency, _, _, _ = ai._heuristic_urgency("पूरे सेक्टर में सुबह से बिजली नहीं है")
+    assert urgency == "MEDIUM"
+    # ...while a real Marathi flood report still registers.
+    assert ai._heuristic_urgency("गावात महापूर आला आहे")[0] == "HIGH"
+
+
+def test_no_control_characters_in_the_vocabulary_source():
+    """Guards a bug that silently disabled every English pattern.
+
+    A `\b` word boundary written through a shell heredoc arrived as a literal
+    0x08 backspace byte. The regexes still compiled, still ran, and matched
+    nothing — the failure was invisible except in accuracy numbers.
+    """
+    import pathlib
+
+    raw = pathlib.Path(vocab.__file__).read_bytes()
+    bad = sorted({b for b in raw if b < 32 and b not in (9, 10, 13)})
+    assert bad == [], f"control bytes in vocab.py: {[hex(b) for b in bad]}"
