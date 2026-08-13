@@ -1,12 +1,12 @@
 # NeighbourAid — Hyperlocal Crisis & Help Network
 
 [![CI](https://img.shields.io/github/actions/workflow/status/parthkansal823/NeighbourAid/ci.yml?branch=main&label=CI&logo=github)](https://github.com/parthkansal823/NeighbourAid/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/tests-143_passing-brightgreen)](docs/08-testing.md)
+[![Tests](https://img.shields.io/badge/tests-290_passing-brightgreen)](docs/08-testing.md)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](backend/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-async-009688?logo=fastapi&logoColor=white)](backend/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white)](frontend/)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](frontend/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-6-47A248?logo=mongodb&logoColor=white)](deploy/vm/docker-compose.yml)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](frontend/)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](frontend/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7-47A248?logo=mongodb&logoColor=white)](deploy/vm/docker-compose.yml)
 [![PWA](https://img.shields.io/badge/PWA-installable-5A0FC8?logo=pwa&logoColor=white)](frontend/public/manifest.webmanifest)
 
 > Real-time, multi-source-verified community crisis response for India.
@@ -42,20 +42,24 @@ WhatsApp message into a few housing-society groups. There is no
 **structured, geolocated, verified** way to reach the nearest
 *willing* helpers in real time.
 
+![NeighbourAid system architecture](docs/images/architecture.svg)
+
 NeighbourAid closes that gap with five ideas that no existing tool
 combines:
 
 1. **Hyperlocal volunteer dispatch** — WebSocket fan-out to volunteers
    within 5 km of the incident; extends to 15 km when the alert
    category matches the volunteer's skill set.
-2. **AI urgency triage on-device** — `facebook/bart-large-mnli` runs
-   inside the backend container. Zero-shot classification into
-   `CRITICAL / HIGH / MEDIUM / LOW` plus vulnerability + time-
-   sensitivity + language detection. No paid AI APIs.
+2. **Multilingual triage, in-process** — classifies every report into
+   `CRITICAL / HIGH / MEDIUM / LOW` plus vulnerability, time-sensitivity
+   and language, in **8 Indian languages**, in ~0.05 ms. No model
+   weights, no API key, no per-alert cost, and it cannot fail or
+   rate-limit. Measured at **90%** on a labelled 40-case set
+   (`backend/tests/eval_dataset.py`), with **CRITICAL 17/17**.
 3. **Multi-source verification** — composite `verified_score (0–100)`
    blends community witnesses, corroborating reports, live weather,
    and photo evidence.
-4. **Built for India** — trilingual UI (English / हिन्दी / ਪੰਜਾਬੀ)
+4. **Built for India** — 8-language UI (English, हिन्दी, বাংলা, मराठी, తెలుగు, தமிழ், ગુજરાતી, ਪੰਜਾਬੀ)
    with auto-translation of user content, India emergency dialer
    (112 / 100 / 108 / 101 / 1091 / 1098), and category-specific
    one-tap dispatch.
@@ -204,7 +208,7 @@ docker run -d --name mongo -p 27017:27017 -v mongo_data:/data/db mongo:6
 
 # 4. Backend (skip 1.6 GB HF model in dev)
 cd ../backend
-NA_DISABLE_AI_MODEL=1 python -m uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8000
 
 # 5. Frontend
 cd ../frontend
@@ -240,14 +244,14 @@ Hetzner — anywhere with Docker.
 
 | Layer | Choice | Why |
 |---|---|---|
-| Frontend | **React 18 + Vite + TailwindCSS** | Fast HMR, tiny bundle (~156 KB gzipped) |
+| Frontend | **React 19 + Vite + TailwindCSS** | Fast HMR, tiny bundle (~156 KB gzipped) |
 | Maps | **Leaflet + react-leaflet + OSM tiles** | Free, no API key |
 | Backend | **FastAPI + Uvicorn/Gunicorn** | Async, WebSockets, auto OpenAPI |
-| Database | **MongoDB 6 + Motor** | 2dsphere geospatial index for `$nearSphere` |
-| AI triage | **HF Transformers + `bart-large-mnli`** | Zero-shot, runs locally, no paid API |
+| Database | **MongoDB 7 + PyMongo async** | 2dsphere geospatial index for `$nearSphere` |
+| Triage | **Keyword + pattern classifier** (`app/services/vocab.py`) | 8 languages, ~0.05 ms, no weights, no API key |
 | Photo eval | **Pillow** | Decode + verify, no vision model |
 | Translation | **Google `translate_a/single` (key-less)** | Optional, falls back to original |
-| Auth | **python-jose (JWT) + bcrypt** | Stateless |
+| Auth | **PyJWT (JWT) + bcrypt** | Stateless |
 | External APIs (free) | **OSM Nominatim, Open-Meteo** | Reverse geocoding + weather |
 | PWA | **Vite manifest + Service Worker** | Installable, SW-routed notifications |
 | Container | **Docker + docker-compose** | One-command local + prod |
@@ -261,7 +265,7 @@ Hetzner — anywhere with Docker.
 ```
          ┌────────────────────────┐
          │    Frontend (Vite)     │
-         │  React 18 · Tailwind   │
+         │  React 19 · Tailwind   │
          │  Leaflet · IndexedDB   │
          │  Service Worker · PWA  │
          └───────────┬────────────┘
@@ -359,7 +363,7 @@ README — read it in order or pick the file you need.
 ```bash
 # Backend (99 tests)
 cd backend
-NA_DISABLE_AI_MODEL=1 pytest tests/ -v
+pytest tests/ -v
 
 # Frontend (44 tests)
 cd frontend
@@ -392,6 +396,8 @@ build cache.
 ---
 
 ## Deployment
+
+![Deployment topology](docs/images/deployment.svg)
 
 ### Recommended — Cloudflare Pages + HuggingFace Spaces + MongoDB Atlas (no credit card)
 
@@ -466,7 +472,6 @@ Requirements:
 |---|---|---|---|
 | `JWT_SECRET` | backend | `dev-secret-change-in-production` | **Override in prod** |
 | `MONGO_URL` | backend | `mongodb://localhost:27017/neighbouraid` | Atlas string works |
-| `NA_DISABLE_AI_MODEL` | backend | `0` | `1` to skip the 1.6 GB HF model |
 | `FRONTEND_ORIGINS` | backend | empty | Extra CORS origins, comma-separated |
 | `ALERT_WEBHOOK_URL` | backend | empty | Outbound n8n / Zapier / Make webhook on alert create |
 | `ALERT_WEBHOOK_TIMEOUT_SECONDS` | backend | `4.0` | Hard cap on the webhook POST |

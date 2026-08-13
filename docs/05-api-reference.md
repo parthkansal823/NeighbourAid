@@ -99,7 +99,7 @@ Reporter. Create an alert.
 
 ```jsonc
 {
-  "category": "medical|flood|fire|missing|power|other",
+  "category": "medical|fire|flood|accident|missing|violence|animal|gas|power|water|structure|other",
   "description": "10–2000 chars, AI uses for triage",
   "location": { "type": "Point", "coordinates": [lng, lat] },
   "photos": ["data:image/jpeg;base64,..."]  // optional, max 3, ≤300 KB each
@@ -404,3 +404,64 @@ unexpected close.
 
 ### `GET /`
 `{"service": "NeighbourAid API", "status": "ok", "docs": "/docs"}`.
+
+---
+
+## Geocoding
+
+### `GET /api/geo/reverse`
+
+Coordinates → a rough human-readable address, for showing the reporter where
+their GPS actually landed before they submit.
+
+**Unauthenticated on purpose.** The report form is reachable without an
+account (anonymous reporting), so requiring a token would leave exactly those
+users staring at raw coordinates. Rate-limited per IP instead.
+
+```
+GET /api/geo/reverse?lat=30.75053&lng=76.63167
+```
+
+```json
+{ "address": "Kharar, Sahibzada Ajit Singh Nagar, 140300" }
+```
+
+Returns `{"address": null}` with **200**, not an error, when the geocoder is
+slow or has no data for the point. A missing address must never block an
+emergency report — the coordinates are what dispatch a volunteer, and they
+are already in hand. `422` for out-of-range coordinates.
+
+Proxied through the API rather than called from the browser: Nominatim's
+usage policy requires an identifying User-Agent that a browser cannot set
+cross-origin, and CORS would block it regardless.
+
+---
+
+## Health
+
+### `GET /health`
+
+Liveness. **Deliberately checks nothing.**
+
+```json
+{ "status": "ok" }
+```
+
+Used by the container health check. If this touched MongoDB, a transient
+Atlas blip would return 503, the platform would recycle a perfectly healthy
+container, and a database wobble would become an outage.
+
+### `GET /health/ready`
+
+Readiness — pings MongoDB. **This is what uptime monitoring should watch.**
+
+```json
+{ "status": "ok", "database": "ok" }
+```
+
+On failure, **503** naming the broken component, so the alert email says
+where to look:
+
+```json
+{ "status": "degraded", "database": "unreachable" }
+```

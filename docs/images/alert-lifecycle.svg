@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 640" width="1060" height="640" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#e6edf3"/>
+    </marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#f97316"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#10b981"/>
+    </marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#a78bfa"/>
+    </marker>
+  </defs>
+  <rect width="1060" height="640" fill="#0d1117"/>
+
+  <text x="34" y="42" fill="#e6edf3" font-size="21" font-weight="600">What happens when someone presses “Send”</text>
+  <text x="34" y="64" fill="#8b949e" font-size="13">The alert reaches volunteers before the address is even looked up.</text>
+
+  <!-- lifelines -->
+  <g font-size="12.5" font-weight="600" text-anchor="middle">
+    <rect x="40"  y="86" width="132" height="40" rx="8" fill="#1f2937" stroke="#3b82f6"/><text x="106" y="111" fill="#e6edf3">Reporter</text>
+    <rect x="212" y="86" width="132" height="40" rx="8" fill="#2a1a0e" stroke="#f97316"/><text x="278" y="111" fill="#e6edf3">FastAPI</text>
+    <rect x="384" y="86" width="132" height="40" rx="8" fill="#3b1a1a" stroke="#ef4444"/><text x="450" y="111" fill="#e6edf3">Triage</text>
+    <rect x="556" y="86" width="132" height="40" rx="8" fill="#14312a" stroke="#10b981"/><text x="622" y="111" fill="#e6edf3">MongoDB</text>
+    <rect x="728" y="86" width="132" height="40" rx="8" fill="#14312a" stroke="#10b981"/><text x="794" y="111" fill="#e6edf3">Volunteers</text>
+    <rect x="898" y="86" width="132" height="40" rx="8" fill="#221a3a" stroke="#a78bfa"/><text x="964" y="111" fill="#e6edf3">Nominatim</text>
+  </g>
+  <g stroke="#30363d" stroke-width="1.5" stroke-dasharray="4 5">
+    <line x1="106" y1="126" x2="106" y2="600"/>
+    <line x1="278" y1="126" x2="278" y2="600"/>
+    <line x1="450" y1="126" x2="450" y2="600"/>
+    <line x1="622" y1="126" x2="622" y2="600"/>
+    <line x1="794" y1="126" x2="794" y2="600"/>
+    <line x1="964" y1="126" x2="964" y2="600"/>
+  </g>
+
+  <g font-size="12">
+    <path d="M106 162 L272 162" stroke="#e6edf3" stroke-width="1.8" marker-end="url(#a)"/>
+    <text x="112" y="155" fill="#e6edf3">POST /api/alerts/ — text, GPS, live photo</text>
+
+    <path d="M278 196 L444 196" stroke="#ef4444" stroke-width="1.8" marker-end="url(#a)"/>
+    <text x="284" y="189" fill="#fca5a5">classify(text)</text>
+    <path d="M444 224 L284 224" stroke="#ef4444" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+    <text x="290" y="217" fill="#fca5a5">urgency · vulnerability · triggers</text>
+    <rect x="352" y="230" width="196" height="22" rx="5" fill="#3b1a1a" stroke="#ef4444"/>
+    <text x="450" y="245" fill="#fca5a5" font-size="11.5" text-anchor="middle">~0.05 ms · never fails</text>
+
+    <path d="M278 286 L616 286" stroke="#10b981" stroke-width="1.8" marker-end="url(#ag)"/>
+    <text x="284" y="279" fill="#6ee7b7">insert alert — address = null</text>
+
+    <path d="M278 324 L788 324" stroke="#10b981" stroke-width="2.4" marker-end="url(#ag)"/>
+    <text x="284" y="317" fill="#10b981" font-weight="600">broadcast — volunteers see it NOW</text>
+
+    <path d="M272 358 L110 358" stroke="#f97316" stroke-width="2.4" marker-end="url(#ao)"/>
+    <text x="116" y="351" fill="#f97316" font-weight="600">201 Created</text>
+    <rect x="120" y="364" width="150" height="24" rx="5" fill="#2a1a0e" stroke="#f97316"/>
+    <text x="195" y="380" fill="#fdba74" font-size="11.5" text-anchor="middle">~500 ms measured</text>
+  </g>
+
+  <!-- after-response band -->
+  <rect x="34" y="410" width="992" height="150" rx="10" fill="#0f1620" stroke="#a78bfa" stroke-dasharray="7 5"/>
+  <text x="50" y="432" fill="#a78bfa" font-size="12.5" font-weight="600">EVERYTHING BELOW HAPPENS AFTER THE REPORTER IS ALREADY DONE</text>
+
+  <g font-size="12">
+    <path d="M278 462 L958 462" stroke="#a78bfa" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#ap)"/>
+    <text x="284" y="455" fill="#c4b5fd">reverse geocode + weather</text>
+
+    <path d="M958 494 L284 494" stroke="#a78bfa" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#ap)"/>
+    <text x="290" y="487" fill="#c4b5fd">“Kharar, Sahibzada Ajit Singh Nagar, 140300”</text>
+
+    <path d="M278 528 L616 528" stroke="#10b981" stroke-width="1.8" marker-end="url(#ag)"/>
+    <text x="284" y="521" fill="#6ee7b7">update alert</text>
+
+    <path d="M278 552 L788 552" stroke="#10b981" stroke-width="2.2" marker-end="url(#ag)"/>
+    <text x="450" y="545" fill="#10b981" font-weight="600">re-broadcast — card fills in, no refresh</text>
+  </g>
+
+  <text x="34" y="592" fill="#8b949e" font-size="12">
+    Address and weather used to be awaited BEFORE the insert — 500–1500 ms of third-party latency between “send” and anyone being told.
+  </text>
+  <text x="34" y="612" fill="#8b949e" font-size="12">
+    Coordinates dispatch the volunteer and are already in hand; the address only makes the card readable. So the alert goes first.
+  </text>
+</svg>

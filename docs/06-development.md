@@ -65,7 +65,6 @@ Edit `.env` if you want — none of the defaults block local dev.
 |---|---|---|
 | `JWT_SECRET` | `dev-secret-change-in-production` | Override in prod. |
 | `MONGO_URL` | `mongodb://localhost:27017/neighbouraid` | Atlas string works. |
-| `NA_DISABLE_AI_MODEL` | `0` | Set `1` to skip the 1.6 GB HF model and use the keyword fallback. Use this in dev unless you really need the model. |
 | `FRONTEND_ORIGINS` | empty | Extra CORS origins, comma-separated. |
 | `ALERT_WEBHOOK_URL` | empty | Optional outbound webhook for n8n/Zapier. |
 | `ALERT_WEBHOOK_TIMEOUT_SECONDS` | `4.0` | |
@@ -95,9 +94,7 @@ docker run -d --name mongo -p 27017:27017 -v mongo_data:/data/db mongo:6
 
 ```bash
 cd backend
-# Windows CMD:    set NA_DISABLE_AI_MODEL=1
-# macOS/Linux:    export NA_DISABLE_AI_MODEL=1
-NA_DISABLE_AI_MODEL=1 python -m uvicorn app.main:app --reload --port 8000
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
 Sanity-check at `http://localhost:8000/health` (returns

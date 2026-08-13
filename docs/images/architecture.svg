@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1060 700" width="1060" height="700" font-family="system-ui,-apple-system,'Segoe UI',Roboto,sans-serif">
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7d8590"/>
+    </marker>
+    <marker id="arwO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#f97316"/>
+    </marker>
+    <marker id="arwT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#2dd4bf"/>
+    </marker>
+  </defs>
+
+  <rect width="1060" height="700" fill="#0d1117"/>
+  <text x="34" y="44" fill="#e6edf3" font-size="21" font-weight="600">NeighbourAid — system architecture</text>
+  <text x="34" y="66" fill="#8b949e" font-size="13">Solid = request path · Dashed = best-effort, never blocks an alert</text>
+
+  <!-- ================= CLIENT ================= -->
+  <rect x="34" y="92" width="600" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="52" y="117" fill="#58a6ff" font-size="13" font-weight="600">BROWSER / INSTALLABLE PWA</text>
+  <rect x="52" y="130" width="168" height="74" rx="8" fill="#1f2937" stroke="#3b82f6"/>
+  <text x="136" y="157" fill="#e6edf3" font-size="14" font-weight="600" text-anchor="middle">React 19 SPA</text>
+  <text x="136" y="177" fill="#8b949e" font-size="12" text-anchor="middle">8 languages</text>
+  <text x="136" y="193" fill="#8b949e" font-size="12" text-anchor="middle">lazy-loaded</text>
+  <rect x="234" y="130" width="168" height="74" rx="8" fill="#1f2937" stroke="#3b82f6"/>
+  <text x="318" y="157" fill="#e6edf3" font-size="14" font-weight="600" text-anchor="middle">Service Worker</text>
+  <text x="318" y="177" fill="#8b949e" font-size="12" text-anchor="middle">offline queue</text>
+  <text x="318" y="193" fill="#8b949e" font-size="12" text-anchor="middle">background alerts</text>
+  <rect x="416" y="130" width="168" height="74" rx="8" fill="#1f2937" stroke="#3b82f6"/>
+  <text x="500" y="157" fill="#e6edf3" font-size="14" font-weight="600" text-anchor="middle">Leaflet map</text>
+  <text x="500" y="177" fill="#8b949e" font-size="12" text-anchor="middle">live pins</text>
+  <text x="500" y="193" fill="#8b949e" font-size="12" text-anchor="middle">+ device navigation</text>
+
+  <!-- ================= EDGE ================= -->
+  <rect x="682" y="92" width="344" height="132" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="700" y="117" fill="#2dd4bf" font-size="13" font-weight="600">CLOUDFLARE (free)</text>
+  <rect x="700" y="130" width="308" height="74" rx="8" fill="#0f2e2b" stroke="#2dd4bf"/>
+  <text x="854" y="157" fill="#e6edf3" font-size="14" font-weight="600" text-anchor="middle">Static assets at the edge</text>
+  <text x="854" y="177" fill="#8b949e" font-size="12" text-anchor="middle">dist/ · SPA fallback · CSP headers</text>
+  <text x="854" y="193" fill="#8b949e" font-size="12" text-anchor="middle">served from a node near the user</text>
+
+  <!-- client -> edge -->
+  <path d="M634 158 L694 158" stroke="#2dd4bf" stroke-width="2" fill="none" marker-end="url(#arwT)"/>
+  <text x="664" y="150" fill="#2dd4bf" font-size="11" text-anchor="middle">load</text>
+
+  <!-- ================= VM ================= -->
+  <rect x="34" y="288" width="600" height="248" rx="12" fill="#161b22" stroke="#f97316" stroke-width="1.5"/>
+  <text x="52" y="313" fill="#f97316" font-size="13" font-weight="600">VM · DOCKER — one process, deliberately</text>
+
+  <rect x="52" y="328" width="564" height="56" rx="8" fill="#2a1a0e" stroke="#f59e0b"/>
+  <text x="334" y="352" fill="#e6edf3" font-size="14" font-weight="600" text-anchor="middle">Caddy — automatic HTTPS</text>
+  <text x="334" y="371" fill="#8b949e" font-size="12" text-anchor="middle">Let's Encrypt · the only way in · forwards real client IP</text>
+
+  <rect x="52" y="398" width="564" height="122" rx="8" fill="#1f2937" stroke="#f97316"/>
+  <text x="334" y="422" fill="#e6edf3" font-size="14" font-weight="600" text-anchor="middle">FastAPI · Python 3.13</text>
+
+  <rect x="70" y="436" width="256" height="68" rx="7" fill="#3b1a1a" stroke="#ef4444"/>
+  <text x="198" y="459" fill="#e6edf3" font-size="13" font-weight="600" text-anchor="middle">Triage classifier</text>
+  <text x="198" y="477" fill="#fca5a5" font-size="11.5" text-anchor="middle">8 languages · ~0.05 ms</text>
+  <text x="198" y="493" fill="#8b949e" font-size="11.5" text-anchor="middle">no weights, no API key</text>
+
+  <rect x="342" y="436" width="256" height="68" rx="7" fill="#14312a" stroke="#10b981"/>
+  <text x="470" y="459" fill="#e6edf3" font-size="13" font-weight="600" text-anchor="middle">WebSocket manager</text>
+  <text x="470" y="477" fill="#6ee7b7" font-size="11.5" text-anchor="middle">in-memory registry</text>
+  <text x="470" y="493" fill="#8b949e" font-size="11.5" text-anchor="middle">→ single worker only</text>
+
+  <!-- ================= EXTERNAL ================= -->
+  <rect x="682" y="288" width="344" height="248" rx="12" fill="#161b22" stroke="#30363d"/>
+  <text x="700" y="313" fill="#a78bfa" font-size="13" font-weight="600">EXTERNAL — all free, all optional</text>
+
+  <rect x="700" y="330" width="308" height="56" rx="8" fill="#221a3a" stroke="#a78bfa"/>
+  <text x="854" y="353" fill="#e6edf3" font-size="13" font-weight="600" text-anchor="middle">Nominatim — addresses</text>
+  <text x="854" y="371" fill="#8b949e" font-size="11.5" text-anchor="middle">after the alert posts</text>
+
+  <rect x="700" y="398" width="308" height="56" rx="8" fill="#221a3a" stroke="#a78bfa"/>
+  <text x="854" y="421" fill="#e6edf3" font-size="13" font-weight="600" text-anchor="middle">Open-Meteo — weather</text>
+  <text x="854" y="439" fill="#8b949e" font-size="11.5" text-anchor="middle">corroborates flood / fire</text>
+
+  <rect x="700" y="466" width="308" height="56" rx="8" fill="#221a3a" stroke="#a78bfa"/>
+  <text x="854" y="489" fill="#e6edf3" font-size="13" font-weight="600" text-anchor="middle">Google gtx — translation</text>
+  <text x="854" y="507" fill="#8b949e" font-size="11.5" text-anchor="middle">disclosed, user can switch off</text>
+
+  <!-- ================= DB ================= -->
+  <rect x="200" y="600" width="268" height="66" rx="10" fill="#14312a" stroke="#10b981" stroke-width="1.5"/>
+  <text x="334" y="628" fill="#e6edf3" font-size="14" font-weight="600" text-anchor="middle">MongoDB Atlas</text>
+  <text x="334" y="649" fill="#6ee7b7" font-size="12" text-anchor="middle">2dsphere geo index · Mumbai</text>
+
+  <!-- ============ ARROWS ============ -->
+  <path d="M170 228 L170 322" stroke="#f97316" stroke-width="2" fill="none" marker-end="url(#arwO)"/>
+  <text x="178" y="262" fill="#f97316" font-size="11.5">HTTPS REST</text>
+
+  <path d="M470 322 L470 228" stroke="#10b981" stroke-width="2.5" fill="none" marker-end="url(#arw)"/>
+  <text x="482" y="262" fill="#10b981" font-size="11.5">WSS live feed</text>
+  <text x="482" y="278" fill="#6ee7b7" font-size="11">≤5 km · ≤15 km on skill</text>
+
+  <path d="M334 524 L334 594" stroke="#7d8590" stroke-width="2" fill="none" marker-end="url(#arw)"/>
+  <path d="M622 440 L694 400" stroke="#a78bfa" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arw)"/>
+  <path d="M622 470 L694 490" stroke="#a78bfa" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arw)"/>
+
+  <!-- legend -->
+  <text x="34" y="686" fill="#8b949e" font-size="12">
+    The WebSocket registry lives in process memory — that is what caps the backend at one worker until it moves behind Redis.
+  </text>
+</svg>

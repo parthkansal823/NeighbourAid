@@ -27,10 +27,11 @@ than 24 h as resolved. Same lazy-on-read pattern.
 open `sms:` or `mailto:` links to the user's saved emergency
 contacts. Backend never sends SMS itself.
 
-**bart-large-mnli** — The Hugging Face zero-shot classification
-model used for AI urgency triage. ~1.6 GB on disk; the keyword
-heuristic in `services/ai.py` is the fallback when the model can't
-load.
+**CRITICAL_PATTERNS** — Regexes in `services/vocab.py` matching a
+*person plus a negated vital function* ("won't answer", "bol nahi
+rahe", "दिख नहीं रहा"). They run before the keyword bands, because a
+report of this kind usually contains no urgent keyword at all.
+Keyword matching alone scored 0/7 on these cases.
 
 **Corroboration** — Adjacent same-category alerts within 500 m / 30
 min. Each one bumps the original's `verified_score` by 15 (capped 40).
@@ -63,7 +64,7 @@ WhatsApp messages into the alert pipeline. Auth via shared
 **JWT** — JSON Web Token. Signed `{sub, role, exp}` payload, valid
 for 24 h. Issued by `/api/auth/{register,login}`.
 
-**Motor** — Async MongoDB driver for Python (asyncio version of
+**PyMongo async** — MongoDB's built-in async driver (asyncio version of
 PyMongo). Used for every DB access in the backend.
 
 **n8n** — Self-hostable workflow automation tool. NeighbourAid
@@ -128,10 +129,10 @@ feed.
 tapped "I see this too". Idempotent per user. Each witness adds 8
 points to `verified_score`.
 
-**Zero-shot classification** — The Hugging Face inference style
-`bart-large-mnli` uses: you give the model an arbitrary set of
-candidate labels, it scores each one. No fine-tuning needed for new
-categories.
+**Under-ranked** — An alert classified *below* its true urgency, so
+volunteers see it beneath genuinely less urgent ones. The failure mode
+that costs someone help, and the number `tests/eval_triage.py` reports
+separately from raw accuracy. Over-ranking merely wastes a trip.
 
 **2dsphere** — MongoDB geospatial index type for GeoJSON. Lets
 `$nearSphere` queries run in O(log n) of the index size.

@@ -53,7 +53,7 @@ Five things make NeighbourAid different from a WhatsApp group:
    `verified_score` (0–100) derived from independent signals: community
    witnesses, corroborating reports nearby, live weather, and photo
    evidence.
-4. **Built for India** — trilingual UI (English / हिन्दी / ਪੰਜਾਬੀ),
+4. **Built for India** — 8-language UI (English, हिन्दी, বাংলা, मराठी, తెలుగు, தமிழ், ગુજરાતી, ਪੰਜਾਬੀ),
    auto-translation between them, India emergency dialer (112 / 100 /
    108 / …), and an optional WhatsApp inbound bridge.
 5. **Free and offline-tolerant** — zero paid dependencies. Alerts can
@@ -73,30 +73,18 @@ but mixing them in one account complicates the UI more than it helps.
 
 ## What's running where
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│  Browser (PWA-installable)                                       │
-│  ─ React 18 + Vite + Tailwind                                    │
-│  ─ Leaflet map · Service Worker · IndexedDB queue                │
-└─────────────┬────────────────────────────┬──────────────────────┘
-              │ HTTPS REST + WebSocket     │
-              ▼                            ▼
-┌──────────────────────────────┐  ┌─────────────────────────┐
-│  FastAPI backend             │  │  External, free APIs    │
-│  ─ Python 3.11+              │  │  ─ OSM Nominatim (geo)  │
-│  ─ Hugging Face transformers │  │  ─ Open-Meteo (weather) │
-│  ─ Motor (async MongoDB)     │  │  ─ Google gtx (translate)│
-│  ─ Pillow (photo eval)       │  └─────────────────────────┘
-└──────────────┬───────────────┘
-               ▼
-       ┌──────────────┐
-       │  MongoDB 6   │
-       │  geo-indexed │
-       └──────────────┘
-```
+![NeighbourAid system architecture](images/architecture.svg)
+
+**Reading it:** solid arrows are on the request path; dotted arrows are
+best-effort and never block an alert. The address and weather lookups moved
+off the hot path deliberately — they are third-party HTTP calls, and a
+reporter pressing *send* in an emergency should not wait on somebody else's
+latency. They fill in seconds later and the card updates over the same
+WebSocket.
 
 No paid API keys, no managed AI subscription, no SaaS auth provider.
-Everything runs on a free Render tier or any Ubuntu VM.
+Everything runs on any small Ubuntu VM. No paid AI subscription, no
+SaaS auth provider, no managed search.
 
 ## What's documented next
 

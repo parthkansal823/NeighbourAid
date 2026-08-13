@@ -7,22 +7,48 @@ One feature per section. Each starts with **what it does**, then
 
 ## 4.1 AI urgency triage
 
-**What it does.** Every alert description is fed through three
-zero-shot classifications (urgency, vulnerability, time-sensitivity)
-plus language detection. The result drives both the urgency badge
-and a composite **`priority_score (0–130)`** used for dispatch
-ordering.
+**What it does.** Every description is classified across urgency,
+vulnerability and time-sensitivity, plus language detection. The result
+drives the urgency badge and a composite **`priority_score (0–130)`**
+used for dispatch ordering.
 
-**How it works.**
+**How it works.** Two layers, checked in order:
 
-- Primary path: `facebook/bart-large-mnli` via
-  `transformers.pipeline("zero-shot-classification")`. Loaded once at
-  module import.
-- Fallback path: a hand-curated keyword vocabulary (English + Hindi
-  Latin transliteration like `madad`, `aag`, `bachcha`, `behosh`)
-  with regex pre-classification.
-- Triggered keywords are surfaced on the UI as `🏷` chips so
-  volunteers can sanity-check the AI.
+1. **Patterns** (`CRITICAL_PATTERNS` in `vocab.py`) — regexes matching a
+   *person plus a negated vital function*: "won't answer", "bol nahi
+   rahe", "दिख नहीं रहा". These run **first**, because a report of this
+   kind usually contains no urgent keyword at all, and an incidental one
+   ("madad") would otherwise settle it.
+2. **Keyword bands** — a vocabulary spanning all 8 UI languages in both
+   native script and romanised form.
+
+Matched terms are surfaced in the UI as chips, so a volunteer can see
+*why* an alert outranked another rather than trusting a label.
+
+
+![Alert lifecycle](images/alert-lifecycle.svg)
+
+**Patterns are checked first, and that ordering is load-bearing.** A report
+like *"madad chahiye, baba bol nahi rahe"* contains a HIGH keyword
+(`madad`). If keyword bands ran first, that incidental word would settle it
+as HIGH and the real signal — a person who has stopped speaking — would
+never be seen.
+
+**MEDIUM is the honest "I don't know".** It is what a report falls to when
+nothing matched, which is exactly the bucket a smarter model would be worth
+consulting for. See `models/README.md`.
+
+**Why patterns exist.** Measured on `tests/eval_dataset.py`, keyword
+matching alone scored **0/7** on reports where the danger is described
+but never named — carbon monoxide, an overdose, a submerged child. Every
+one landed on MEDIUM, i.e. below a power cut. The pattern layer took
+that to **5/7** and overall accuracy from 70% to **90%**, at zero added
+dependencies.
+
+**Honest limit.** This reads *stated* danger. Severity that is only
+inferable from context still slips through. A local LLM reached 6/7 on
+those cases and is benchmarked in `models/README.md`, but is not wired
+in.
 - Composite formula:
 
   ```
@@ -32,14 +58,30 @@ ordering.
                  + (-10 if time_sensitivity == "days"      else 0)
   ```
 
-- Set `NA_DISABLE_AI_MODEL=1` in the env to force the fallback path
-  (used by CI to avoid a 1.6 GB model download).
-
-**Where to tweak.** `backend/app/services/ai.py`.
+**Where to tweak.** Logic in `backend/app/services/ai.py`; the
+vocabulary and patterns in `backend/app/services/vocab.py`. Re-measure
+with `python -m tests.eval_triage` from `backend/`.
 
 ---
 
-## 4.2 Photo evidence + AI scan
+
+### What happens when someone presses "Send"
+
+![Triage decision flow](images/triage-flow.svg)
+
+**Why the split.** The address and weather calls used to be `await`ed
+*before* the insert, putting 500–1500 ms of third-party latency between a
+person pressing send and volunteers being told anything. The coordinates are
+what dispatch a volunteer and they are already in hand; the address only
+makes the card readable. So the alert goes first.
+
+Measured against live Atlas: **~500 ms** to post, address present ~5 s later.
+The client merges by `id` and only plays the alert sound on first sight, so
+the second broadcast updates the card silently.
+
+---
+
+## 4.2 Photo evidence (live camera only)
 
 **What it does.** A reporter can attach up to 3 photos to an alert;
 they get auto-compressed in the browser, validated server-side, and

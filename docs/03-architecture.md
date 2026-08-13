@@ -5,12 +5,16 @@ map; for "how does feature X work", see [04-feature-deep-dive.md].
 
 ---
 
+![System architecture](images/architecture.svg)
+
+![Alert lifecycle](images/alert-lifecycle.svg)
+
 ## 3.1 Top-level shape
 
 ```
                     ┌────────────────────────┐
                     │    Frontend (Vite)     │
-                    │  React 18 · Tailwind   │
+                    │  React 19 · Tailwind   │
                     │  Leaflet · IndexedDB   │
                     │  Service Worker · PWA  │
                     └───────────┬────────────┘
@@ -80,7 +84,7 @@ neighbouraid/
 │   │   ├── core/
 │   │   │   ├── config.py    ← pydantic-settings, env vars
 │   │   │   └── security.py  ← JWT, bcrypt, get_current_user, require_role
-│   │   ├── db/client.py     ← Motor client + lazy index bootstrap
+│   │   ├── db/client.py     ← AsyncMongoClient + lazy index bootstrap
 │   │   ├── models/          ← Pydantic schemas (alert, user, resource)
 │   │   ├── routes/          ← One module per /api/* prefix
 │   │   └── services/        ← Pure-ish business logic, see above

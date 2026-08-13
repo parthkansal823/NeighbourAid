@@ -49,7 +49,7 @@ Local simulation:
 
 ```bash
 # backend
-cd backend && NA_DISABLE_AI_MODEL=1 pytest tests/ --cov=app
+cd backend && pytest tests/ --cov=app
 
 # frontend
 cd frontend && npm ci && npm run lint && npm test && npm run build
@@ -200,21 +200,33 @@ the photo system landed (`photo_evidence_score` will be 0).
 
 ---
 
-## 9.10 The HF model OOM's on a small VM
+## 9.10 Triage looks less accurate than expected
 
-Render free tier (512 MB) **cannot** load `bart-large-mnli` (~1.6 GB).
+There is no model to run out of memory any more — classification is a local
+keyword + pattern matcher (`app/services/vocab.py`) costing ~0.05 ms and no
+RAM. If urgency looks wrong:
 
-Workarounds:
-1. **Set `NA_DISABLE_AI_MODEL=1`** — uses the keyword-fallback. Tests
-   already exercise this path so urgency classification still works,
-   just less nuanced.
-2. **Upgrade to Render Pro (1 GB RAM)** — still tight; you'll want
-   2 GB for headroom.
-3. **Distill the model** — fine-tune a 6-layer student on the same
-   labels; goes from 1.6 GB → 250 MB without losing much accuracy.
-   Outside this repo's scope.
+1. Reproduce it against the labelled set:
 
----
+   ```bash
+   cd backend && python -m tests.eval_triage
+   ```
+
+   It prints per-language accuracy and every miss, marking whether each was
+   **under-ranked** (dangerous — shown below genuinely less urgent alerts) or
+   over-ranked.
+
+2. If the report's danger is *described but never named* — "won't answer",
+   "bol nahi rahe" — that belongs in `CRITICAL_PATTERNS`, not the keyword
+   lists.
+
+3. Do **not** fix a miss by pasting its exact words into `vocab.py`. That is
+   memorising the test: the score rises and the classifier gets no better on
+   the next report. Add the underlying concept in every language, or record
+   it as a known limit.
+
+Current baseline: **90%** overall, CRITICAL 17/17, 2 under-ranked.
+
 
 ## 9.11 Real GPS shows the wrong city
 

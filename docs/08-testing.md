@@ -11,17 +11,16 @@ The project has **143 tests** total: 99 backend (pytest) + 44 frontend
 
 ```bash
 cd backend
-NA_DISABLE_AI_MODEL=1 pytest tests/ -v
+pytest tests/ -v
 ```
 
-`NA_DISABLE_AI_MODEL=1` skips loading the 1.6 GB HF model — the
 tests exercise the keyword-fallback path explicitly, so this is
 correct in CI and dev.
 
 ### With coverage
 
 ```bash
-NA_DISABLE_AI_MODEL=1 pytest tests/ -v --cov=app --cov-report=term --cov-report=html
+pytest tests/ -v --cov=app --cov-report=term --cov-report=html
 open htmlcov/index.html   # macOS; or just open it in a browser
 ```
 

@@ -27,6 +27,8 @@ both Cloudflare Pages and HuggingFace pull source from GitHub.
 
 ---
 
+![Deployment topology](images/deployment.svg)
+
 ## Step 1 — MongoDB Atlas (5 min)
 
 1. Go to <https://www.mongodb.com/cloud/atlas/register> → sign up
@@ -133,7 +135,6 @@ Open your Space → **Settings** → **Variables and secrets**:
 |---|---|---|
 | `JWT_SECRET` | secret | Run `openssl rand -hex 32` and paste |
 | `MONGO_URL` | secret | The Atlas string from Step 1 |
-| `NA_DISABLE_AI_MODEL` | variable | `0` to load the real model, `1` for fallback |
 | `FRONTEND_ORIGINS` | variable | We'll fill this in Step 3 — leave for now |
 
 Save and the Space rebuilds automatically.
@@ -296,7 +297,6 @@ in the workflow's comment block.
 
 | Symptom | Likely cause |
 |---|---|
-| HF Space build fails on `pip install transformers` | Out of disk during build. Set `SKIP_MODEL_DOWNLOAD=1` and use `NA_DISABLE_AI_MODEL=1`. |
 | Frontend → backend gets blocked with CORS error | `FRONTEND_ORIGINS` in HF Space doesn't match your Vercel URL exactly. Include the full `https://...vercel.app`. |
 | WebSocket disconnects every few seconds | Your `VITE_WS_URL` is `ws://` instead of `wss://`. Edit Vercel env vars, redeploy. |
 | Atlas connection fails | Your IP allowlist isn't `0.0.0.0/0`, or the password in your connection string still has `<` and `>` literals. |
