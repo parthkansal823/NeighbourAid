@@ -56,6 +56,21 @@ class Settings(BaseSettings):
     ALERT_WEBHOOK_URL: str = ""
     ALERT_WEBHOOK_TIMEOUT_SECONDS: float = 4.0
 
+    # ---- Optional local LLM (see app/services/llm.py) ----
+    #
+    # Off unless LLM_MODEL_PATH points at a real GGUF file. The keyword
+    # classifier is the floor and must keep working on a 512 MB host, so this
+    # is strictly additive: no path, no llama-cpp-python, or a failed load all
+    # degrade to today's behaviour.
+    LLM_MODEL_PATH: str = ""
+    # Generous, because nothing waits on it — inference happens in the
+    # background enrichment task after the alert has already been broadcast.
+    LLM_TIMEOUT_SECONDS: float = 20.0
+    LLM_THREADS: int = 4
+    # 0 = CPU only. Raise on a machine with a GPU; llama.cpp offloads that
+    # many layers.
+    LLM_GPU_LAYERS: int = 0
+
     # Shared secret for the inbound WhatsApp webhook. Anything posting to
     # /api/inbound/whatsapp must include this in the `X-Inbound-Token`
     # header. Empty string disables the route entirely (default).

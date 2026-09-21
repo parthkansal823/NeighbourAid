@@ -5,7 +5,7 @@
 # but nothing here is DigitalOcean-specific.
 #
 #   ssh root@YOUR_SERVER_IP
-#   git clone https://github.com/pk23nk21/NeighbourAid.git
+#   git clone https://github.com/parthkansal823/NeighbourAid.git
 #   cd NeighbourAid && bash deploy/vm/setup.sh
 #
 # Re-runs are safe.

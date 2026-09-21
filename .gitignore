@@ -86,3 +86,6 @@ models/*
 *.bin
 *.pt
 *.pth
+
+# Real values, filled in per deploy; the .example is the tracked template.
+frontend/.env.production

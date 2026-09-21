@@ -32,16 +32,54 @@ import logging
 from bson import ObjectId
 
 from .geocode import reverse_geocode
+from .llm import classify as llm_classify, is_enabled as llm_enabled
 from .verification import compute_verified_score
 from .weather import current_weather, supports_category
 from .websocket import manager
 
 log = logging.getLogger(__name__)
 
+# Lower index = more urgent. Used to ensure the LLM can only raise an urgency.
+_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+
 # Generous compared with the 2 s this used to get inline, because nothing is
 # waiting on it any more. The reporter has their confirmation and volunteers
 # have the alert; this only decides how soon the card gains a street name.
 ENRICH_TIMEOUT_SECONDS = 8.0
+
+
+async def _maybe_upgrade_urgency(db, alert_id: ObjectId, update: dict) -> None:
+    """Ask the local LLM, but only where the classifier matched nothing.
+
+    `keyword:default` is the classifier saying so explicitly: no pattern, no
+    keyword in any of the eight languages, so MEDIUM is a guess rather than a
+    judgement. That is exactly the implied-danger case the model is better at
+    (6/7 vs 5/7 measured) and the only place it is worth its seconds.
+
+    Deliberately one-directional: the model may raise an urgency, never lower
+    one. Measured alone it scores worse than the classifier overall, largely
+    by moving things around confidently; letting it *downgrade* would risk
+    burying a real emergency on the strength of an engine we know is the
+    weaker of the two at this.
+    """
+    if not llm_enabled():
+        return
+    doc = await db.alerts.find_one(
+        {"_id": alert_id}, {"description": 1, "urgency": 1, "urgency_reason": 1}
+    )
+    if not doc or doc.get("urgency_reason") != "keyword:default":
+        return
+
+    band = await llm_classify(doc.get("description", ""))
+    if band is None or band == doc.get("urgency"):
+        return
+    if _RANK.get(band, 99) >= _RANK.get(doc.get("urgency"), 99):
+        return  # same or less urgent — leave the classifier's answer alone
+
+    update["urgency"] = band
+    update["urgency_reason"] = "llm:implied"
+    update["urgency_confidence"] = 0.7
+    log.info("LLM raised alert %s from %s to %s", alert_id, doc.get("urgency"), band)
 
 
 async def enrich_alert(
@@ -90,6 +128,14 @@ async def enrich_alert(
         "weather_match": weather_match,
         "verified_score": verified_score,
     }
+
+    # Runs here, inside the background task, so inference (1.5-9 s measured)
+    # never touches the request path. The re-broadcast below carries any
+    # upgrade to connected volunteers without a refresh.
+    try:
+        await _maybe_upgrade_urgency(db, alert_id, update)
+    except Exception as exc:  # noqa: BLE001 — an optional extra must not break enrichment
+        log.info("LLM upgrade skipped for alert %s: %s", alert_id, exc)
 
     try:
         # Only touch alerts still carrying the placeholder. A resolve or a

@@ -18,7 +18,7 @@ GitHub-OAuth):
 3. [HuggingFace](https://huggingface.co/join) — for the backend
 4. [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) — for the database
 
-Push your code to `https://github.com/pk23nk21/NeighbourAid` first —
+Push your code to `https://github.com/parthkansal823/NeighbourAid` first —
 both Cloudflare Pages and HuggingFace pull source from GitHub.
 
 > **Why Cloudflare Pages?** It has the deepest CDN coverage in India
@@ -108,7 +108,7 @@ pinned: false
 # NeighbourAid backend
 
 FastAPI backend for NeighbourAid. Source in
-[github.com/pk23nk21/NeighbourAid](https://github.com/pk23nk21/NeighbourAid).
+[github.com/parthkansal823/NeighbourAid](https://github.com/parthkansal823/NeighbourAid).
 EOF
 
 git add .
@@ -165,7 +165,7 @@ The Swagger UI is at `https://<you>-neighbouraid-api.hf.space/docs`.
 2. Sign in at <https://dash.cloudflare.com>.
 3. In the left sidebar: **Workers & Pages** → **Create** →
    **Pages** tab → **Connect to Git**.
-4. Authorise GitHub when prompted, pick `pk23nk21/NeighbourAid`,
+4. Authorise GitHub when prompted, pick `parthkansal823/NeighbourAid`,
    click **Begin setup**.
 5. **Build configuration**:
 
@@ -275,7 +275,7 @@ the GitHub repo are independent.
 ### One-command Ubuntu VM (if you ever get a VM)
 
 ```bash
-git clone https://github.com/pk23nk21/NeighbourAid.git
+git clone https://github.com/parthkansal823/NeighbourAid.git
 cd NeighbourAid && bash deploy/vm/setup.sh
 ```
 

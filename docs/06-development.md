@@ -24,7 +24,7 @@ you're on Windows.
 ## 6.2 Clone + install
 
 ```bash
-git clone https://github.com/pk23nk21/NeighbourAid.git neighbouraid
+git clone https://github.com/parthkansal823/NeighbourAid.git neighbouraid
 cd neighbouraid
 ```
 

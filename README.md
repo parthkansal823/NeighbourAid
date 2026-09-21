@@ -231,7 +231,7 @@ First build is ~10 min (HF model pre-download). Set
 ### One-command Ubuntu VM
 
 ```bash
-git clone https://github.com/pk23nk21/NeighbourAid.git
+git clone https://github.com/parthkansal823/NeighbourAid.git
 cd NeighbourAid && bash deploy/vm/setup.sh
 ```
 
@@ -424,7 +424,7 @@ click-by-click guide. Summary:
 ### One-command Ubuntu
 
 ```bash
-git clone https://github.com/pk23nk21/NeighbourAid.git
+git clone https://github.com/parthkansal823/NeighbourAid.git
 cd NeighbourAid && bash deploy/vm/setup.sh
 ```
 

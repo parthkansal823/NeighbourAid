@@ -46,7 +46,25 @@ Recorded so nobody repeats the search:
 | Hugging Face Spaces | Free tier is **ZeroGPU only** — CPU basic now needs PRO. ZeroGPU allocates a GPU per decorated call and expects a Gradio demo; a stateful WebSocket API is the wrong shape, which is what produced the port-7860 double-bind. Docker Spaces are paid. |
 | Render free | Works technically — the image was measured booting at **64 MB of 512 MB** with every endpoint green. But the 750 free instance-hours are **per account**, and one always-warm service uses ~730. Viable only if you have no other free service. |
 | Oracle / Fly / Railway / AWS | Require a credit card. |
+| DigitalOcean | The Student Pack offer was **$5**, not $200 — about five weeks on the cheapest droplet. |
 | Mappls / Google geocoding | Trial credit, not a free tier. |
+
+### Hosts that DO work, in order of preference
+
+| Host | Cost | Sleeps? | Region | Config |
+|---|---|---|---|---|
+| **Any Docker VM** | $6/mo or credit | never | Bangalore possible | `deploy/vm/` |
+| **Heroku** (Student Pack credit) | $7/mo Basic | never | US/EU only | `heroku.yml` |
+| **Heroku Eco** | $5/mo | 30 min idle, ~10 s wake | US/EU only | `heroku.yml` |
+| **Render free** | free | 15 min idle, ~50 s wake | Singapore | `render.yaml` |
+
+All four run the same image. It was measured booting at **64–70 MB** under a
+512 MB cap with an arbitrary injected `$PORT`, so dyno size is not the
+constraint anywhere — quota and region are.
+
+Render's catch is that its 750 instance-hours are **per account**: one
+service kept permanently warm by an uptime monitor uses ~730, leaving nothing
+for a second. Two services that are allowed to sleep fit comfortably.
 
 ---
 
@@ -97,7 +115,7 @@ to start rather than burn one.
 
 ```bash
 ssh root@YOUR_DROPLET_IP
-git clone https://github.com/pk23nk21/NeighbourAid.git
+git clone https://github.com/parthkansal823/NeighbourAid.git
 cd NeighbourAid && bash deploy/vm/setup.sh
 ```
 

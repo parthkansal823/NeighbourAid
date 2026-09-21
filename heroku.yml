@@ -1,0 +1,45 @@
+# Heroku container deploy.
+#
+# Heroku's free tier ended in November 2022, so this needs credit — the
+# GitHub Student Pack has historically included some. Terms change; check
+# education.github.com/pack before relying on it.
+#
+# Dyno sizing, which matters here:
+#   Eco   ($5/mo)  sleeps after 30 min idle, ~10 s cold start
+#   Basic ($7/mo)  never sleeps  <- use this one
+#
+# Eco's sleep is far gentler than Render's (10 s vs ~50 s), so even the
+# cheaper dyno is usable for an app that is demoed rather than on call.
+#
+# Two Heroku facts worth knowing before you depend on it:
+#
+#   * Dynos restart at least daily. Harmless here — all state is in Atlas,
+#     and the WebSocket client already reconnects (see useWebSocket.js).
+#     Volunteers will see a brief drop when it cycles.
+#   * No India region. US or EU only, so expect ~200 ms more than a
+#     Bangalore droplet. Keep Atlas in Mumbai regardless: several database
+#     round trips happen per request and only one user-facing hop does.
+#
+# Deploy:
+#   heroku create your-app-name
+#   heroku stack:set container -a your-app-name
+#   heroku config:set MONGO_URL='mongodb+srv://...' -a your-app-name
+#   heroku config:set JWT_SECRET="$(openssl rand -hex 32)" -a your-app-name
+#   git push heroku main
+#
+# ENVIRONMENT is not set above because it already defaults to "production"
+# in config.py — a deploy that sets nothing still refuses to boot on the
+# public dev signing key.
+#
+# TLS is automatic on *.herokuapp.com, so wss:// works with no Caddy here.
+
+build:
+  docker:
+    web: backend/Dockerfile
+
+run:
+  # One worker, deliberately: app/services/websocket.py keeps connected
+  # volunteers in an in-process dict, so a second would own an invisible half
+  # of the pool. --proxy-headers so the per-IP rate limiters see the real
+  # caller rather than Heroku's router.
+  web: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1 --proxy-headers --forwarded-allow-ips '*'
