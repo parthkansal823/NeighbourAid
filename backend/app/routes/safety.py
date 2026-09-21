@@ -32,6 +32,15 @@ async def _ensure_indexes(db) -> None:
         return
     await db.safety_checkins.create_index([("location", "2dsphere")])
     await db.safety_checkins.create_index("expires_at", expireAfterSeconds=0)
+    # user_id is the collection's real key: create_checkin upsert-replaces on
+    # it ("one active check-in per user") and /me looks a user up by it. It
+    # had no index, which cost a collection scan on both paths and, worse,
+    # left the one-per-user invariant unenforced — two concurrent upserts can
+    # both miss the filter and both insert, which is exactly the race a
+    # unique index exists to lose. Note this raises DuplicateKeyError at
+    # startup if a database already contains duplicates from that race; they
+    # have to be collapsed to the newest row per user before it will build.
+    await db.safety_checkins.create_index("user_id", unique=True)
     _indexes_ready = True
 
 

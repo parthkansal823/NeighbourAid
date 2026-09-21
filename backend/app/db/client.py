@@ -41,6 +41,33 @@ async def connect():
     await _db.alerts.create_index([("location", "2dsphere")])
     await _db.users.create_index("email", unique=True)
 
+    # Compound indexes for the non-geo alert queries.
+    #
+    # The 2dsphere index above only serves `$nearSphere`. Every other alert
+    # read filters on some combination of reporter_id, accepted_by, status
+    # and created_at, none of which were indexed — so /api/stats,
+    # /api/stats/leaderboard, /api/alerts/mine and /api/users/me/stats each
+    # did a full collection scan. That is invisible on a demo database and
+    # becomes the first thing to fall over as alerts accumulate.
+    #
+    # Field order matters: Mongo can use a prefix of a compound index, so
+    # equality fields come first and the sort/range field last.
+    #
+    # (reporter_id, created_at desc) — /api/alerts/mine filters on
+    # reporter_id and sorts by created_at descending, so this one index
+    # serves both halves and the sort needs no in-memory pass.
+    await _db.alerts.create_index([("reporter_id", 1), ("created_at", -1)])
+    # (reporter_id, status) — the three count_documents calls in the
+    # reporter branch of /api/users/me/stats.
+    await _db.alerts.create_index([("reporter_id", 1), ("status", 1)])
+    # (accepted_by, created_at desc) — the volunteer branch of that same
+    # endpoint plus the leaderboard aggregation, which matches on
+    # accepted_by and a created_at window.
+    await _db.alerts.create_index([("accepted_by", 1), ("created_at", -1)])
+    # (status, created_at desc) — the landing-page counters in /api/stats,
+    # every one of which is a status filter over a 24-hour window.
+    await _db.alerts.create_index([("status", 1), ("created_at", -1)])
+
 
 async def disconnect():
     # Clear the globals too, so a second lifespan cycle (tests, reload) can't

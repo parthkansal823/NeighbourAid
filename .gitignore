@@ -89,3 +89,10 @@ models/*
 
 # Real values, filled in per deploy; the .example is the tracked template.
 frontend/.env.production
+
+# Claude Code: the shared project config (.claude/settings.json, .mcp.json)
+# is committed on purpose. Personal overrides are not -- settings.local.json
+# is where a machine-specific secret would land, such as the Atlas
+# connection string the mongodb MCP server needs.
+.claude/settings.local.json
+.claude/worktrees/

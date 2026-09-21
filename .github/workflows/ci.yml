@@ -101,6 +101,17 @@ jobs:
         run: cd frontend && npm test
 
       - name: Build frontend
+        # vite.config.js hard-fails a production build when VITE_API_URL or
+        # VITE_WS_URL is unset, so that a frontend pointing at nothing can
+        # never ship. CI still has to satisfy that guard, and these are
+        # deliberately unreachable placeholders: this job only proves the
+        # bundle compiles. Nothing deploys the artifact it uploads -- Render
+        # builds from the repo itself (see deploy.yml), with the real values
+        # supplied there. The WS value must keep the wss:// scheme or the
+        # config's second guard rejects it.
+        env:
+          VITE_API_URL: "https://ci-placeholder.invalid"
+          VITE_WS_URL: "wss://ci-placeholder.invalid"
         run: cd frontend && npm run build
 
       - name: Upload build artifact

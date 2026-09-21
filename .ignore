@@ -1,0 +1,28 @@
+# Keeps code search (ripgrep/Grep/Glob) out of generated trees. This is a
+# search-only file -- git, the bundler and CI are all unaffected, and every
+# path below can still be opened directly by name.
+#
+# Why it matters here: the built frontend bundle is committed in two more
+# places (the Capacitor android shell and dist/), so before this file a search
+# for any app string returned three copies -- the real source plus two
+# single-line minified bundles hundreds of KB wide.
+
+# Built frontend, vendored into the native shell and the dist folder.
+frontend/dist/
+frontend/android/app/src/main/assets/public/
+frontend/android/app/build/
+frontend/android/build/
+frontend/android/.gradle/
+
+# Compiled Python and tool caches.
+**/__pycache__/
+*.pyc
+**/.ruff_cache/
+**/.pytest_cache/
+
+# Lockfile and coverage: readable by name, just never search hits.
+frontend/package-lock.json
+backend/coverage.xml
+
+# Local model weights (gigabytes of binary).
+models/*.gguf
