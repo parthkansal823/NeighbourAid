@@ -32,6 +32,7 @@ from .vocab import (
     CRITICAL_TERMS as _CRITICAL_TERMS,
     HIGH_TERMS as _HIGH_TERMS,
     IMMEDIATE_TERMS as _IMMEDIATE_TERMS,
+    INFO_REQUEST_RES as _INFO_REQUEST_RES,
     LATER_TERMS as _LATER_TERMS,
     LOW_TERMS as _LOW_TERMS,
     VULNERABLE as _VULNERABLE,
@@ -77,9 +78,42 @@ def _heuristic_urgency(text: str) -> tuple[str, str, list[str], float]:
     hits = [w for w in _CRITICAL_TERMS if w in low]
     if hits:
         return "CRITICAL", "keyword:critical", hits[:3], 0.8
+
+    # Someone asking a question with no incident behind it. Placed after both
+    # CRITICAL checks and before HIGH: a question that also states an
+    # emergency ("where is the nearest hospital, my father is unconscious")
+    # has already returned CRITICAL above, so this can only ever catch a
+    # report that carries no urgent signal at all. Without it, "which
+    # hospital is nearest to sector 22" matched nothing and landed on the
+    # MEDIUM default, sitting in the volunteer feed above real LOW reports.
+    info_hits = [m.group(0).strip() for r in _INFO_REQUEST_RES
+                 if (m := r.search(text))]
+    if info_hits:
+        return "LOW", "pattern:info-request", info_hits[:3], 0.6
+
     hits = [w for w in _HIGH_TERMS if w in low]
     if hits:
+        # De-escalation. A HIGH keyword used to end the matter, so "stray dog
+        # has a minor injury on its leg, can wait until tomorrow" scored HIGH
+        # on `injury` alone — even though `stray` and `tomorrow` are both in
+        # LOW_TERMS and the reporter said outright that it can wait.
+        #
+        # When the text carries explicit de-escalating qualifiers, they are
+        # better evidence than a bare keyword: the reporter is describing
+        # their own situation. Deliberately limited to HIGH — CRITICAL has
+        # already returned above and is never downgraded, because "not
+        # breathing, come tomorrow" must stay CRITICAL no matter what the
+        # reporter believes about the timeline.
+        low_hits = [w for w in _LOW_TERMS if w in low]
+        if low_hits:
+            return (
+                "LOW",
+                "keyword:high-deescalated",
+                (hits[:1] + low_hits[:2]),
+                0.55,
+            )
         return "HIGH", "keyword:high", hits[:3], 0.7
+
     hits = [w for w in _LOW_TERMS if w in low]
     if hits:
         return "LOW", "keyword:low", hits[:3], 0.6

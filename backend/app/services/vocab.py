@@ -219,6 +219,53 @@ LOW_TERMS: tuple[str, ...] = (
     "ਅਵਾਰਾ", "ਮਾਮੂਲੀ", "ਜਾਣਕਾਰੀ", "ਸਵਾਲ", "ਕੱਲ੍ਹ", "ਬਾਅਦ",
 )
 
+
+# --------------------------------------------------------------------------
+# INFO REQUEST — somebody asking a question, with no incident behind it.
+#
+# "I just want to know which hospital is nearest to sector 22" names a
+# hospital and a place but reports nothing wrong. LOW_TERMS cannot catch it:
+# the giveaway is the SHAPE of the sentence ("just want to know which … is
+# nearest"), not any single word, and the individual words here — hospital,
+# nearest — are ones we must not treat as de-escalating anywhere else.
+#
+# These run after the CRITICAL checks in _heuristic_urgency, never before,
+# so "where is the nearest hospital, my father is unconscious" is still
+# CRITICAL. Question-shaped wording never outranks a stated emergency.
+# --------------------------------------------------------------------------
+
+INFO_REQUEST_PATTERNS: tuple[str, ...] = (
+    # --- English ---
+    # "just want to know…", "just wanted to ask…"
+    r"\bjust\s+want(?:ed)?\s+to\s+(?:know|ask|check|find\s+out)\b",
+    # "which/where is the nearest/closest X"
+    r"\b(?:which|where)\b[^.?!]{0,40}\b(?:nearest|closest)\b",
+    # "can you tell me…", "could you tell me…"
+    r"\b(?:can|could)\s+you\s+tell\s+me\b",
+    # "how do I get/apply/register…" — procedural, not an incident
+    r"\bhow\s+do\s+i\s+(?:get|apply|register|contact|reach)\b",
+    # --- Hindi / Urdu, romanised ---
+    r"\b(?:sirf|bas)\s+(?:janna|poochhna|puchhna)\b",
+    r"\bkahan\s+(?:hai|milega)\b",
+    # --- Hindi / Marathi (Devanagari) ---
+    r"(?:सिर्फ|बस)\s*(?:जानना|पूछना)",
+    r"(?:कहाँ|कहां|कुठे)\s*(?:है|आहे|मिलेगा)",
+    # --- Bengali ---
+    r"(?:কোথায়)\s*(?:আছে|পাব)",
+    # --- Tamil ---
+    r"(?:எங்கே)\s*(?:இருக்கிறது|உள்ளது)",
+    # --- Telugu ---
+    r"(?:ఎక్కడ)\s*(?:ఉంది|దొరుకుతుంది)",
+    # --- Gujarati ---
+    r"(?:ક્યાં)\s*(?:છે|મળશે)",
+    # --- Punjabi ---
+    r"(?:ਕਿੱਥੇ)\s*(?:ਹੈ|ਮਿਲੇਗਾ)",
+)
+
+INFO_REQUEST_RES: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pat, re.IGNORECASE) for pat in INFO_REQUEST_PATTERNS
+)
+
 # --------------------------------------------------------------------------
 # Vulnerability signals — who is affected, which raises priority
 # independently of the urgency label.

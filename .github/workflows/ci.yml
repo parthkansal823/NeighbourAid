@@ -189,5 +189,12 @@ jobs:
         with:
           context: ./frontend
           push: false
+          # Same throwaway values as the frontend-lint build step, for the
+          # same reason: vite.config.js refuses to build without them. They
+          # have to be build-args rather than `env:` because the build runs
+          # inside the image, where a step-level env var does not reach.
+          build-args: |
+            VITE_API_URL=https://ci-placeholder.invalid
+            VITE_WS_URL=wss://ci-placeholder.invalid
           cache-from: type=gha
           cache-to: type=gha,mode=max
