@@ -48,6 +48,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 import threading
 from pathlib import Path
@@ -71,29 +72,66 @@ _BAND_RE = re.compile("|".join(BANDS))
 SYSTEM = """You are a dispatcher for an emergency response network in India.
 Classify each report into exactly one urgency band.
 
-CRITICAL - someone dies or is permanently harmed within minutes without help.
-  Includes danger that is described but not named: a person who has stopped
-  responding, moving, speaking or breathing; someone who went under water and
-  has not surfaced; suspected poisoning or overdose; enclosed space with an
-  engine running.
-HIGH - serious harm, or will become critical within hours. Fire, flood,
-  collapse, gas leak, serious injury, a vulnerable person trapped.
-MEDIUM - a real problem but nobody is at risk of injury. Power cut, water
-  supply, damaged road, uncollected refuse.
+CRITICAL - a person dies or is permanently harmed within minutes without help.
+  Includes danger described but not named: someone who has stopped responding,
+  moving, speaking or breathing; someone who went under water and has not
+  surfaced; suspected poisoning or overdose; enclosed space with an engine running.
+HIGH - a person is at real risk of injury, or will be within hours. Fire, flood,
+  building collapse, gas leak, serious injury, a vulnerable person trapped.
+  A hazard that is actively worsening toward one of these counts, even if
+  nobody is hurt yet: cracks that are widening, a wall or pole leaning further,
+  ground subsiding, water still rising. "Getting worse" is itself the danger.
+MEDIUM - a real problem that harms nobody. This band OWNS routine civic
+  complaints, however long-running or unpleasant: no water supply, power cut,
+  potholes or damaged road, uncollected garbage or smell, blocked drain,
+  street light out. Duration and annoyance never promote these to HIGH.
 LOW - inconvenience or a request for information. Can safely wait.
 
 Reports arrive in English, Hindi, Hinglish, Bengali, Tamil, Telugu, Marathi,
 Gujarati or Punjabi. Judge the situation, not the words used.
 
-When a report is between two bands, choose the MORE urgent one: under-ranking
-a real emergency costs someone help, over-ranking only costs a volunteer a
-wasted trip.
+Decide by asking: could a PERSON be harmed, now or as this keeps developing?
+If nobody can be physically harmed, it is MEDIUM or LOW no matter how bad the
+inconvenience or how long it has gone on. Only when a person is genuinely at
+risk, and you are torn between two bands, choose the more urgent one.
 
 Reply with only JSON: {"urgency":"CRITICAL|HIGH|MEDIUM|LOW"}"""
+# Every clause above is load-bearing, measured on tests/eval_dataset.py with
+# `python -m tests.eval_hybrid`. The earlier rubric ended with a blanket "when
+# between two bands choose the MORE urgent one", and a small model reads that
+# as permission to promote anything annoying: a 1B model sent "no water supply
+# for two days", "pothole in the road" and "garbage uncollected for four days"
+# to HIGH, which is how a feed stops carrying signal. Two changes fixed it
+# without losing the reason the model is here at all:
+#
+#   * MEDIUM now explicitly OWNS civic complaints and says duration does not
+#     promote them, because the model's failure was reasoning from how long
+#     the problem had lasted rather than from whether anyone can be hurt.
+#   * The tie-break is scoped to reports where a person is genuinely at risk,
+#     so it no longer applies to the civic cases it was never meant for.
+#
+# The "getting worse is itself the danger" clause in HIGH is what catches
+# implied danger — widening cracks, water still rising — which is the whole
+# reason a model beats keyword matching. Dropping it costs implied 7/7 -> 6/7
+# and puts a report back below its true urgency. Re-run the eval before
+# touching any of this.
 
 
 def is_enabled() -> bool:
-    """Configured and the file exists. Checked before any import cost."""
+    """Configured, not switched off, and the file exists. Checked before any
+    import cost.
+
+    NA_DISABLE_AI_MODEL is a hard kill switch that beats LLM_MODEL_PATH. CI
+    has set it since the workflow was written (.github/workflows/ci.yml) on
+    the assumption that it forced the keyword fallback — but nothing read it,
+    so it protected nothing. That was harmless only because CI never sets
+    LLM_MODEL_PATH either; the moment anyone added a model to a test
+    environment, the flag meant to stop it would have done nothing. Honouring
+    it here is what makes `NA_DISABLE_AI_MODEL=1` a real guarantee: no model
+    load, no inference, no multi-GB download, whatever else is configured.
+    """
+    if os.getenv("NA_DISABLE_AI_MODEL", "").strip() not in ("", "0", "false"):
+        return False
     path = settings.LLM_MODEL_PATH
     return bool(path) and Path(path).is_file()
 

@@ -1,0 +1,21 @@
+# Optional: the local urgency model. NOT installed by requirements.txt and
+# NOT in the Docker image, on purpose.
+#
+# Triage works with no model at all — app/services/vocab.py scores 95% on the
+# eval set at ~0.1 ms per report using no weights, no network and no API key.
+# The model only runs where that classifier matched nothing and is guessing
+# (about 20% of reports), and only in the background enrichment task, after
+# the alert has already been broadcast. See app/services/enrich.py.
+#
+# Keeping it out of requirements.txt keeps the backend image small and its
+# build free of a compiler: the wheel below is prebuilt, but llama-cpp-python
+# still pulls in a native runtime that the keyword path never needs.
+#
+# Install (the wheel is NOT on PyPI — it needs the project's own index):
+#
+#   pip install -r requirements-llm.txt \
+#     --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+#
+# Then point LLM_MODEL_PATH at a GGUF file — see models/README.md for which
+# one and why.
+llama-cpp-python>=0.3.35

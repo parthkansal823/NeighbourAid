@@ -48,16 +48,14 @@ Frontend (from `frontend/`):
 
 ## Tooling in this repo
 
-- `.mcp.json` — graphify (code graph), context7 (library docs), github,
-  chrome-devtools. **graphify and github need a one-time OAuth sign-in**: run
-  `/mcp` in an interactive session and authorize them, or their tools stay
-  unavailable. context7 and chrome-devtools need nothing.
-  A mongodb server was configured and removed: it reads its connection string
-  from `${MONGO_URL}`, which lives in `backend/.env` and so is never in Claude
-  Code's environment, leaving it to hang for the full 30s connect timeout on
-  every session start. To restore it, first export `MONGO_URL` in the OS
-  environment (not a `.env` file), then re-add the entry.
-- `.claude/hooks/` — ruff on backend writes, eslint on frontend writes
-  (fails the turn with the eslint output so it gets fixed immediately),
-  toolchain health at session start.
+- `.mcp.json` — graphify only. It indexes the repo's call/dependency graph and
+  answers "who calls this / what breaks if I change it" without reading files.
+  Needs a one-time OAuth sign-in: run `/mcp` and authorize it. context7,
+  github and chrome-devtools were configured here and removed — none of them
+  got used, and every connected server's tool schemas load on every turn.
+- `.claude/hooks/` — on every backend write, ruff runs the same four rules CI
+  gates on (E9,F63,F7,F82) and fails the turn with its output; same idea for
+  eslint on frontend writes. Deliberately not a formatter: this codebase is
+  knowingly not ruff-clean, so `--fix` would bury real changes under
+  reformatting.
 - `.ignore` — keeps code search out of the committed build bundles.

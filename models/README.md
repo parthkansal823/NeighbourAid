@@ -18,6 +18,10 @@ beat that, and for the capabilities keyword matching cannot cover at all.
 pip install huggingface_hub
 python - <<'EOF'
 from huggingface_hub import hf_hub_download
+# The one the serving path is tuned for. Fetch this if you fetch nothing else.
+hf_hub_download('ggml-org/gemma-3-1b-it-GGUF',
+                'gemma-3-1b-it-Q4_K_M.gguf', local_dir='models')
+# Kept for comparison only — see the measured table below.
 hf_hub_download('Qwen/Qwen2.5-3B-Instruct-GGUF',
                 'qwen2.5-3b-instruct-q4_k_m.gguf', local_dir='models')
 hf_hub_download('bartowski/Qwen2.5-7B-Instruct-GGUF',
@@ -34,6 +38,7 @@ foreground or under a process manager that outlives the shell. A detached
 
 | File | Size | Purpose |
 |---|---|---|
+| `gemma-3-1b-it-Q4_K_M.gguf` | **769 MB** | **What the serving path uses.** Best score of the three and the only one small enough to be plausible on a phone. |
 | `qwen2.5-3b-instruct-q4_k_m.gguf` | 2.1 GB | Instruction LLM. 4-bit fits a 4 GB GPU entirely. Strongest Indic coverage per parameter of the small open models. |
 | `Qwen2.5-7B-Instruct-Q4_K_M.gguf` | 4.7 GB | Same family, larger. Needs partial CPU offload on 4 GB VRAM. |
 

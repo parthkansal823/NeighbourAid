@@ -1,5 +1,6 @@
 """Public aggregate stats used by the landing page."""
 
+import asyncio
 from datetime import datetime, timedelta, timezone
 
 from bson import ObjectId
@@ -19,13 +20,26 @@ async def stats():
     active_filter = {"status": {"$ne": "resolved"}}
     last_24h_filter = {"created_at": {"$gte": since_24h}}
 
-    active_count = await db.alerts.count_documents(active_filter)
-    critical_count = await db.alerts.count_documents(
-        {**active_filter, "urgency": "CRITICAL"}
-    )
-    last_24h_count = await db.alerts.count_documents(last_24h_filter)
-    resolved_24h = await db.alerts.count_documents(
-        {**last_24h_filter, "status": "resolved"}
+    # One round trip, not four. These counts are independent, but awaiting
+    # them in sequence made the landing page wait out four full round trips to
+    # Atlas back to back — and this is the endpoint every visitor hits first,
+    # signed in or not. On a managed database a few hundred kilometres away
+    # that is the difference between a page that fills instantly and one that
+    # visibly waits.
+    #
+    # gather is already how the codebase does this (services/enrich.py,
+    # routes/inbound.py); PyMongo's async driver is safe to use concurrently
+    # on one client, which pools connections underneath.
+    (
+        active_count,
+        critical_count,
+        last_24h_count,
+        resolved_24h,
+    ) = await asyncio.gather(
+        db.alerts.count_documents(active_filter),
+        db.alerts.count_documents({**active_filter, "urgency": "CRITICAL"}),
+        db.alerts.count_documents(last_24h_filter),
+        db.alerts.count_documents({**last_24h_filter, "status": "resolved"}),
     )
 
     # top category in the last 24 hours

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 
 from bson import ObjectId
@@ -90,12 +91,15 @@ async def my_stats(payload: dict = Depends(get_current_user)):
     uid = ObjectId(payload["sub"])
     role = payload.get("role")
 
+    # Counts in each branch are independent of each other, so they go out
+    # together rather than one round trip after another — same reasoning as
+    # routes/stats.py. The profile page waits on this before it can render.
     if role == "reporter":
-        posted = await db.alerts.count_documents({"reporter_id": uid})
-        resolved = await db.alerts.count_documents(
-            {"reporter_id": uid, "status": "resolved"}
+        posted, resolved, open_ = await asyncio.gather(
+            db.alerts.count_documents({"reporter_id": uid}),
+            db.alerts.count_documents({"reporter_id": uid, "status": "resolved"}),
+            db.alerts.count_documents({"reporter_id": uid, "status": "open"}),
         )
-        open_ = await db.alerts.count_documents({"reporter_id": uid, "status": "open"})
         return {
             "role": "reporter",
             "posted": posted,
@@ -104,9 +108,9 @@ async def my_stats(payload: dict = Depends(get_current_user)):
         }
 
     # volunteer
-    accepted = await db.alerts.count_documents({"accepted_by": uid})
-    resolved = await db.alerts.count_documents(
-        {"accepted_by": uid, "status": "resolved"}
+    accepted, resolved = await asyncio.gather(
+        db.alerts.count_documents({"accepted_by": uid}),
+        db.alerts.count_documents({"accepted_by": uid, "status": "resolved"}),
     )
     # Trust score is derived from the accept→resolve ratio with sample-size
     # smoothing so a 1-of-1 fluke doesn't auto-promote to "trusted".
