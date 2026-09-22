@@ -245,7 +245,7 @@ export default function PostAlert() {
         aria-hidden
         className="pointer-events-none absolute -bottom-24 right-1/4 h-56 w-72 rounded-full bg-orange-500/10 blur-3xl"
       />
-      <div className="relative bg-linear-to-b from-gray-900/95 to-gray-900/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-5 sm:p-8 w-full max-w-lg shadow-2xl shadow-black/50 reveal-up">
+      <div className="relative surface-card p-5 sm:p-8 w-full max-w-lg reveal-up">
         <div className="flex items-center gap-3 mb-2">
           <Siren className="h-8 w-8 text-red-400 glow-red rounded-full p-0.5" aria-hidden />
           <h1 className="text-xl sm:text-2xl font-bold text-white">{t('post_title')}</h1>
@@ -510,7 +510,7 @@ export default function PostAlert() {
           <button
             type="submit"
             disabled={submitting || !locationSet}
-            className="group relative w-full bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+            className="group relative w-full tap bg-critical hover:bg-red-400 active:bg-red-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors duration-200 press-in overflow-hidden"
           >
             <span
               aria-hidden

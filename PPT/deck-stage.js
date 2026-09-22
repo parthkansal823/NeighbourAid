@@ -321,6 +321,51 @@
       }
     }
 
+    /**
+     * Dark <-> light for the whole deck.
+     *
+     * Lives on the component because the control that drives it is in this
+     * shadow root, and a deck that cannot be flipped to suit the room is a
+     * deck people end up presenting in the wrong theme. The attribute goes
+     * on <html>, where the page defines its custom properties: the component
+     * owns the control, the page owns the palette.
+     *
+     * The choice is remembered. Someone who picked a theme keeps it; someone
+     * who never picked follows the OS, decided before first paint by the
+     * inline script in index.html so there is no flash of the wrong theme.
+     */
+    get theme() {
+      return document.documentElement.getAttribute('data-theme') === 'light'
+        ? 'light'
+        : 'dark';
+    }
+
+    setTheme(theme, persist = true) {
+      const light = theme === 'light';
+      if (light) document.documentElement.setAttribute('data-theme', 'light');
+      else document.documentElement.removeAttribute('data-theme');
+      if (this._themeBtn) {
+        this._themeBtn.setAttribute('aria-pressed', String(light));
+        const svg = this._themeBtn.querySelector('svg');
+        // Rotating the half-filled disc shows which half you switch TO.
+        if (svg) svg.style.transform = light ? 'rotate(180deg)' : '';
+      }
+      if (persist) {
+        try {
+          localStorage.setItem('neighbouraid-deck-theme', theme);
+        } catch (e) {
+          /* private mode — it still applies, it just will not persist */
+        }
+      }
+      this.dispatchEvent(
+        new CustomEvent('themechange', { detail: { theme }, bubbles: true })
+      );
+    }
+
+    toggleTheme() {
+      this.setTheme(this.theme === 'light' ? 'dark' : 'light');
+    }
+
     _render() {
       const style = document.createElement('style');
       style.textContent = stylesheet;
@@ -372,11 +417,18 @@
         </button>
         <span class="divider"></span>
         <button class="btn reset" type="button" aria-label="Reset to first slide" title="Reset (R)">Reset<span class="kbd">R</span></button>
+        <span class="divider"></span>
+        <button class="btn theme" type="button" aria-label="Switch between dark and light" title="Theme (T)" aria-pressed="false">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor" stroke="none"/></svg>
+          <span class="kbd">T</span>
+        </button>
       `;
 
       overlay.querySelector('.prev').addEventListener('click', () => this._go(this._index - 1, 'click'));
       overlay.querySelector('.next').addEventListener('click', () => this._go(this._index + 1, 'click'));
       overlay.querySelector('.reset').addEventListener('click', () => this._go(0, 'click'));
+      this._themeBtn = overlay.querySelector('.theme');
+      this._themeBtn.addEventListener('click', () => this.toggleTheme());
 
       this._root.append(style, stage, tapzones, overlay);
       this._canvas = canvas;
@@ -573,6 +625,8 @@
         this._go(0, 'keyboard');
       } else if (key === 'End') {
         this._go(this._slides.length - 1, 'keyboard');
+      } else if (key === 't' || key === 'T') {
+        this.toggleTheme();
       } else if (key === 'r' || key === 'R') {
         this._go(0, 'keyboard');
       } else if (/^[0-9]$/.test(key)) {

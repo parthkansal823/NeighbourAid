@@ -96,7 +96,7 @@ export default function Register() {
         aria-hidden
         className="pointer-events-none absolute -bottom-24 left-1/4 h-56 w-72 rounded-full bg-emerald-500/10 blur-3xl"
       />
-      <div className="relative bg-linear-to-b from-gray-900/95 to-gray-900/80 backdrop-blur-sm border border-gray-800 rounded-2xl p-6 sm:p-8 w-full max-w-md shadow-2xl shadow-black/50 reveal-up">
+      <div className="relative surface-card p-6 sm:p-8 w-full max-w-md reveal-up">
         <h1 className="text-2xl font-bold text-white mb-2">{t('register_title')}</h1>
         <p className="text-gray-400 text-sm mb-6 sm:mb-8">{t('register_subtitle')}</p>
 
@@ -261,7 +261,7 @@ export default function Register() {
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+            className="group relative w-full tap bg-accent hover:bg-orange-400 active:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-gray-950 font-semibold py-3 rounded-xl transition-colors duration-200 press-in overflow-hidden"
           >
             <span
               aria-hidden

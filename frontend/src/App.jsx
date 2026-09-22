@@ -16,6 +16,8 @@ import MyAlerts from './pages/MyAlerts'
 import Profile from './pages/Profile'
 import Safety from './pages/Safety'
 import Resources from './pages/Resources'
+import News from './pages/News'
+import Help from './pages/Help'
 import AlertShare from './pages/AlertShare'
 import api from './utils/api'
 import { flushQueue, listPending } from './utils/offlineQueue'
@@ -119,6 +121,8 @@ export default function App() {
             />
             <Route path="/safety" element={<Safety />} />
             <Route path="/resources" element={<Resources />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/help" element={<Help />} />
             <Route path="/alert/:id" element={<AlertShare />} />
           </Routes>
           <EmergencyDialer />

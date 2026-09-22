@@ -56,7 +56,7 @@ function LanguageMenu() {
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 mt-1.5 w-64 glass border border-gray-800 rounded-lg shadow-2xl shadow-black/50 z-50 overflow-hidden pop-in">
+        <div className="absolute right-0 mt-1.5 w-64 surface-float glass z-50 overflow-hidden pop-in">
           {/* Scrolls once the list outgrows the viewport, so the auto-translate
               row below stays reachable no matter how many languages we ship. */}
           <ul role="listbox" className="max-h-64 overflow-y-auto">
@@ -138,7 +138,7 @@ export default function Navbar() {
     <nav
       className={`sticky top-0 z-40 glass border-b transition-all duration-300 ${
         scrolled
-          ? 'border-gray-800 shadow-lg shadow-black/30'
+          ? 'border-line'
           : 'border-gray-900'
       }`}
     >
@@ -167,6 +167,12 @@ export default function Navbar() {
           </NavLink>
           <NavLink to="/resources" className={navLink}>
             {t('nav_resources')}
+          </NavLink>
+          <NavLink to="/news" className={navLink}>
+            {t('nav_news')}
+          </NavLink>
+          <NavLink to="/help" className={navLink}>
+            {t('nav_help')}
           </NavLink>
 
           {!user ? (

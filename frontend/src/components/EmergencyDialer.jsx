@@ -44,7 +44,7 @@ export default function EmergencyDialer() {
           aria-label={t('dialer_tooltip')}
         >
           <div
-            className="bg-gray-900 border border-gray-800 rounded-2xl w-full sm:max-w-md p-5 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="surface-float w-full sm:max-w-md p-5 sm:p-6 max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-1">

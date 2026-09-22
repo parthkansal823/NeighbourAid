@@ -49,6 +49,21 @@ async def find_corroborating_alerts(db, category: str, coordinates: list[float])
         {
             "category": category,
             "status": {"$ne": "resolved"},
+            # Never corroborate against a report that is already folded into
+            # another one. Two things went wrong without this:
+            #
+            #  1. `pick_canonical` could choose a duplicate as the canonical,
+            #     so a new report attached to a card the feed HIDES. Witnesses
+            #     then piled up somewhere nobody could see, which defeats the
+            #     entire point of folding — concentrating "how many people are
+            #     saying this" onto one visible card. A live database had
+            #     eight of these chains.
+            #  2. verified_score double-counted: a duplicate is not an
+            #     independent report of the incident, it IS the incident,
+            #     already counted once through the alert it folded into.
+            #
+            # `None` also matches documents written before the field existed.
+            "duplicate_of": None,
             "created_at": {"$gte": since},
             "location": {
                 "$nearSphere": {

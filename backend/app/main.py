@@ -12,15 +12,68 @@ from fastapi.responses import JSONResponse
 from .core.security import decode_token_safe
 from .core.security_headers import SecurityHeadersMiddleware
 from .db.client import connect, disconnect, get_db
-from .routes import alerts, auth, geo, inbound, news, resources, safety, stats, users
+from .routes import (
+    alerts,
+    auth,
+    geo,
+    help,
+    inbound,
+    news,
+    resources,
+    safety,
+    stats,
+    users,
+)
 from .services.websocket import manager
 
 log = logging.getLogger("neighbouraid")
 logging.basicConfig(level=logging.INFO)
 
 
+def _warn_if_multi_worker() -> None:
+    """Refuse to fail silently when the app is run with more than one worker.
+
+    Two pieces of state are in-process, and both break quietly rather than
+    loudly when a second worker exists:
+
+      * `services/websocket.py` keeps connected volunteers in a plain dict.
+        A broadcast from worker A never reaches a volunteer whose socket
+        landed on worker B, so a share of volunteers simply stop receiving
+        alerts. Nothing errors. Nobody finds out until someone asks why they
+        were not paged.
+      * `services/ratelimit.py` keeps its buckets in a dict too, so N workers
+        means N times the intended limit — the abuse guards get proportionally
+        weaker exactly as the deployment gets bigger.
+
+    `heroku.yml` pins `--workers 1` for this reason, but that pin lives in one
+    deploy file and the next person to scale up will not read it. Saying so at
+    startup is the cheapest way to make the constraint travel with the code.
+
+    A warning rather than a refusal: an operator may genuinely want multiple
+    workers and be willing to lose WebSocket fan-out (the REST API is
+    stateless and scales fine). Making that a deliberate choice is the goal;
+    making it a silent one is the bug.
+    """
+    count = os.getenv("WEB_CONCURRENCY") or os.getenv("UVICORN_WORKERS")
+    try:
+        workers = int(count) if count else 1
+    except ValueError:
+        workers = 1
+    if workers > 1:
+        log.warning(
+            "Running with %s workers. WebSocket broadcasts and rate limits are "
+            "per-process, so volunteers connected to one worker will miss "
+            "alerts broadcast from another, and rate limits are effectively "
+            "%sx looser. Use one worker, or put the fan-out and the limiter "
+            "behind shared storage first.",
+            workers,
+            workers,
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _warn_if_multi_worker()
     await connect()
     yield
     await disconnect()
@@ -72,6 +125,7 @@ app.include_router(news.router)
 app.include_router(resources.router)
 app.include_router(inbound.router)
 app.include_router(geo.router)
+app.include_router(help.router)
 
 
 def _safe_errors(errors):

@@ -151,7 +151,7 @@ export default function Profile() {
     (contactCount === 0 ? 1 : 0)
 
   const sectionCls =
-    'bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 shadow-lg shadow-black/20'
+    'surface-card p-4 sm:p-5'
   const saveBtnCls =
     'group relative bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden'
 

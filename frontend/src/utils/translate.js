@@ -96,7 +96,56 @@ async function callGtx(texts, target) {
   return ''
 }
 
-export async function translateText(text, target) {
+/**
+ * On-device translation, where the browser offers it.
+ *
+ * Tried BEFORE the network call, for the reason the privacy note above
+ * spends twenty lines on: this path sends nothing anywhere. The text stays
+ * on the device, which is the only version of this feature that does not
+ * quietly undercut the anonymous-reporting guarantee.
+ *
+ * Chrome 138+ (and therefore the Capacitor Android WebView) exposes
+ * `Translator`. Everywhere else this returns null in microseconds and the
+ * network path runs exactly as before.
+ *
+ * Needs a source language, which the caller has: alerts carry `language`
+ * from the backend's own detection. Without one, `Translator` cannot pick a
+ * model, so we fall through rather than guess.
+ */
+const deviceTranslators = new Map()
+
+async function translateOnDevice(text, target, source) {
+  if (!source || source === target) return null
+  if (typeof self === 'undefined' || !('Translator' in self)) return null
+
+  const pairKey = `${source}->${target}`
+  try {
+    let ready = deviceTranslators.get(pairKey)
+    if (!ready) {
+      const availability = await self.Translator.availability({
+        sourceLanguage: source,
+        targetLanguage: target,
+      })
+      // 'downloadable' would start a model download on a device that may be
+      // on mobile data in the middle of an emergency. Only take the path
+      // when the model is already there.
+      if (availability !== 'available') return null
+      ready = self.Translator.create({
+        sourceLanguage: source,
+        targetLanguage: target,
+      })
+      deviceTranslators.set(pairKey, ready)
+    }
+    const translator = await ready
+    return (await translator.translate(text)) || null
+  } catch {
+    // A failed pair must not be retried on every card in the feed.
+    deviceTranslators.set(pairKey, Promise.resolve({ translate: async () => null }))
+    return null
+  }
+}
+
+export async function translateText(text, target, source) {
   hydrateFromLS()
   if (!text || !target) return text
   const trimmed = text.trim()
@@ -105,13 +154,30 @@ export async function translateText(text, target) {
   const key = cacheKey(trimmed, target)
   if (memCache.has(key)) return memCache.get(key)
 
+  const onDevice = await translateOnDevice(trimmed, target, source)
+  if (onDevice) {
+    memCache.set(key, onDevice)
+    persistToLS()
+    return onDevice
+  }
+
   try {
     const out = (await callGtx([trimmed], target)) || trimmed
     memCache.set(key, out)
     persistToLS()
     return out
   } catch {
-    memCache.set(key, trimmed)
+    // Deliberately NOT cached.
+    //
+    // This used to `memCache.set(key, trimmed)` on failure, which persisted
+    // the untranslated text under the translation's key — in localStorage,
+    // so it survived reloads. One rate-limit response therefore meant that
+    // string was never translated again on that device, even months later
+    // once the endpoint recovered. gtx is undocumented and currently returns
+    // 429 to anonymous callers, so this was not a rare path.
+    //
+    // Returning the original without caching keeps the fail-soft behaviour
+    // and lets the next view try again.
     return trimmed
   }
 }

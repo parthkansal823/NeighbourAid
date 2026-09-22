@@ -342,7 +342,7 @@ export default function Home() {
         <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 sm:gap-4 reveal-up stagger-3">
           <Link
             to={heroPrimary.to}
-            className={`group relative overflow-hidden bg-linear-to-r ${heroPrimary.tone} text-white font-semibold px-6 sm:px-8 py-3 rounded-xl transition-all duration-300 shadow-lg shadow-orange-500/20 hover:shadow-orange-500/40 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]`}
+            className={`group relative overflow-hidden tap ${heroPrimary.tone} text-white font-semibold px-6 sm:px-8 py-3 rounded-xl transition-colors duration-200 press-in`}
           >
             <span
               aria-hidden
@@ -361,7 +361,7 @@ export default function Home() {
 
       {personalStats.length > 0 && (
         <section className="max-w-4xl mx-auto px-4 sm:px-6 -mt-4 sm:-mt-8 mb-6 reveal-up stagger-4">
-          <div className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-4 sm:p-5 shadow-xl shadow-black/30">
+          <div className="surface-card p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div>
                 <h2 className="text-lg font-semibold text-white">
@@ -436,7 +436,7 @@ export default function Home() {
 
       {user && (
         <section className="max-w-4xl mx-auto px-4 sm:px-6 pb-8 sm:pb-10">
-          <div className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-2xl p-4 sm:p-5 shadow-xl shadow-black/30 reveal-up">
+          <div className="surface-card p-4 sm:p-5 reveal-up">
             <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
               <div>
                 <h2 className="text-lg font-semibold text-white">Readiness checklist</h2>
@@ -511,7 +511,7 @@ export default function Home() {
             {t('home_leaderboard_title')}{' '}
             <span className="text-gray-500 text-base font-normal block sm:inline">. {t('home_leaderboard_since')}</span>
           </h2>
-          <div className="bg-linear-to-b from-gray-900 to-gray-900/70 border border-gray-800 rounded-xl divide-y divide-gray-800/70 overflow-hidden shadow-lg shadow-black/30">
+          <div className="surface-card divide-y divide-line overflow-hidden">
             {leaderboard.map((v, i) => {
               const trust = v.trust
               const trustStyle =
@@ -679,7 +679,7 @@ function FlowCard({ card, index }) {
   return (
     <Link
       to={card.to}
-      className={`group bg-linear-to-br ${card.tone} border rounded-2xl p-4 sm:p-5 reveal-up hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 transition-all duration-300`}
+      className={`group ${card.tone} border rounded-2xl p-4 sm:p-5 reveal-up transition-colors duration-200`}
       style={{ animationDelay: `${index * 70}ms` }}
     >
       <div className="flex items-center justify-between gap-3 mb-3">

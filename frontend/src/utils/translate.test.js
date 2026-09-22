@@ -67,3 +67,50 @@ describe('translateText', () => {
     expect(parsed['hi::hello']).toBe('नमस्ते')
   })
 })
+
+describe('a failed translation is not cached', () => {
+  /**
+   * The bug this guards.
+   *
+   * The catch block used to `memCache.set(key, trimmed)` — it stored the
+   * UNTRANSLATED text under the translation's cache key, and that cache is
+   * persisted to localStorage. So one failure meant that string was never
+   * translated again on that device, even long after the endpoint recovered.
+   *
+   * It was not a rare path either: the gtx endpoint is undocumented and
+   * unversioned, and currently answers anonymous callers with HTTP 429.
+   */
+  it('retries after a failure instead of serving the original forever', async () => {
+    let calls = 0
+    global.fetch = vi.fn(async () => {
+      calls += 1
+      if (calls === 1) return { ok: false, status: 429, json: async () => ({}) }
+      return {
+        ok: true,
+        json: async () => [[['अनुवादित', 'original', null, null, 1, null, null, []]]],
+      }
+    })
+
+    const first = await translateText('fire near gate 3', 'hi')
+    expect(first).toBe('fire near gate 3') // fails soft, as it should
+
+    const second = await translateText('fire near gate 3', 'hi')
+    expect(second).toBe('अनुवादित')
+    expect(calls).toBe(2) // the second view actually tried again
+  })
+
+  it('still caches a success, so a repeat view costs nothing', async () => {
+    let calls = 0
+    global.fetch = vi.fn(async () => {
+      calls += 1
+      return {
+        ok: true,
+        json: async () => [[['अनुवादित', 'original', null, null, 1, null, null, []]]],
+      }
+    })
+
+    await translateText('fire near gate 3', 'hi')
+    await translateText('fire near gate 3', 'hi')
+    expect(calls).toBe(1)
+  })
+})

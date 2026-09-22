@@ -145,3 +145,55 @@ class TestSerialisation:
             }
         )
         assert out["duplicate_of"] is None
+
+
+class TestNoChainedDuplicates:
+    """A duplicate must never become somebody else's canonical.
+
+    Found on a live database: eight alerts pointed at `618cbc`, which was
+    itself folded into `618cb7`. The feed hides duplicates, so every witness
+    those eight contributed landed on a card nobody could see — defeating the
+    whole point of folding, which is to concentrate "how many people are
+    saying this" onto one VISIBLE card.
+
+    The fix is in the corroboration query rather than in `pick_canonical`:
+    a duplicate is not an independent report to corroborate against, it is
+    the same incident already counted. Excluding it there fixes the chain and
+    a verified_score double-count at the same time.
+    """
+
+    def test_the_query_excludes_already_folded_reports(self):
+        from pathlib import Path
+
+        import app.services.verification as mod
+
+        src = Path(mod.__file__).read_text(encoding="utf-8")
+        start = src.index("async def find_corroborating_alerts")
+        end = src.index("def filter_corroborating", start)
+        assert '"duplicate_of": None' in src[start:end], (
+            "corroboration must not match reports that are already folded "
+            "into another alert"
+        )
+
+    def test_pick_canonical_therefore_only_ever_sees_originals(self):
+        # Belt and braces: even handed a mixed list, the oldest ORIGINAL is
+        # what a caller should end up with, because the query never supplies
+        # a folded one.
+        from datetime import datetime, timedelta, timezone
+
+        from bson import ObjectId
+
+        from app.services.verification import pick_canonical
+
+        now = datetime.now(timezone.utc)
+        original = {
+            "_id": ObjectId(),
+            "created_at": now - timedelta(minutes=20),
+            "duplicate_of": None,
+        }
+        newer = {
+            "_id": ObjectId(),
+            "created_at": now - timedelta(minutes=5),
+            "duplicate_of": None,
+        }
+        assert pick_canonical([newer, original]) is original

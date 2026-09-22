@@ -66,7 +66,7 @@ function ResourceCard({ pin, mineId, onDelete, index = 0 }) {
 
   return (
     <li
-      className="group bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl px-4 py-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-700 hover:shadow-lg hover:shadow-black/40 reveal-up"
+      className="group surface-card px-4 py-3 transition-colors duration-200 hover:border-accent/40 reveal-up"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -351,7 +351,7 @@ export default function Resources() {
       {user ? (
         <form
           onSubmit={onSubmit}
-          className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 space-y-3 reveal-up stagger-1 shadow-lg shadow-black/20"
+          className="surface-card p-4 sm:p-5 mb-6 space-y-3 reveal-up stagger-1"
         >
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
@@ -454,7 +454,7 @@ export default function Resources() {
         </div>
       )}
 
-      <section className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 shadow-lg shadow-black/20">
+      <section className="surface-card p-4 sm:p-5 mb-6">
         <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
             {t('res_nearby')} . <span className="tabular-nums">{filtered.length}</span>

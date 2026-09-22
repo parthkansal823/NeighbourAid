@@ -148,6 +148,33 @@ async def main(base_url: str) -> int:
             print("\nCould not create accounts — the journeys below need them.")
             return 1
 
+        # ---- clear what previous runs left behind ------------------------
+        #
+        # The run deletes every document it creates, but duplicate-folding
+        # means an alert can attach to one left by an EARLIER run, and that
+        # older alert is not ours to delete at the end. Across runs it
+        # accumulates witnesses and becomes a permanent canonical, so
+        # "witnesses == 1" starts failing, and this run's first alert is
+        # itself folded into it -- and therefore correctly absent from
+        # /nearby, which reads as a broken feed rather than a dirty database.
+        #
+        # Deleting the standing accounts' own alerts first makes every run
+        # start from the same place. It only touches documents this script
+        # created, under accounts named for it.
+        print("")
+        print("clearing previous smoke data")
+        cleared = 0
+        for token in (rep_token, vol_token):
+            listing = await c.get("/api/alerts/mine", headers=_auth(token))
+            if listing.status_code != 200:
+                continue
+            for stale in listing.json():
+                gone = await c.delete(
+                    f"/api/alerts/{stale['id']}", headers=_auth(token)
+                )
+                cleared += 1 if gone.status_code in (204, 200) else 0
+        check(f"cleared {cleared} alert(s) from earlier runs", True)
+
         # ---- posting an alert, and the triage that runs on it -------------
         print("\nalerts")
         t0 = time.perf_counter()
@@ -260,10 +287,15 @@ async def main(base_url: str) -> int:
 
         r = await c.get("/api/alerts/nearby", params={"lat": LAT, "lng": LNG}, headers=_auth(vol_token))
         nearby = r.json() if r.status_code == 200 else []
+        # The canonical is what the feed shows. Usually that is this run's
+        # alert; if it folded into an older one, that older one is the card a
+        # volunteer actually sees, so the assertion should follow it.
+        expected_in_feed = alert.get("duplicate_of") or alert_id
         check(
-            "GET /api/alerts/nearby returns the new alert",
-            any(a.get("id") == alert_id for a in nearby),
-            f"{len(nearby)} alerts, status {r.status_code}",
+            "GET /api/alerts/nearby returns the canonical alert",
+            any(a.get("id") == expected_in_feed for a in nearby),
+            f"{len(nearby)} alerts, looking for {expected_in_feed}, "
+            f"status {r.status_code}",
         )
         folded = {d.get("id") for d in (dup, anon_dup) if d.get("id")}
         check(

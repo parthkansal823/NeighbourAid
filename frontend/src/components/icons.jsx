@@ -54,6 +54,8 @@ import {
   Flag,
   Flame,
   Globe,
+  GraduationCap,
+  Hammer,
   Handshake,
   Hourglass,
   Heart,
@@ -67,6 +69,7 @@ import {
   Info,
   Languages,
   LifeBuoy,
+  Laptop,
   Menu,
   Link2,
   LoaderCircle,
@@ -77,6 +80,7 @@ import {
   MessageCircle,
   MicOff,
   Navigation,
+  Newspaper,
   Package,
   PawPrint,
   PersonStanding,
@@ -107,6 +111,7 @@ import {
   Users,
   VenusAndMars,
   Waves,
+  Wrench,
   Volume2,
   VolumeX,
   WifiOff,
@@ -151,6 +156,8 @@ export {
   Flag,
   Flame,
   Globe,
+  GraduationCap,
+  Hammer,
   Handshake,
   Hourglass,
   Heart,
@@ -164,6 +171,7 @@ export {
   Info,
   Languages,
   LifeBuoy,
+  Laptop,
   Link2,
   LoaderCircle,
   LogOut,
@@ -174,6 +182,7 @@ export {
   MessageCircle,
   MicOff,
   Navigation,
+  Newspaper,
   Package,
   PersonStanding,
   Phone,
@@ -203,6 +212,7 @@ export {
   Users,
   VenusAndMars,
   Waves,
+  Wrench,
   Volume2,
   VolumeX,
   WifiOff,
@@ -267,6 +277,25 @@ export function strokeForClass(className = '') {
   // than guessing, so an icon sized some other way is never made worse.
   if (px === undefined) return undefined
   return STROKE_FOR_SIZE.find(([max]) => px <= max)[1]
+}
+
+/** Help-request trade → icon. Mirrors HelpKind in backend routes/help.py. */
+export const HELP_ICONS = {
+  electrician: Zap,
+  plumber: Droplet,
+  carpenter: Hammer,
+  mechanic: Wrench,
+  appliance: BatteryCharging,
+  tech: Laptop,
+  tutor: GraduationCap,
+  cleaning: Sparkles,
+  moving: Truck,
+  other: Tag,
+}
+
+export function HelpIcon({ kind, ...props }) {
+  const Icon = HELP_ICONS[kind] || HELP_ICONS.other
+  return <Icon aria-hidden strokeWidth={strokeForClass(props.className)} {...props} />
 }
 
 /**

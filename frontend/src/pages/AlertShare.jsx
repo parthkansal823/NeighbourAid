@@ -71,7 +71,7 @@ export default function AlertShare() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <section className="relative bg-linear-to-b from-gray-900/95 to-gray-900/80 border border-gray-800 rounded-2xl p-5 sm:p-6 shadow-xl shadow-black/40 reveal-up overflow-hidden">
+      <section className="relative surface-card p-5 sm:p-6 reveal-up overflow-hidden">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-12 -right-8 h-40 w-40 rounded-full bg-orange-500/10 blur-3xl"

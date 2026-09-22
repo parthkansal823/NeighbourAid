@@ -41,7 +41,7 @@ function AlertRow({ a, onCancel, cancelling, index = 0 }) {
   const ago = useTimeAgo(a.created_at)
   return (
     <div
-      className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-700 hover:shadow-lg hover:shadow-black/40 reveal-up"
+      className="surface-card p-3 sm:p-4 transition-colors duration-200 hover:border-accent/40 reveal-up"
       style={{ animationDelay: `${index * 60}ms` }}
     >
       <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">

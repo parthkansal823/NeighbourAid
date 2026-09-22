@@ -92,7 +92,7 @@ function ToastItem({ toast, onClose }) {
   return (
     <div
       role="status"
-      className={`relative border rounded-xl px-4 py-3 pl-5 text-sm text-gray-100 shadow-2xl backdrop-blur-md overflow-hidden ${
+      className={`relative surface-float border px-4 py-3 pl-5 text-sm text-gray-100 backdrop-blur-md overflow-hidden ${
         toast.leaving ? 'animate-toast-out' : 'slide-in-right'
       } ${VARIANT_STYLE[toast.variant] ?? VARIANT_STYLE.info} ${
         VARIANT_GLOW[toast.variant] ?? VARIANT_GLOW.info

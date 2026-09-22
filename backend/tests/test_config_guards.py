@@ -70,3 +70,46 @@ def test_a_bare_deploy_is_rejected_rather_than_booted():
     # Both guards in config.py fire on these, so import would raise.
     assert bare.JWT_SECRET == DEV_JWT_SECRET
     assert _points_at_localhost(bare.MONGO_URL)
+
+
+class TestMultiWorkerWarning:
+    """The app keeps WebSocket connections and rate-limit buckets in plain
+    process-local dicts. With a second worker both break quietly: a share of
+    volunteers stop receiving broadcasts, and the abuse limits get N times
+    looser. `heroku.yml` pins `--workers 1`, but that pin lives in one deploy
+    file the next person to scale up will not read."""
+
+    def test_silent_on_a_single_worker(self, caplog):
+        import app.main as main
+
+        caplog.clear()
+        with caplog.at_level("WARNING"):
+            main._warn_if_multi_worker()
+        assert not [r for r in caplog.records if "workers" in r.getMessage()]
+
+    def test_warns_when_web_concurrency_is_raised(self, monkeypatch, caplog):
+        import app.main as main
+
+        monkeypatch.setenv("WEB_CONCURRENCY", "4")
+        caplog.clear()
+        with caplog.at_level("WARNING"):
+            main._warn_if_multi_worker()
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("4 workers" in m for m in messages), messages
+
+    def test_reads_the_uvicorn_variable_too(self, monkeypatch, caplog):
+        import app.main as main
+
+        monkeypatch.setenv("UVICORN_WORKERS", "2")
+        caplog.clear()
+        with caplog.at_level("WARNING"):
+            main._warn_if_multi_worker()
+        assert any("2 workers" in r.getMessage() for r in caplog.records)
+
+    def test_a_garbage_value_does_not_crash_startup(self, monkeypatch, caplog):
+        # A warning must never be the thing that stops the app booting.
+        import app.main as main
+
+        monkeypatch.setenv("WEB_CONCURRENCY", "not-a-number")
+        with caplog.at_level("WARNING"):
+            main._warn_if_multi_worker()

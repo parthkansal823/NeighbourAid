@@ -139,6 +139,22 @@
   @apply bg-surface-1 border border-line rounded-2xl;
 }
 
+/* ---- Floating surface ------------------------------------------------
+   The one sanctioned exception to "no shadows". A dialog, a dropdown or a
+   toast sits over content it is not part of, and the surface step alone
+   cannot say that — the card fill and whatever it covers can land on the
+   same value. So these get exactly one shadow, defined once here.
+
+   It is a token rather than a `shadow-2xl` per component because that is
+   how the old UI drifted: five components, five different shadow stacks,
+   and no way to change the elevation of "things that float" in one place.
+
+   Anything that is part of the page flow uses `surface-card` instead. */
+@utility surface-float {
+  @apply bg-surface-1 border border-line rounded-2xl;
+  box-shadow: 0 16px 48px -12px rgb(0 0 0 / 0.65);
+}
+
 /* ---- Chip ------------------------------------------------------------
    Filter chips, category tags, status pills. `aria-pressed` drives the
    selected state so the styling and the accessibility tree cannot drift

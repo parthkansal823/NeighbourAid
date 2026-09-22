@@ -95,7 +95,7 @@ function TranslatableText({ text, sourceLang }) {
     let cancelled = false
     if (!autoTranslate || !needsTranslation) return undefined
     setLoading(true)
-    translateText(text, lang)
+    translateText(text, lang, sourceLang)
       .then((out) => {
         if (cancelled) return
         if (out && out !== text) {
@@ -109,7 +109,10 @@ function TranslatableText({ text, sourceLang }) {
     return () => {
       cancelled = true
     }
-  }, [text, lang, autoTranslate, needsTranslation])
+    // `sourceLang` is listed even though `needsTranslation` already derives
+    // from it — the rule cannot see through that, and CI runs eslint with
+    // --max-warnings 0, so an unlisted dependency fails the build.
+  }, [text, lang, sourceLang, autoTranslate, needsTranslation])
 
   const toggle = async () => {
     if (showing) {
@@ -119,7 +122,7 @@ function TranslatableText({ text, sourceLang }) {
     if (translated == null) {
       setLoading(true)
       try {
-        const out = await translateText(text, lang)
+        const out = await translateText(text, lang, sourceLang)
         setTranslated(out)
       } finally {
         setLoading(false)
@@ -526,8 +529,17 @@ export default function AlertCard({ alert, onUpdate }) {
         <TranslatableText text={alert.description} sourceLang={alert.language} />
       </div>
 
+      {/*
+        Coordinates drive the nearby-hospital lookup inside AutoDispatch.
+        GeoJSON order is [lng, lat] — swapping them here would not error, it
+        would quietly list hospitals from somewhere else entirely.
+      */}
       {(alert.urgency === 'CRITICAL' || alert.urgency === 'HIGH') && (
-        <AutoDispatch category={alert.category} />
+        <AutoDispatch
+          category={alert.category}
+          lat={alert.location?.coordinates?.[1]}
+          lng={alert.location?.coordinates?.[0]}
+        />
       )}
 
       <PhotoGallery

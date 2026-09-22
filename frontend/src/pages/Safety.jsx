@@ -225,7 +225,7 @@ export default function Safety() {
       )}
 
       {user ? (
-        <section className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 reveal-up stagger-1 shadow-lg shadow-black/20">
+        <section className="surface-card p-4 sm:p-5 mb-6 reveal-up stagger-1">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
             <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
               {t('safety_your')}
@@ -279,7 +279,7 @@ export default function Safety() {
         </div>
       )}
 
-      <section className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 sm:p-5 shadow-lg shadow-black/20">
+      <section className="surface-card p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
             {t('safety_nearby')} . <span className="tabular-nums">{visible.length}</span> {t('safety_checkins')}

@@ -155,7 +155,7 @@ function ResizeWatcher() {
 
 function Legend() {
   return (
-    <div className="absolute bottom-3 right-3 z-400 bg-gray-900/90 backdrop-blur-sm border border-gray-800 rounded-xl px-3 py-2 text-[11px] text-gray-300 space-y-1 shadow-xl shadow-black/40 max-w-[160px] reveal-up">
+    <div className="absolute bottom-3 right-3 z-400 surface-float bg-surface-1/90 backdrop-blur-sm px-3 py-2 text-[11px] text-gray-300 space-y-1 max-w-[160px] reveal-up">
       <div className="font-semibold text-gray-100 mb-1 flex items-center gap-1">
         <span className="inline-block w-1 h-3 bg-linear-to-b from-orange-400 to-red-500 rounded-full" />
         Urgency
@@ -215,7 +215,7 @@ function stepIcon(step) {
 
 function RoutePanel({ route, loading, error, onClear, destination }) {
   return (
-    <div className="absolute top-3 left-3 z-400 bg-linear-to-b from-gray-900/95 to-gray-900/85 backdrop-blur-sm border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-200 shadow-2xl shadow-black/50 max-w-[240px] reveal-up">
+    <div className="absolute top-3 left-3 z-400 surface-float bg-surface-1/95 backdrop-blur-sm px-3 py-2.5 text-xs text-gray-200 max-w-[240px] reveal-up">
       <div className="flex items-center gap-2 mb-1">
         <Compass className="h-4 w-4" aria-hidden />
         <span className="font-semibold text-white">Route</span>
@@ -344,7 +344,7 @@ function useOsrmRoute(from, to) {
 
 function RichRoutePanel({ route, loading, error, onClear, destination }) {
   return (
-    <div className="absolute top-3 left-3 z-410 bg-linear-to-b from-gray-900/95 to-gray-900/85 backdrop-blur-sm border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-gray-200 shadow-2xl shadow-black/50 max-w-[280px] reveal-up">
+    <div className="absolute top-3 left-3 z-410 surface-float bg-surface-1/95 backdrop-blur-sm px-3 py-2.5 text-xs text-gray-200 max-w-[280px] reveal-up">
       <div className="flex items-center gap-2 mb-1">
         <Compass className="h-4 w-4" aria-hidden />
         <span className="font-semibold text-white">Live directions</span>

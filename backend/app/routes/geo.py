@@ -15,6 +15,7 @@ instead of one per user.
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from ..services.geocode import reverse_geocode
+from ..services.hospitals import SEARCH_RADIUS_M, nearby_hospitals
 from ..services.ratelimit import write_limiter
 
 router = APIRouter(prefix="/api/geo", tags=["geo"])
@@ -55,3 +56,36 @@ async def reverse(
     # the default was dropping addresses it could have fetched.
     address = await reverse_geocode(lat, lng, timeout=6.0)
     return {"address": address}
+
+
+@router.get("/hospitals")
+async def hospitals(
+    request: Request,
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+):
+    """Nearby hospitals and clinics, nearest first, emergency departments up.
+
+    Answers the question the emergency numbers do not. A medical alert
+    already offers 108 for an ambulance; a volunteer who has reached the
+    person and is putting them in a car needs somewhere to drive to.
+
+    Unauthenticated for the same reason as /reverse: the report form and the
+    public alert page both work without an account, and this is most useful
+    to whoever got there first. Rate-limited per IP instead.
+
+    Returns `hospitals: []` rather than an error when the upstream is slow or
+    down. It sits on top of a phone number that already works, so it must
+    never be the thing that breaks the card.
+    """
+    if not write_limiter.allow(_client_ip(request)):
+        raise HTTPException(status_code=429, detail="Too many requests")
+
+    # 25s, not the 8s this first had. A cold Overpass query for Chandigarh
+    # measured 13s, so the shorter budget meant a first-time lookup in an
+    # area always returned an empty list — and then cached nothing, so the
+    # next request was equally cold. Nothing is blocked while this runs: the
+    # client fetches it alongside the card, which has already rendered with
+    # the emergency numbers on it.
+    found = await nearby_hospitals(lat, lng, timeout=25.0)
+    return {"hospitals": found, "radius_km": SEARCH_RADIUS_M / 1000}
