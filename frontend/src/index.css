@@ -7,6 +7,152 @@
   --color-high: #f97316;
   --color-medium: #eab308;
   --color-low: #22c55e;
+
+  /* ---- Surfaces ------------------------------------------------------
+     A flat three-step scale, replacing the gradients the cards used to
+     carry. Gradients cost contrast: text sat on a background that changed
+     luminance behind it, so the same label was readable at the top of a
+     card and marginal at the bottom. On a phone in daylight that is the
+     difference between reading an alert and not.
+
+     Values are spaced far enough apart to be distinguishable on a cheap
+     LCD, which is what this app is mostly opened on. */
+  --color-surface: #0b0f19; /* page */
+  --color-surface-1: #141a26; /* card, input */
+  --color-surface-2: #1d2432; /* raised, hover, selected */
+  --color-line: #29313f; /* every border */
+
+  /* ---- One accent ----------------------------------------------------
+     The app had three visual languages: orange for primary actions, blue
+     for map controls, and gradients of both for emphasis. In an app whose
+     job is to make one thing obvious, a second accent competes with the
+     first. Urgency keeps its own four colours above — those carry meaning
+     and are the only colours allowed to shout. */
+  --color-accent: #f97316;
+  --color-accent-soft: #f973161f;
+
+  /* ---- Motion -------------------------------------------------------
+     Three durations and two curves, for the whole app.
+
+     There were four easing curves and nine durations in use, which is how
+     an interface ends up feeling assembled rather than designed: the same
+     gesture answered at a different speed depending on which screen you
+     were on. Naming them here means a new component inherits the app's
+     timing instead of inventing its own.
+
+     `--ease-out` decelerates: right for anything entering or responding to
+     a tap, because it lands softly and reads as "arrived". `--ease-spring`
+     overshoots very slightly and is reserved for the one case where a
+     little life is worth it — a control confirming it took your press.
+
+     Nothing here loops. A looping animation in an emergency feed competes
+     with the alert itself for attention, and it keeps the GPU awake on a
+     phone whose battery is part of the emergency. The single exception is
+     the CRITICAL pulse below, which is doing a job. */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  --duration-fast: 140ms; /* taps, hovers, colour changes */
+  --duration-base: 220ms; /* entrances, reveals, sheets */
+  --duration-slow: 400ms; /* attention — use sparingly */
+}
+
+/* ---- A new alert arriving --------------------------------------------
+   The feed is live: cards appear while the volunteer is reading. Without
+   motion a new card just replaces what their eye was resting on, which
+   reads as the list jumping. Sliding it in from above, briefly, says "this
+   is new and it came from the top" and costs 220ms.
+
+   Transform and opacity only — both composited, so this stays smooth on a
+   budget phone where animating height or top would not. */
+@utility alert-enter {
+  animation: alert-enter var(--duration-base) var(--ease-out) both;
+}
+
+@keyframes alert-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- CRITICAL urgency ------------------------------------------------
+   The one loop in the app, and the only element allowed to move on its
+   own. A CRITICAL alert has to win a glance against everything else on
+   screen, and colour alone does not do that for a red-green colour-blind
+   volunteer — about 1 in 12 men. Motion is the redundant channel.
+
+   Deliberately a slow, low-amplitude breath rather than a blink: a blink
+   is read as an error state, and at 2.4s it is noticeable in peripheral
+   vision without being something you have to look away from. Stops
+   entirely under prefers-reduced-motion, where the colour and the siren
+   icon still carry the meaning. */
+@utility critical-breathe {
+  animation: critical-breathe 2.4s var(--ease-out) infinite;
+}
+
+@keyframes critical-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--color-critical);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+    opacity: 0.72;
+  }
+}
+
+/* ---- Press ------------------------------------------------------------
+   Every tappable thing answers the finger. The old version scaled the
+   whole control to 0.98 AND lifted it 2px on hover, which on a phone
+   (where there is no hover) meant the lift fired on tap and the control
+   moved under the finger mid-press. This only scales, only on press. */
+@utility press-in {
+  transition: transform var(--duration-fast) var(--ease-spring);
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+/* ---- Tap target -------------------------------------------------------
+   44px floor, from WCAG 2.5.5 (Target Size) and the Apple HIG minimum.
+
+   Only one of the app's 72 buttons met it. That is a usability bug in any
+   app and a safety one here: this is used one-handed, in a hurry, often by
+   someone whose hands are shaking, and the control they are reaching for
+   is "I need help". A missed tap costs seconds that the alert does not
+   have. Applied to anything tappable, including icon-only controls where
+   the visible glyph stays small but the hit area does not. */
+@utility tap {
+  @apply min-h-11 min-w-11;
+}
+
+/* ---- Card ------------------------------------------------------------
+   The single card treatment. Flat fill, one hairline border, generous
+   radius, no shadow and no gradient border. Depth is carried by the
+   surface step, not by a stack of shadows. */
+@utility surface-card {
+  @apply bg-surface-1 border border-line rounded-2xl;
+}
+
+/* ---- Chip ------------------------------------------------------------
+   Filter chips, category tags, status pills. `aria-pressed` drives the
+   selected state so the styling and the accessibility tree cannot drift
+   apart — the previous chips looked selected via classes alone, which a
+   screen reader never saw. */
+@utility chip {
+  @apply tap inline-flex items-center gap-1.5 rounded-full border border-line
+    bg-surface-1 px-4 text-sm text-gray-300 transition-colors;
+  &:hover {
+    @apply bg-surface-2 text-white;
+  }
+  &[aria-pressed='true'] {
+    @apply border-accent bg-accent-soft text-accent;
+  }
 }
 
 /*
@@ -237,11 +383,16 @@
   }
 
   /* Larger touch targets for tap pointers. */
+  /* Touch devices get the FULL 44px, not less.
+     This rule used to set 36px, which is the wrong direction: it applied
+     only to `pointer: coarse` — phones and tablets — so the app shrank its
+     hit areas on exactly the devices where fingers replace a cursor. 44px
+     is the WCAG 2.5.5 target and the Apple HIG floor. */
   @media (pointer: coarse) {
     button,
     a[role='button'],
     [role='option'] {
-      min-height: 36px;
+      min-height: 44px;
     }
   }
 

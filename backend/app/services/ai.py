@@ -28,6 +28,7 @@ from typing import Optional
 # inlining it here buried the logic. Covers all eight languages the UI ships
 # in - see that module for why matching uses stems, not inflected forms.
 from .vocab import (
+    CONCEPTS as _CONCEPTS,
     CRITICAL_PATTERN_RES as _CRITICAL_PATTERNS,
     CRITICAL_TERMS as _CRITICAL_TERMS,
     HIGH_TERMS as _HIGH_TERMS,
@@ -230,15 +231,79 @@ def _ngrams(text: str, n: int = 4) -> set[str]:
     return {low[i : i + n] for i in range(len(low) - n + 1)}
 
 
+def _char_similarity(a: str, b: str) -> float:
+    """Jaccard overlap of character 4-grams — 0.0 to 1.0."""
+    ga, gb = _ngrams(a), _ngrams(b)
+    union = len(ga | gb)
+    return round(len(ga & gb) / union, 3) if union else 0.0
+
+
+def concepts_in(text: str) -> frozenset[str]:
+    """Which incident concepts this report mentions, in any of the 8 languages.
+
+    The cross-language half of `similarity`. See vocab.CONCEPTS for why the
+    terms are grouped by meaning rather than by urgency.
+    """
+    low = text.lower()
+    return frozenset(
+        name for name, terms in _CONCEPTS.items() if any(t in low for t in terms)
+    )
+
+
+def _concept_similarity(a: str, b: str) -> float:
+    """Jaccard overlap of the concepts two reports mention."""
+    ca, cb = concepts_in(a), concepts_in(b)
+    if not ca or not cb:
+        # One of them names no concept we know. Say nothing rather than
+        # guessing — returning 0 lets the character score decide alone.
+        return 0.0
+    return round(len(ca & cb) / len(ca | cb), 3)
+
+
 def similarity(a: str, b: str) -> float:
-    """Jaccard similarity of char 4-grams — 0.0 to 1.0."""
+    """How likely two reports describe the same incident — 0.0 to 1.0.
+
+    The stronger of two signals:
+
+      * character 4-gram overlap, which is precise within one language and
+        catches rewordings of the same sentence;
+      * shared incident concepts, which is the only one that survives a
+        change of script.
+
+    The second was added because the first scores exactly 0.000 across
+    scripts. "Fire near Gate 3 of the building" and "गेट 3 के पास आग लगी है"
+    are one fire and share no 4-gram, so `filter_corroborating` treated them
+    as unrelated — in an app shipping eight languages, the reports most likely
+    to corroborate each other were the ones guaranteed never to match.
+
+    max() rather than a blend, deliberately: it can only ever raise a score,
+    so nothing that corroborated before stops corroborating now. The risk it
+    does carry is a false positive from two different incidents sharing a
+    concept — "fire in the market" and "fire near the school" both score 1.0
+    on concepts alone. That is survivable here only because every caller
+    already filters on category, radius and time window first; the score is
+    the last narrowing step, never the first. Do not reuse it standalone.
+    """
     if not a or not b:
         return 0.0
-    ga, gb = _ngrams(a), _ngrams(b)
-    inter = len(ga & gb)
-    union = len(ga | gb)
-    return round(inter / union, 3) if union else 0.0
+    return max(_char_similarity(a, b), _concept_similarity(a, b))
 
 
 def is_duplicate(a: str, b: str, threshold: float = 0.55) -> bool:
-    return similarity(a, b) >= threshold
+    """Are these two reports the same SUBMISSION — near-identical text?
+
+    Character overlap only, deliberately not `similarity()`. The two answer
+    different questions and must not share an implementation:
+
+      * `similarity` asks "same incident?", so it counts shared concepts —
+        that is what lets one fire reported in three languages corroborate
+        itself.
+      * `is_duplicate` asks "same text?", which is a question about wording.
+
+    Wiring the concept score in here made "Fire near Gate 3 of the building"
+    and "Fire at the school on the other side of town" duplicates of each
+    other: both name exactly one concept, fire, so they scored 1.0. Two
+    separate fires across town are not one submission, and collapsing them
+    would hide a real emergency rather than tidy a feed.
+    """
+    return _char_similarity(a, b) >= threshold

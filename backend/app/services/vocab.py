@@ -271,6 +271,145 @@ INFO_REQUEST_RES: tuple[re.Pattern[str], ...] = tuple(
 # independently of the urgency label.
 # --------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------
+# INCIDENT CONCEPTS — what the report is ABOUT, in every language we ship.
+#
+# These exist for cross-language duplicate detection, not for triage.
+# `similarity()` compares character 4-grams, which works well inside one
+# language and scores exactly 0.000 across scripts: "Fire near Gate 3" and
+# "गेट 3 के पास आग लगी है" describe one fire and share not a single 4-gram.
+#
+# That is not a cosmetic gap. `filter_corroborating` narrows candidates with
+# this score, so in a city where one incident gets reported in Hindi, English
+# and Punjabi, the three reports never corroborate each other: verified_score
+# stays flat and volunteers see three unrelated alerts instead of one
+# confirmed emergency. Corroboration was the feature most weakened by it.
+#
+# Grouped by concept rather than by urgency (which is how CRITICAL_TERMS and
+# friends are organised) because the question here is "are these the same
+# event", not "how bad is it". Same shape as VULNERABLE above.
+#
+# Keep entries SPECIFIC. A concept that matches loosely — a bare "water", a
+# bare "road" — pulls unrelated reports together, and a false corroboration
+# inflates a score that volunteers use to decide what to believe.
+# --------------------------------------------------------------------------
+
+CONCEPTS: dict[str, tuple[str, ...]] = {
+    "fire": (
+        "fire", "burning", "flames", "smoke", "blaze",
+        "aag", "jal rah", "dhuan", "dhuaan",
+        "आग", "जल रह", "धुआं", "धूर", "ज्वाला",
+        "আগুন", "ধোঁয়া", "জ্বলছে",
+        "தீ", "புகை", "எரிகிற",
+        "మంట", "పొగ", "కాలుతో",
+        "આગ", "ધુમાડો", "સળગ",
+        "ਅੱਗ", "ਧੂੰਆਂ", "ਸੜ ਰਹ",
+    ),
+    "flood": (
+        "flood", "water logging", "waterlogged", "submerged", "rising water",
+        "baadh", "paani bhar", "jalbharav",
+        "बाढ़", "जलभराव", "पानी भर", "पूर",
+        "বন্যা", "জলাবদ্ধ", "পানি জমে",
+        "வெள்ளம்", "நீர் தேக்க",
+        "వరద", "నీరు నిలిచ",
+        "પૂર", "પાણી ભરા",
+        "ਹੜ੍ਹ", "ਪਾਣੀ ਭਰ",
+    ),
+    "collapse": (
+        "collapse", "collapsed", "building fell", "wall fell", "caved in",
+        "debris", "rubble", "crack",
+        "girna", "gir gaya", "dhah", "malba", "daraar",
+        "ढह", "गिर गय", "मलबा", "दरार", "कोसळ",
+        "ধসে", "ভেঙে", "ফাটল",
+        "இடிந்த", "விரிசல்",
+        "కూలిప", "పగుళ్ళు",
+        "ધસી", "તિરાડ",
+        "ਢਹਿ", "ਤਰੇੜ",
+    ),
+    "trapped": (
+        "trapped", "stuck", "cannot get out", "locked in", "buried under",
+        "phansa", "phanse", "fansa", "atka",
+        "फंस", "अटक", "अडक",
+        "আটকে", "চাপা পড়",
+        "சிக்கி", "மாட்டிக்",
+        "చిక్కుక", "ఇరుక్కు",
+        "ફસાઈ", "ફસી",
+        "ਫਸ", "ਫਸਿਆ",
+    ),
+    "medical": (
+        "unconscious", "not breathing", "collapsed", "bleeding", "injured",
+        "injury", "heart attack", "fracture", "seizure",
+        "behosh", "saans nahi", "khoon", "ghayal", "chot",
+        "बेहोश", "सांस नहीं", "खून", "घायल", "चोट", "बेशुद्ध",
+        "অজ্ঞান", "শ্বাস নিচ্ছে না", "রক্ত", "আহত",
+        "மயக்க", "மூச்சு", "ரத்த", "காயம்",
+        "స్పృహ", "శ్వాస", "రక్త", "గాయ",
+        "બેભાન", "શ્વાસ", "લોહી", "ઈજા",
+        "ਬੇਹੋਸ਼", "ਸਾਹ", "ਖੂਨ", "ਜ਼ਖਮੀ",
+    ),
+    "gas_leak": (
+        "gas leak", "gas leaking", "cylinder leak", "smell of gas", "gas smell",
+        "gas ki badbu", "silender leak",
+        "गैस रिस", "गैस की बदबू", "सिलेंडर",
+        "গ্যাস লিক", "গ্যাসের গন্ধ",
+        "எரிவாயு கசிவ",
+        "గ్యాస్ లీక",
+        "ગેસ લીક",
+        "ਗੈਸ ਲੀਕ",
+    ),
+    "drowning": (
+        "drowning", "drowned", "went under water", "swept away",
+        "doob", "dub gaya", "bah gaya",
+        "डूब", "बह गय", "बुड",
+        "ডুবে", "ভেসে গে",
+        "மூழ்கி", "அடித்துச் செல்",
+        "మునిగి", "కొట్టుకుపో",
+        "ડૂબી", "તણા",
+        "ਡੁੱਬ", "ਵਹਿ ਗਿਆ",
+    ),
+    "power": (
+        "power cut", "no electricity", "power outage", "transformer",
+        "bijli nahi", "bijli gul", "light nahi",
+        "बिजली नहीं", "बिजली गुल", "वीज",
+        "বিদ্যুৎ নেই", "লোডশেডিং",
+        "மின்சாரம் இல்ல", "மின்வெட்ட",
+        "కరెంట్ లేదు", "విద్యుత్ అంతరాయ",
+        "વીજળી નથી", "લાઈટ નથી",
+        "ਬਿਜਲੀ ਨਹੀਂ", "ਬਿਜਲੀ ਗੁੱਲ",
+    ),
+    "accident": (
+        "accident", "crash", "collision", "hit by", "ran over", "overturned",
+        "durghatna", "takkar", "accident ho",
+        "दुर्घटना", "टक्कर", "अपघात", "पलट",
+        "দুর্ঘটনা", "ধাক্কা",
+        "விபத்து", "மோதி",
+        "ప్రమాద", "ఢీకొట్ట",
+        "અકસ્માત", "અથડા",
+        "ਹਾਦਸਾ", "ਟੱਕਰ",
+    ),
+    "animal": (
+        "animal", "dog", "stray dog", "cat", "cow", "buffalo", "monkey",
+        "snake", "bird", "puppy", "kitten", "cattle",
+        "kutta", "billi", "gaay", "bandar", "saanp", "janwar",
+        "कुत्ता", "बिल्ली", "गाय", "बंदर", "साँप", "सांप", "जानवर", "प्राणी",
+        "কুকুর", "বিড়াল", "গরু", "সাপ", "পশু",
+        "நாய்", "பூனை", "பசு", "பாம்பு", "விலங்கு",
+        "కుక్క", "పిల్లి", "ఆవు", "పాము", "జంతువు",
+        "કૂતરો", "બિલાડી", "ગાય", "સાપ", "પ્રાણી",
+        "ਕੁੱਤਾ", "ਬਿੱਲੀ", "ਗਾਂ", "ਸੱਪ", "ਜਾਨਵਰ",
+    ),
+    "missing_person": (
+        "missing", "lost child", "cannot find", "went missing", "disappeared",
+        "gum ho", "kho gaya", "lapata",
+        "गुम", "खो गय", "लापता", "हरवल",
+        "নিখোঁজ", "হারিয়ে",
+        "காணவில்ல", "தொலைந்த",
+        "కనిపించడం లేదు", "తప్పిపో",
+        "ગુમ", "ખોવાઈ",
+        "ਗੁੰਮ", "ਲਾਪਤਾ",
+    ),
+}
+
 VULNERABLE: dict[str, tuple[str, ...]] = {
     "child": (
         "child", "baby", "infant", "kid", "toddler", "newborn",

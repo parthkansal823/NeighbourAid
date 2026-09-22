@@ -52,8 +52,17 @@ export default function Login() {
 
         <form onSubmit={submit} className="space-y-5">
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">{t('login_email')}</label>
+            {/*
+              htmlFor/id pairing, not decoration. These labels used to sit
+              beside their input as plain text with nothing tying them
+              together, so a screen reader announced every field in the app as
+              an unlabelled edit box — you could hear "blank, edit text" twice
+              and have no way to know which one was the password. Tapping the
+              label also did nothing. Both are fixed by the association alone.
+            */}
+            <label htmlFor="login-email" className="block text-sm text-gray-400 mb-1.5">{t('login_email')}</label>
             <input
+              id="login-email"
               type="email"
               required
               autoComplete="email"
@@ -65,8 +74,9 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">{t('login_password')}</label>
+            <label htmlFor="login-password" className="block text-sm text-gray-400 mb-1.5">{t('login_password')}</label>
             <input
+              id="login-password"
               type="password"
               required
               autoComplete="current-password"

@@ -32,8 +32,13 @@ import logging
 from bson import ObjectId
 
 from .geocode import reverse_geocode
-from .llm import classify as llm_classify, is_enabled as llm_enabled
+from .llm import (
+    classify as llm_classify,
+    is_enabled as llm_enabled,
+    summarise as llm_summarise,
+)
 from .verification import compute_verified_score
+from .vision import is_enabled as vision_enabled, review_photos as vision_review
 from .weather import current_weather, supports_category
 from .websocket import manager
 
@@ -80,6 +85,88 @@ async def _maybe_upgrade_urgency(db, alert_id: ObjectId, update: dict) -> None:
     update["urgency_reason"] = "llm:implied"
     update["urgency_confidence"] = 0.7
     log.info("LLM raised alert %s from %s to %s", alert_id, doc.get("urgency"), band)
+
+
+async def _maybe_improve_headline(db, alert_id: ObjectId, update: dict) -> None:
+    """Replace the truncated headline with a written one, where it helps.
+
+    `generate_headline` takes the first sentence or cuts at 90 characters.
+    That is right for a typed report, and useless for a voice transcript,
+    which is what the app encourages in an emergency — the transcript opens
+    with the speaker orienting themselves, so the cut keeps the filler and
+    loses the incident:
+
+        "hello hello can you hear me yes so there is my neighbour uncle he…"
+
+    A volunteer scanning a feed gets nothing from that line. The model turns
+    the same report into "Uncle Fell, Door Locked".
+
+    Only runs where truncation actually happened: a description that already
+    fits is its own headline, and a model can only lose detail or add some.
+    The result is rejected outright if it names a concept the report did not
+    or answers in another script — see llm._is_faithful, which exists because
+    a 1B model produced both failures on real input.
+    """
+    if not llm_enabled():
+        return
+    doc = await db.alerts.find_one(
+        {"_id": alert_id}, {"description": 1, "headline": 1}
+    )
+    if not doc:
+        return
+    description = doc.get("description", "")
+    current = doc.get("headline", "")
+    # The synchronous headline only loses information when it had to cut.
+    if not current.endswith("…"):
+        return
+
+    headline = await llm_summarise(description)
+    if not headline or headline == current:
+        return
+
+    update["headline"] = headline
+    update["headline_source"] = "llm"
+    log.info("LLM rewrote headline for alert %s: %r", alert_id, headline)
+
+
+async def _maybe_penalise_photo(db, alert_id: ObjectId, category: str,
+                                update: dict, verified_score: int) -> int:
+    """Take back photo credit when the photo shows something else.
+
+    services/photo.py can only see that an attached file is a real,
+    large-enough image, and awards up to 30 points of verified_score for it.
+    Nothing checks what the photo is *of*, so a picture of a cat scores
+    exactly like a picture of a fire — on the one number volunteers read as
+    "several signals agree, this is real".
+
+    The vision model describes the photo and vision.verdict_for decides,
+    using the same CONCEPTS map as cross-language corroboration. Only a clear
+    contradiction costs anything: a confirmation earns nothing, and a caption
+    that recognises nothing is treated as no evidence either way. See
+    services/vision.py for why it can only ever subtract.
+
+    Returns the possibly-reduced score; the caller writes it.
+    """
+    if not vision_enabled():
+        return verified_score
+    doc = await db.alerts.find_one({"_id": alert_id}, {"photos": 1})
+    photos = (doc or {}).get("photos") or []
+    if not photos:
+        return verified_score
+
+    review = await vision_review(photos, category)
+    if not review["penalty"]:
+        return verified_score
+
+    reduced = max(0, verified_score - review["penalty"])
+    update["verified_score"] = reduced
+    update["photo_verdict"] = review["verdict"]
+    update["photo_findings"] = review["finding"]
+    log.info(
+        "Vision reduced verified_score for alert %s: %s -> %s",
+        alert_id, verified_score, reduced,
+    )
+    return reduced
 
 
 async def enrich_alert(
@@ -136,6 +223,18 @@ async def enrich_alert(
         await _maybe_upgrade_urgency(db, alert_id, update)
     except Exception as exc:  # noqa: BLE001 — an optional extra must not break enrichment
         log.info("LLM upgrade skipped for alert %s: %s", alert_id, exc)
+
+    try:
+        await _maybe_improve_headline(db, alert_id, update)
+    except Exception as exc:  # noqa: BLE001
+        log.info("LLM headline skipped for alert %s: %s", alert_id, exc)
+
+    try:
+        verified_score = await _maybe_penalise_photo(
+            db, alert_id, category, update, verified_score
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.info("Vision photo check skipped for alert %s: %s", alert_id, exc)
 
     try:
         # Only touch alerts still carrying the placeholder. A resolve or a

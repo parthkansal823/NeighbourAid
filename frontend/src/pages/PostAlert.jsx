@@ -290,8 +290,8 @@ export default function PostAlert() {
 
         <form onSubmit={submit} className="space-y-5 sm:space-y-6">
           <div>
-            <label className="block text-sm text-gray-400 mb-2">{t('post_category')}</label>
-            <div className="grid grid-cols-3 gap-2">
+            <span id="post-category-label" className="block text-sm text-gray-400 mb-2">{t('post_category')}</span>
+            <div role="group" aria-labelledby="post-category-label" className="grid grid-cols-3 gap-2">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
@@ -311,7 +311,7 @@ export default function PostAlert() {
 
           <div>
             <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
-              <label className="block text-sm text-gray-400">
+              <label htmlFor="post-description" className="block text-sm text-gray-400">
                 {t('post_description')}{' '}
                 <span className="text-gray-600 hidden sm:inline">{t('post_description_hint')}</span>
               </label>
@@ -369,6 +369,7 @@ export default function PostAlert() {
               </p>
             )}
             <textarea
+              id="post-description"
               required
               rows={4}
               value={form.description}
@@ -385,10 +386,10 @@ export default function PostAlert() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">
+            <span id="post-photos-label" className="block text-sm text-gray-400 mb-1.5">
               {t('post_photos_label')}
-            </label>
-            <div className="grid grid-cols-3 gap-2 mb-2">
+            </span>
+            <div role="group" aria-labelledby="post-photos-label" className="grid grid-cols-3 gap-2 mb-2">
               {photos.map((src, i) => (
                 <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-700 bg-gray-800">
                   <img src={src} alt={`upload ${i + 1}`} className="w-full h-full object-cover" />
@@ -433,9 +434,10 @@ export default function PostAlert() {
           )}
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">{t('post_location')}</label>
+            <label htmlFor="post-location" className="block text-sm text-gray-400 mb-1.5">{t('post_location')}</label>
             <div className="flex gap-2">
               <input
+                id="post-location"
                 readOnly
                 value={
                   locationSet

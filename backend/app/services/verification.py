@@ -88,3 +88,30 @@ async def bump_witness(db, alert_id: ObjectId, user_id: str) -> dict | None:
         },
         return_document=True,
     )
+
+
+def pick_canonical(corroborating: list[dict]) -> dict | None:
+    """Of several reports of one incident, the one the others fold into.
+
+    The OLDEST wins, which is the only choice that is stable. Picking the
+    newest, or the highest-scoring, means the canonical alert changes as more
+    people report — so a volunteer who accepted a card watches it turn into a
+    different card, and any link already shared points at a report that is now
+    a duplicate of something else.
+
+    The first person to report also tends to be the one standing closest to
+    it, and theirs is the alert that has already been broadcast to volunteers.
+
+    Returns None when there is nothing to fold into, which is the common case.
+    """
+    if not corroborating:
+        return None
+    # A document written before created_at existed sorts last rather than
+    # crashing the comparison — it is a bad canonical anyway.
+    far_future = datetime.max.replace(tzinfo=timezone.utc)
+
+    def _created(doc: dict):
+        value = doc.get("created_at")
+        return value if isinstance(value, datetime) else far_future
+
+    return min(corroborating, key=_created)

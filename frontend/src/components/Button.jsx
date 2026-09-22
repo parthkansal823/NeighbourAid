@@ -4,26 +4,50 @@
  * etc.) passes through to the underlying `<button>`.
  *
  * Use this anywhere you'd otherwise hand-roll a 5-class `<button>` so the
- * focus ring, disabled opacity, hover lift, and tap target stay consistent.
+ * focus ring, disabled state, and tap target stay consistent.
+ *
+ * WHAT CHANGED, AND WHY
+ *
+ * Every variant used to be a vertical gradient with a coloured drop shadow,
+ * plus a white sheen that swept across on hover. Three things were wrong
+ * with that, in rising order of seriousness:
+ *
+ *  1. The gradient moved the contrast ratio down the face of the button, so
+ *     white label text was comfortably readable at the top edge and marginal
+ *     at the bottom. On a phone in daylight that is the whole difference.
+ *  2. `hover:-translate-y-0.5` has no hover on a touchscreen, so it fired on
+ *     *tap* — the control jumped upward out from under the finger during the
+ *     press. The sheen was hover-only too, which meant it never played on
+ *     the devices most people use and only ever cost desktop users a
+ *     700ms composited animation.
+ *  3. `size="sm"` was `py-1.5`, about 28px tall. The button component is
+ *     where a 44px floor either holds or does not, and it did not.
+ *
+ * Now: flat fill, one hairline border where a border is needed, a press that
+ * only scales, and every size clearing 44px.
  */
 
+import { Spinner } from './icons'
+
+// Flat fills. Hover moves one step lighter, active one step darker — the
+// same two-step pattern for all six so a new variant is obvious to add.
 const VARIANTS = {
-  primary:
-    'bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 active:from-orange-600 active:to-orange-700 text-white shadow-md shadow-orange-500/20 hover:shadow-orange-500/40',
-  danger:
-    'bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 active:from-red-600 active:to-red-700 text-white shadow-md shadow-red-500/20 hover:shadow-red-500/40',
-  success:
-    'bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 active:from-emerald-600 active:to-emerald-700 text-white shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40',
+  primary: 'bg-accent hover:bg-orange-400 active:bg-orange-600 text-gray-950',
+  danger: 'bg-critical hover:bg-red-400 active:bg-red-600 text-white',
+  success: 'bg-low hover:bg-green-400 active:bg-green-600 text-gray-950',
   secondary:
-    'bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-white shadow-xs shadow-black/40 border border-gray-700/60 hover:border-gray-600',
-  ghost: 'bg-transparent hover:bg-gray-800/80 text-gray-300 hover:text-white',
+    'bg-surface-2 hover:bg-[#242c3c] active:bg-surface-1 text-white border border-line',
+  ghost: 'bg-transparent hover:bg-surface-1 text-gray-300 hover:text-white',
   outline:
-    'border border-gray-700 hover:border-orange-500/60 text-gray-300 hover:text-white bg-transparent hover:bg-orange-500/5',
+    'bg-transparent border border-line hover:border-accent text-gray-200 hover:text-white',
 }
 
+// `tap` supplies the 44px floor; the padding here only controls how much
+// wider than the floor a given size sits. `sm` is smaller in type and
+// horizontal padding, never in hit area.
 const SIZES = {
-  sm: 'text-xs px-2.5 py-1.5 rounded-lg',
-  md: 'text-sm px-4 py-2 rounded-lg',
+  sm: 'text-xs px-3 rounded-lg',
+  md: 'text-sm px-4 rounded-xl',
   lg: 'text-base px-6 py-3 rounded-xl',
 }
 
@@ -39,11 +63,13 @@ export default function Button({
   ...rest
 }) {
   const base =
-    'group relative inline-flex items-center justify-center gap-2 font-semibold overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500'
+    'tap press-in inline-flex items-center justify-center gap-2 font-semibold ' +
+    'transition-colors disabled:opacity-50 disabled:cursor-not-allowed ' +
+    'focus-visible:outline-solid focus-visible:outline-2 ' +
+    'focus-visible:outline-offset-2 focus-visible:outline-accent'
   const tone = VARIANTS[variant] ?? VARIANTS.primary
   const sizeCls = SIZES[size] ?? SIZES.md
   const width = full ? 'w-full' : ''
-  const showSheen = variant === 'primary' || variant === 'danger' || variant === 'success'
   return (
     <button
       type={type}
@@ -52,33 +78,8 @@ export default function Button({
       aria-busy={loading || undefined}
       {...rest}
     >
-      {showSheen && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/20 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out disabled:hidden"
-        />
-      )}
       {loading ? <Spinner /> : null}
-      <span className="relative">{children}</span>
+      <span>{children}</span>
     </button>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg
-      className="animate-spin h-4 w-4"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-      <path
-        d="M22 12a10 10 0 0 1-10 10"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
   )
 }

@@ -46,6 +46,22 @@ Frontend (from `frontend/`):
 - Secrets live in `.env` and `backend/.env`, both gitignored and both denied to
   Claude in `.claude/settings.json`.
 
+## Local models (all optional, all off by default)
+
+Triage works with no model at all. Each of these is additive and degrades to
+the previous behaviour when its weights are absent:
+
+- `LLM_MODEL_PATH` — text model, consulted only where the keyword classifier
+  matched nothing (`urgency_reason == "keyword:default"`, ~20% of reports).
+  Raises urgency on implied danger, and rewrites truncated headlines.
+  Measured with `python -m tests.eval_hybrid`.
+- `LLM_VISION_MODEL_PATH` + `LLM_VISION_MMPROJ_PATH` — vision model. Captions
+  an attached photo; `vision.verdict_for` decides whether the caption matches
+  the claimed category, and only a clear contradiction subtracts points.
+
+Both run inside background enrichment, never on the request path, and
+`NA_DISABLE_AI_MODEL=1` turns off every one of them.
+
 ## Tooling in this repo
 
 - `.mcp.json` — graphify only. It indexes the repo's call/dependency graph and

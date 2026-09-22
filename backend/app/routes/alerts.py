@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import math
 from datetime import datetime, timedelta, timezone
 
@@ -20,6 +21,7 @@ from ..services.verification import (
     compute_verified_score,
     filter_corroborating,
     find_corroborating_alerts,
+    pick_canonical,
 )
 from ..services.weather import supports_category
 from ..services.webhook import fire_alert_created
@@ -29,6 +31,8 @@ from ..services.websocket import (
     SKILL_RADIUS_KM,
     manager,
 )
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
@@ -77,7 +81,13 @@ def _serialize(doc: dict, include_photos: bool = True) -> dict:
     doc["reporter_id"] = str(doc["reporter_id"])
     if doc.get("accepted_by"):
         doc["accepted_by"] = str(doc["accepted_by"])
+    # Stored as an ObjectId like the two above, and like them it has to be a
+    # string on the way out — FastAPI's JSON encoder does not know ObjectId,
+    # so leaving it raw fails the whole response rather than this one field.
+    if doc.get("duplicate_of"):
+        doc["duplicate_of"] = str(doc["duplicate_of"])
     # normalise verification fields so the frontend has stable defaults
+    doc.setdefault("duplicate_of", None)
     doc.setdefault("witnesses", 1)
     doc.setdefault("witnessed_by", [])
     doc.setdefault("verified_score", 0)
@@ -287,6 +297,12 @@ async def get_nearby(request: Request, lat: float, lng: float, km: float = 5.0):
             "status": {"$ne": "resolved"},
             # Hide heavily-flagged alerts from public reads
             "flags": {"$lt": FLAG_HIDE_THRESHOLD},
+            # One card per incident. A report folded into an earlier one is
+            # already counted there as a witness, so showing it again would
+            # split volunteers across duplicates of the same emergency and
+            # double-count it in every total on the page. `None` also matches
+            # documents written before this field existed.
+            "duplicate_of": None,
         },
         _LIST_PROJECTION,
     ).limit(100)
@@ -333,6 +349,9 @@ async def heatmap(lat: float, lng: float, km: float = 25.0, hours: int = 72):
             },
             "created_at": {"$gte": since},
             "flags": {"$lt": FLAG_HIDE_THRESHOLD},
+            # Same reason as /nearby: five reports of one fire should not
+            # render as five overlapping hotspots.
+            "duplicate_of": None,
         },
         {"location": 1, "urgency": 1, "verified_score": 1, "status": 1},
     ).limit(500)
@@ -380,6 +399,28 @@ async def create_alert(
     # avoids same-category-same-area-but-different-incident false positives.
     corroborating = filter_corroborating(alert.description, corroborating)
     corroborating_ids = [doc["_id"] for doc in corroborating]
+
+    # Fold this report into the incident it corroborates.
+    #
+    # Corroboration was already computed and already fed verified_score, but
+    # only in one direction: the new alert knew which alerts it matched, and
+    # none of them knew about it. So five people reporting one fire produced
+    # five separate cards, volunteers split across them, and the strongest
+    # signal the app has — how many independent people are saying this — was
+    # spread thin across the feed instead of concentrated on one card.
+    #
+    # The new report becomes a witness on the oldest matching alert and is
+    # marked `duplicate_of` it. Nothing is deleted: the reporter still sees
+    # their own alert under /mine and their share link still resolves. Only
+    # the public lists collapse to one card per incident.
+    canonical = pick_canonical(corroborating)
+    duplicate_of = canonical["_id"] if canonical else None
+    if canonical is not None:
+        try:
+            await bump_witness(db, canonical["_id"], reporter_id)
+        except Exception:  # noqa: BLE001 — a failed merge must not lose the report
+            log.info("could not add witness to canonical alert %s", canonical["_id"])
+
     # Photos are optional; when supplied we validate each one and let the
     # visual evidence bump the overall verified_score.
     photo_analysis = analyze_photos(alert.photos)
@@ -415,6 +456,7 @@ async def create_alert(
         "witnesses": 1,
         "witnessed_by": [reporter_id],
         "corroborating_ids": [str(x) for x in corroborating_ids],
+        "duplicate_of": duplicate_of,
         "verified_score": verified_score,
         "photos": alert.photos,
         "photo_count": len(alert.photos),
@@ -513,6 +555,24 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
     weather_match = supports_category(alert.category.value, weather)
     corroborating = filter_corroborating(alert.description, corroborating)
     corroborating_ids = [c["_id"] for c in corroborating]
+
+    # Fold anonymous reports too. This path matters MORE than the signed-in
+    # one for merging: a crowd watching the same fire mostly reaches for the
+    # public form, so leaving it out would mean the duplicates that actually
+    # pile up are exactly the ones that never collapse.
+    #
+    # The witness bump is keyed on the IP hash rather than a user id, which
+    # is the only identity an anonymous report has. It is weak — one phone
+    # switching networks counts twice, a shared connection counts once — but
+    # it is the same identity the abuse rate-limit already relies on, and
+    # over-counting a witness is the mild direction to be wrong in.
+    canonical = pick_canonical(corroborating)
+    duplicate_of = canonical["_id"] if canonical else None
+    if canonical is not None:
+        try:
+            await bump_witness(db, canonical["_id"], f"anon:{hash(ip)}")
+        except Exception:  # noqa: BLE001 — a failed merge must not lose the report
+            log.info("could not add witness to canonical alert %s", canonical["_id"])
     photo_analysis = analyze_photos(alert.photos)
     verified_score = compute_verified_score(
         witnesses=1,
@@ -552,6 +612,7 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
         "witnesses": 1,
         "witnessed_by": [],
         "corroborating_ids": [str(x) for x in corroborating_ids],
+        "duplicate_of": duplicate_of,
         "verified_score": verified_score,
         "photos": alert.photos,
         "photo_count": len(alert.photos),

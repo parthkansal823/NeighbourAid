@@ -109,8 +109,9 @@ export default function Register() {
 
         <form onSubmit={submit} className="space-y-5">
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">{t('register_name')}</label>
+            <label htmlFor="register-name" className="block text-sm text-gray-400 mb-1.5">{t('register_name')}</label>
             <input
+              id="register-name"
               required
               autoComplete="name"
               value={form.name}
@@ -121,8 +122,9 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">{t('login_email')}</label>
+            <label htmlFor="register-email" className="block text-sm text-gray-400 mb-1.5">{t('login_email')}</label>
             <input
+              id="register-email"
               type="email"
               required
               autoComplete="email"
@@ -135,8 +137,9 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">{t('login_password')}</label>
+            <label htmlFor="register-password" className="block text-sm text-gray-400 mb-1.5">{t('login_password')}</label>
             <input
+              id="register-password"
               type="password"
               required
               // Must match UserCreate on the server (min 8, ≥1 letter, ≥1
@@ -157,8 +160,15 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">{t('register_want_to')}</label>
-            <div className="grid grid-cols-2 gap-3">
+            {/*
+              A group, not a field: htmlFor points at one control, and this
+              label describes two buttons. aria-labelledby on the container is
+              what ties them together, so a screen reader announces "Want to,
+              group" before reading the options instead of two bare buttons
+              with no idea what the choice is about.
+            */}
+            <span id="register-role-label" className="block text-sm text-gray-400 mb-1.5">{t('register_want_to')}</span>
+            <div role="group" aria-labelledby="register-role-label" className="grid grid-cols-2 gap-3">
               {['reporter', 'volunteer'].map((r) => (
                 <button
                   key={r}
@@ -179,13 +189,15 @@ export default function Register() {
           {form.role === 'volunteer' && (
             <>
               <div>
-                <label className="block text-sm text-gray-400 mb-1.5">
+                <span id="register-skills-label" className="block text-sm text-gray-400 mb-1.5">
                   Skills <span className="text-gray-600 text-xs">· helps route the right alerts to you</span>
-                </label>
-                <SkillsPicker
-                  value={form.skills}
-                  onChange={(skills) => setForm((f) => ({ ...f, skills }))}
-                />
+                </span>
+                <div role="group" aria-labelledby="register-skills-label">
+                  <SkillsPicker
+                    value={form.skills}
+                    onChange={(skills) => setForm((f) => ({ ...f, skills }))}
+                  />
+                </div>
               </div>
               <VehicleToggle
                 value={form.has_vehicle}
@@ -195,9 +207,10 @@ export default function Register() {
           )}
 
           <div>
-            <label className="block text-sm text-gray-400 mb-1.5">{t('register_location')}</label>
+            <label htmlFor="register-location" className="block text-sm text-gray-400 mb-1.5">{t('register_location')}</label>
             <div className="flex gap-2">
               <input
+                id="register-location"
                 readOnly
                 value={
                   locationSet

@@ -29,19 +29,35 @@ import {
   UserRoundX,
   X,
 } from './icons'
+import Button from './Button'
 
-const URGENCY_STYLES = {
-  CRITICAL: 'border-red-500/70 bg-linear-to-br from-red-950/60 via-red-950/30 to-gray-900/40 hover:shadow-red-500/20',
-  HIGH: 'border-orange-500/70 bg-linear-to-br from-orange-950/60 via-orange-950/30 to-gray-900/40 hover:shadow-orange-500/20',
-  MEDIUM: 'border-yellow-500/60 bg-linear-to-br from-yellow-950/50 via-yellow-950/25 to-gray-900/40 hover:shadow-yellow-500/15',
-  LOW: 'border-green-500/60 bg-linear-to-br from-green-950/50 via-green-950/25 to-gray-900/40 hover:shadow-green-500/15',
+/**
+ * Urgency shows as a 4px bar down the left edge, not as a tint across the
+ * whole card.
+ *
+ * The tint was a diagonal gradient from a dark colour into near-grey, which
+ * cost twice over. Contrast moved under the text — a description was
+ * comfortably readable at the top-left of a CRITICAL card and marginal at
+ * the bottom-right — and once four of these sat in a feed the tints blended
+ * into each other, so the thing the colour existed to signal became the
+ * hardest thing to compare.
+ *
+ * A bar is one flat block of colour at full saturation in a fixed position,
+ * so urgency is legible down the edge of a scrolling list and the card body
+ * keeps one predictable background behind the words.
+ */
+const URGENCY_BAR = {
+  CRITICAL: 'bg-critical',
+  HIGH: 'bg-high',
+  MEDIUM: 'bg-medium',
+  LOW: 'bg-low',
 }
 
 const URGENCY_BADGE = {
-  CRITICAL: 'bg-linear-to-b from-red-500 to-red-600 text-white shadow-xs shadow-red-500/40',
-  HIGH: 'bg-linear-to-b from-orange-400 to-orange-500 text-white shadow-xs shadow-orange-500/40',
-  MEDIUM: 'bg-linear-to-b from-yellow-400 to-yellow-500 text-black shadow-xs shadow-yellow-500/40',
-  LOW: 'bg-linear-to-b from-green-500 to-green-600 text-white shadow-xs shadow-green-500/30',
+  CRITICAL: 'bg-critical text-white',
+  HIGH: 'bg-high text-gray-950',
+  MEDIUM: 'bg-medium text-gray-950',
+  LOW: 'bg-low text-gray-950',
 }
 
 // Category icons live in components/icons.jsx so the card, the map pins and
@@ -462,12 +478,19 @@ export default function AlertCard({ alert, onUpdate }) {
 
   return (
     <div
-      className={`relative border rounded-xl p-3 sm:p-4 ${URGENCY_STYLES[alert.urgency]} transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl reveal-up ${
-        isSkillMatch ? 'ring-1 ring-amber-400/50 ring-offset-1 ring-offset-gray-950' : ''
+      className={`surface-card alert-enter relative overflow-hidden p-4 pl-5 sm:p-5 sm:pl-6 ${
+        isSkillMatch ? 'ring-1 ring-accent/50' : ''
       }`}
     >
+      {/* The urgency bar. aria-hidden because the badge below states the
+          urgency in words — this is the same information for the eye, and
+          announcing it twice is noise on a screen reader. */}
+      <span
+        aria-hidden
+        className={`absolute inset-y-0 left-0 w-1 ${URGENCY_BAR[alert.urgency] ?? 'bg-gray-600'}`}
+      />
       {isSkillMatch && (
-        <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-linear-to-r from-amber-500/30 to-amber-500/10 text-amber-200 border border-amber-700/70 px-2 py-0.5 rounded-full shadow-xs shadow-amber-500/20">
+        <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-accent-soft text-accent border border-accent/40 px-2 py-0.5 rounded-full">
           <Sparkles className="h-3 w-3 animate-pulse" aria-hidden /> Matches your skills
         </div>
       )}
@@ -684,32 +707,34 @@ export default function AlertCard({ alert, onUpdate }) {
             </button>
           )}
           {user && !isOwn && alert.status !== 'resolved' && (
-            <button
+            <Button
+              size="sm"
+              variant="outline"
               onClick={witness}
-              disabled={loading === 'witness'}
-              className="text-xs bg-amber-600/80 hover:bg-amber-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-xs shadow-amber-500/20 hover:shadow-amber-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+              loading={loading === 'witness'}
               title={t('card_see_too_tip')}
             >
-              {loading === 'witness' ? '…' : t('card_see_too')}
-            </button>
+              {t('card_see_too')}
+            </Button>
           )}
           {user?.role === 'volunteer' && alert.status === 'open' && (
-            <button
+            <Button
+              size="sm"
               onClick={accept}
-              disabled={loading === 'accept'}
-              className="text-xs bg-linear-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-xs shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+              loading={loading === 'accept'}
             >
               {t('card_accept')}
-            </button>
+            </Button>
           )}
           {isAcceptedByMe && alert.status === 'accepted' && (
-            <button
+            <Button
+              size="sm"
+              variant="success"
               onClick={resolve}
-              disabled={loading === 'resolve'}
-              className="text-xs bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-50 text-white px-3 py-1 rounded-lg shadow-xs shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+              loading={loading === 'resolve'}
             >
               {t('card_resolve')}
-            </button>
+            </Button>
           )}
         </div>
       </div>

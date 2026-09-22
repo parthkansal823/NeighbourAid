@@ -71,6 +71,21 @@ class Settings(BaseSettings):
     # many layers.
     LLM_GPU_LAYERS: int = 0
 
+    # ---- Optional vision model (see app/services/vision.py) ----
+    #
+    # Separate from LLM_MODEL_PATH on purpose: this is a different model with
+    # a different job, and most deployments will want the text one without
+    # paying for this. Both paths must be set — a multimodal GGUF is useless
+    # without its projector, which is the file that turns pixels into tokens.
+    #
+    # Off unless both point at real files. When off, photo evidence keeps
+    # scoring exactly as it does today.
+    LLM_VISION_MODEL_PATH: str = ""
+    LLM_VISION_MMPROJ_PATH: str = ""
+    # Image encoding dominates the time here, so this is roomier than the
+    # text timeout. Nothing waits on it: it runs in background enrichment.
+    LLM_VISION_TIMEOUT_SECONDS: float = 45.0
+
     # Shared secret for the inbound WhatsApp webhook. Anything posting to
     # /api/inbound/whatsapp must include this in the `X-Inbound-Token`
     # header. Empty string disables the route entirely (default).

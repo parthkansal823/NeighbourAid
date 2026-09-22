@@ -117,6 +117,33 @@ Reply with only JSON: {"urgency":"CRITICAL|HIGH|MEDIUM|LOW"}"""
 # touching any of this.
 
 
+HEADLINE_SYSTEM = """You write one-line headlines for an emergency dispatch feed
+in India. A volunteer scans dozens of these to decide which to open first.
+
+Rewrite the report as ONE short line, at most 70 characters.
+
+Rules:
+- Lead with WHAT is happening and WHERE, in that order.
+- Drop every filler: greetings, "umm", "hello can you hear me", "so basically",
+  the reporter narrating how they came to notice it.
+- Keep specifics that help someone find or judge it: a gate number, a landmark,
+  a floor, how many people, whether it is still getting worse.
+- Keep the report's own language. A Hindi report gets a Hindi headline.
+- State only what the report states. Never add a detail that is not there.
+- No quotes, no trailing full stop, no preamble — the line itself, nothing else.
+
+Reply with only JSON: {"headline":"..."}"""
+
+# The model returns JSON; this pulls the value out without trusting it to be
+# well-formed, since a small model occasionally emits a bare string instead.
+_HEADLINE_RE = re.compile(r'"headline"\s*:\s*"((?:[^"\\]|\\.)*)"')
+
+# A hard ceiling regardless of what the model returns. The card layout that
+# renders this wraps past roughly this width, and a "headline" that wraps to
+# three lines defeats the point of having one.
+HEADLINE_MAX = 90
+
+
 def is_enabled() -> bool:
     """Configured, not switched off, and the file exists. Checked before any
     import cost.
@@ -210,4 +237,116 @@ async def classify(text: str) -> str | None:
         return None
     except Exception as exc:  # noqa: BLE001
         log.info("LLM call failed: %s", exc)
+        return None
+
+
+def _summarise_sync(text: str) -> str | None:
+    llm = _get_llm()
+    if llm is None:
+        return None
+    try:
+        out = llm.create_chat_completion(
+            messages=[
+                {"role": "system", "content": HEADLINE_SYSTEM},
+                {"role": "user", "content": text},
+            ],
+            temperature=0.0,
+            # Indic scripts cost noticeably more tokens per character than
+            # Latin, so this is sized for a Devanagari headline, not an
+            # English one — the English case simply stops early.
+            max_tokens=96,
+            response_format={"type": "json_object"},
+        )
+        content = out["choices"][0]["message"]["content"]
+    except Exception as exc:  # noqa: BLE001 — degrade, never crash
+        log.info("LLM summarise failed: %s", exc)
+        return None
+
+    match = _HEADLINE_RE.search(content)
+    headline = match.group(1) if match else content.strip().strip('"')
+    # Unescape the few sequences a JSON string can carry.
+    headline = headline.replace('\\"', '"').replace("\n", " ").replace("\\\\", "\\")
+    headline = " ".join(headline.split())
+    if not headline:
+        return None
+    if len(headline) > HEADLINE_MAX:
+        headline = headline[:HEADLINE_MAX].rsplit(" ", 1)[0] + "…"
+    return headline if _is_faithful(text, headline) else None
+
+
+def _is_faithful(source: str, headline: str) -> bool:
+    """Reject a headline that says something the report did not.
+
+    The prompt asks for this; a 1B model does not reliably obey, and both
+    failures were caught on real inputs rather than imagined:
+
+      * A report of a transformer making a loud noise and throwing sparks came
+        back as "Transformer Sparks Fire in Local Area". There is no fire in
+        that report. In a dispatch feed that word changes what a volunteer
+        brings and who else they call.
+      * A Hindi report came back with an English headline, so the reporter
+        could no longer read their own alert.
+
+    Cheap deterministic checks, not another model call. Both reuse machinery
+    that already exists for other reasons, and either failing simply drops
+    back to the synchronous headline — which is always correct, just wordy.
+    """
+    # Imports here rather than at module scope: ai.py imports vocab, and llm
+    # is imported from enrich alongside both. Keeping this local avoids
+    # wiring a new import cycle into an optional module.
+    from .ai import concepts_in  # noqa: PLC0415
+    from .vocab import detect_language  # noqa: PLC0415
+
+    invented = concepts_in(headline) - concepts_in(source)
+    if invented:
+        log.info(
+            "Rejected LLM headline: introduced %s not in the report — %r",
+            ", ".join(sorted(invented)),
+            headline,
+        )
+        return False
+
+    # Script/language drift. detect_language answers per script, so this
+    # catches the Devanagari-in, Latin-out case that actually happened.
+    if detect_language(source) != detect_language(headline):
+        log.info(
+            "Rejected LLM headline: answered in %s for a %s report — %r",
+            detect_language(headline),
+            detect_language(source),
+            headline,
+        )
+        return False
+
+    return True
+
+
+async def summarise(text: str) -> str | None:
+    """A scannable one-line headline, or None if the model cannot answer.
+
+    Never call this on the request path. `generate_headline` in services/ai.py
+    is the synchronous answer the reporter and the volunteer feed get
+    immediately; this runs afterwards in the background enrichment task and
+    replaces it only if it produced something better.
+
+    Same worker-thread treatment as `classify`: llama.cpp inference is
+    blocking C and would otherwise stall the event loop, including the
+    WebSocket heartbeats holding volunteers online.
+    """
+    if not is_enabled():
+        return None
+    stripped = (text or "").strip()
+    # Nothing to summarise: a line this short IS the headline, and asking a
+    # model to shorten it can only lose detail or invent some.
+    if len(stripped) <= HEADLINE_MAX:
+        return None
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_summarise_sync, stripped),
+            timeout=settings.LLM_TIMEOUT_SECONDS,
+        )
+    except (TimeoutError, asyncio.TimeoutError):
+        log.info("LLM summarise timed out after %ss", settings.LLM_TIMEOUT_SECONDS)
+        return None
+    except Exception as exc:  # noqa: BLE001
+        log.info("LLM summarise call failed: %s", exc)
         return None

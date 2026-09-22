@@ -19,3 +19,9 @@
 # Then point LLM_MODEL_PATH at a GGUF file — see models/README.md for which
 # one and why.
 llama-cpp-python>=0.3.35
+
+# The same wheel serves the optional vision model (app/services/vision.py),
+# which checks whether an attached photo shows what the report claims. It
+# needs two files rather than one — the GGUF and its projector — pointed at
+# by LLM_VISION_MODEL_PATH and LLM_VISION_MMPROJ_PATH. Together they are
+# about 520 MB, small enough to be plausible on a phone. See models/README.md.

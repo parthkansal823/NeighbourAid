@@ -10,7 +10,28 @@ import { Map as MapIcon, MapPin, Flame, X } from '../components/icons'
 import { GEOLOCATION_SUPPORTED } from '../utils/geo'
 
 const URGENCY_FILTERS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
-const CATEGORIES = ['all', 'medical', 'flood', 'fire', 'missing', 'power', 'other']
+// Every AlertCategory the server can send, in rough order of how often it is
+// reported. Six of them — accident, gas, structure, violence, animal, water —
+// were missing, which did not hide the pins but made them unfilterable: a
+// volunteer looking only for road accidents, or wanting to clear a crowded
+// map down to the gas leak they are equipped for, had no way to ask for it.
+// The chip row is also the only place the counts per category are shown, so
+// those incidents were invisible in the totals as well.
+const CATEGORIES = [
+  'all',
+  'medical',
+  'fire',
+  'flood',
+  'accident',
+  'missing',
+  'structure',
+  'gas',
+  'power',
+  'water',
+  'violence',
+  'animal',
+  'other',
+]
 const FALLBACK_CENTER = [30.7333, 76.7794] // Chandigarh
 
 function parseLatLng(s) {
