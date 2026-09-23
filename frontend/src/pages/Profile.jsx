@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 import { AlertTriangle, CheckCircle2 } from '../components/icons'
+import Button from '../components/Button'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import {
@@ -10,6 +11,27 @@ import {
   SkillsPicker,
   VehicleToggle,
 } from '../components/ProfileFields'
+
+// Matches the server's own defaults in services/availability.py: all hours,
+// CRITICAL always allowed through. A volunteer who never opens the setting
+// behaves exactly as the app did before it existed.
+const DEFAULT_AVAILABILITY = {
+  timezone: 'Asia/Kolkata',
+  from_hour: 0,
+  to_hour: 24,
+  critical_always: true,
+  busy_until: null,
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i)
+
+/** 0 → "12 am", 13 → "1 pm", 24 → "midnight" (the end of the day, not its start). */
+function fmtHour(h) {
+  if (h === 24) return '12 am (next day)'
+  const period = h < 12 ? 'am' : 'pm'
+  const display = h % 12 === 0 ? 12 : h % 12
+  return `${display} ${period}`
+}
 
 export default function Profile() {
   const { user } = useAuth()
@@ -28,6 +50,8 @@ export default function Profile() {
   const [skillsDraft, setSkillsDraft] = useState([])
   const [vehicleDraft, setVehicleDraft] = useState(false)
   const [contactsDraft, setContactsDraft] = useState([])
+  const [phoneDraft, setPhoneDraft] = useState('')
+  const [availDraft, setAvailDraft] = useState(DEFAULT_AVAILABILITY)
 
   // `load` deliberately sets no flags on its synchronous path — it only
   // lowers them once the request settles. Raising a flag before the first
@@ -46,6 +70,17 @@ export default function Profile() {
       setSkillsDraft(meRes.data.skills || [])
       setVehicleDraft(!!meRes.data.has_vehicle)
       setContactsDraft(meRes.data.emergency_contacts || [])
+      setPhoneDraft(meRes.data.phone || '')
+      // The server normalises this, so a user who predates the field still
+      // gets a complete record back rather than undefined.
+      const avail = { ...DEFAULT_AVAILABILITY, ...(meRes.data.availability || {}) }
+      // Drop an expired snooze here rather than during render, so the UI
+      // never tells someone they are unreachable when the server has
+      // already started paging them again.
+      if (avail.busy_until && new Date(avail.busy_until).getTime() <= Date.now()) {
+        avail.busy_until = null
+      }
+      setAvailDraft(avail)
     } catch (err) {
       setError(apiError(err, t('profile_load_failed')))
     } finally {
@@ -112,6 +147,62 @@ export default function Profile() {
     }
   }
 
+  // Sent even when blank: "" is how the server is told to delete the number,
+  // and a field you can only ever add is not one anyone will risk filling in.
+  const savePhone = async () => {
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const { data } = await api.patch('/api/users/me/profile', {
+        phone: phoneDraft.trim(),
+      })
+      setMe(data)
+      setPhoneDraft(data.phone || '')
+      setMessage(t(data.phone ? 'profile_phone_saved' : 'profile_phone_cleared'))
+    } catch (err) {
+      setError(apiError(err, t('profile_phone_failed')))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // The browser is the only thing that knows which "10 p.m." the user means,
+  // so the zone travels with the window. Re-read on every save rather than
+  // once at mount: someone who sets this on a flight should not be judged
+  // against the timezone they took off in.
+  const patchAvailability = async (patch) => {
+    const next = {
+      ...availDraft,
+      ...patch,
+      timezone:
+        Intl.DateTimeFormat().resolvedOptions().timeZone || availDraft.timezone,
+    }
+    setSaving(true)
+    setError('')
+    setMessage('')
+    try {
+      const { data } = await api.patch('/api/users/me/profile', {
+        availability: next,
+      })
+      setMe(data)
+      setAvailDraft({ ...DEFAULT_AVAILABILITY, ...(data.availability || {}) })
+      setMessage(t('avail_saved'))
+    } catch (err) {
+      setError(apiError(err, t('avail_failed')))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const saveAvailability = () => patchAvailability({ busy_until: availDraft.busy_until })
+
+  // "Not right now" — driving, in a meeting, at a funeral. Sent as an
+  // absolute instant rather than a duration so a server restart cannot
+  // extend it, and so the countdown is the same on every device.
+  const snoozeTwoHours = () =>
+    patchAvailability({ busy_until: new Date(Date.now() + 2 * 3600 * 1000).toISOString() })
+
   const saveContacts = async () => {
     setSaving(true)
     setError('')
@@ -150,10 +241,22 @@ export default function Profile() {
     (me?.role === 'volunteer' && skillsDraft.length === 0 ? 1 : 0) +
     (contactCount === 0 ? 1 : 0)
 
+  // The end time, not a countdown. A countdown needs `Date.now()` during
+  // render — which React treats as impure, and which would freeze at
+  // whatever it read on the last re-render anyway. An absolute time is pure,
+  // never goes stale, and is the thing someone actually wants to know.
+  // Expiry is handled in `load`, where impure calls are allowed.
+  const busyRemaining = availDraft.busy_until
+    ? new Date(availDraft.busy_until).toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : null
+
   const sectionCls =
     'surface-card p-4 sm:p-5'
   const saveBtnCls =
-    'group relative bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden'
+    'group relative bg-orange-500 hover:bg-orange-400 active:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg hover:shadow-orange-500/40 transition-colors duration-200 overflow-hidden'
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 sm:py-10 space-y-5 sm:space-y-6">
@@ -214,6 +317,42 @@ export default function Profile() {
             {me?.created_at ? new Date(me.created_at).toLocaleString() : '—'}
           </dd>
         </dl>
+
+        {/* Optional, and the hint has to say exactly who ever sees it —
+            someone deciding whether to type their number here is entitled
+            to know the rule, not to be reassured in general terms. */}
+        <div className="mt-4 border-t border-line pt-4">
+          <label
+            htmlFor="profile-phone"
+            className="block text-sm font-medium text-gray-300"
+          >
+            {t('profile_phone')}
+          </label>
+          <p className="mt-1 text-xs text-gray-500">{t('profile_phone_hint')}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <input
+              id="profile-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              maxLength={32}
+              value={phoneDraft}
+              onChange={(e) => setPhoneDraft(e.target.value)}
+              placeholder={t('profile_phone_ph')}
+              className="tap min-w-0 flex-1 rounded-lg border border-line bg-surface-1 px-3
+                         text-sm text-white placeholder:text-gray-600
+                         focus:border-accent focus:outline-none"
+            />
+            <Button
+              size="sm"
+              onClick={savePhone}
+              loading={saving}
+              disabled={phoneDraft.trim() === (me?.phone || '')}
+            >
+              {t('profile_phone_save')}
+            </Button>
+          </div>
+        </div>
       </section>
 
       <section id="location" className={`${sectionCls} reveal-up stagger-2 scroll-mt-24`}>
@@ -224,7 +363,7 @@ export default function Profile() {
           <button
             onClick={detectAndUpdate}
             disabled={locLoading || saving}
-            className="text-xs bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-3 py-1.5 rounded-lg disabled:opacity-50 shadow-xs shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95"
+            className="text-xs bg-orange-500 hover:bg-orange-400 active:bg-orange-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-50 hover:shadow-orange-500/40 transition-colors duration-200 active:scale-95"
           >
             {locLoading ? t('profile_detecting') : saving ? t('profile_saving') : t('profile_update_loc')}
           </button>
@@ -257,10 +396,6 @@ export default function Profile() {
               disabled={saving}
               className={saveBtnCls}
             >
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
-              />
               <span className="relative">{saving ? 'Saving…' : 'Save skills'}</span>
             </button>
           </div>
@@ -272,6 +407,83 @@ export default function Profile() {
                 .join(', ')}
             </p>
           )}
+
+          {/* Quiet hours. This narrows push only — an open feed still shows
+              everything, because someone reading the feed at 3 a.m. is
+              awake. The point is not to hide alerts, it is to stop the
+              LOW ones buzzing a pocket at an hour that makes people turn
+              notifications off entirely. */}
+          <div className="mt-5 border-t border-line pt-4">
+            <h3 className="text-sm font-medium text-gray-300">
+              {t('avail_title')}
+            </h3>
+            <p className="mt-1 text-xs text-gray-500">{t('avail_hint')}</p>
+
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <label className="text-xs text-gray-400">
+                {t('avail_from')}
+                <select
+                  value={availDraft.from_hour}
+                  onChange={(e) =>
+                    setAvailDraft({ ...availDraft, from_hour: +e.target.value })
+                  }
+                  className="tap mt-1 block rounded-lg border border-line bg-surface-1 px-2 text-sm text-white"
+                >
+                  {HOURS.map((h) => (
+                    <option key={h} value={h}>{fmtHour(h)}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs text-gray-400">
+                {t('avail_to')}
+                <select
+                  value={availDraft.to_hour}
+                  onChange={(e) =>
+                    setAvailDraft({ ...availDraft, to_hour: +e.target.value })
+                  }
+                  className="tap mt-1 block rounded-lg border border-line bg-surface-1 px-2 text-sm text-white"
+                >
+                  {[...HOURS, 24].map((h) => (
+                    <option key={h} value={h}>{fmtHour(h)}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <label className="mt-3 flex items-start gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={availDraft.critical_always}
+                onChange={(e) =>
+                  setAvailDraft({ ...availDraft, critical_always: e.target.checked })
+                }
+                className="mt-0.5 h-4 w-4 accent-orange-500"
+              />
+              <span>
+                {t('avail_critical_always')}
+                <span className="block text-xs text-gray-500">
+                  {t('avail_critical_hint')}
+                </span>
+              </span>
+            </label>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Button size="sm" onClick={saveAvailability} loading={saving}>
+                {t('avail_save')}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={snoozeTwoHours}>
+                {t('avail_snooze')}
+              </Button>
+              {busyRemaining && (
+                <span className="text-[11px] text-orange-300">
+                  {t('avail_busy_until')} {busyRemaining}
+                </span>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] text-gray-600">
+              {t('avail_timezone')}: {availDraft.timezone}
+            </p>
+          </div>
         </section>
       )}
 
@@ -288,10 +500,6 @@ export default function Profile() {
           disabled={saving}
           className={`mt-3 ${saveBtnCls}`}
         >
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
-          />
           <span className="relative">{saving ? 'Saving…' : 'Save contacts'}</span>
         </button>
       </section>
@@ -325,7 +533,7 @@ export default function Profile() {
 
 function Stat({ label, value, accent = 'text-orange-400' }) {
   return (
-    <div className="bg-gray-950/80 border border-gray-800 rounded-lg py-3 px-2 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-700 hover:shadow-md hover:shadow-black/40">
+    <div className="bg-gray-950/80 border border-gray-800 rounded-lg py-3 px-2 transition-colors duration-200 hover:border-gray-700">
       <div className={`text-xl sm:text-2xl font-bold tabular-nums ${accent}`}>{value}</div>
       <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-widest mt-0.5">
         {label}

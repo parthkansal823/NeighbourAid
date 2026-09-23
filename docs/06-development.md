@@ -69,6 +69,9 @@ Edit `.env` if you want — none of the defaults block local dev.
 | `ALERT_WEBHOOK_URL` | empty | Optional outbound webhook for n8n/Zapier. |
 | `ALERT_WEBHOOK_TIMEOUT_SECONDS` | `4.0` | |
 | `INBOUND_TOKEN` | empty | Empty disables the WhatsApp inbound route entirely. |
+| `VAPID_PUBLIC_KEY` | empty | Web push. `python -m app.services.push` prints a pair. |
+| `VAPID_PRIVATE_KEY` | empty | Signing key. Either both are set or push is off. |
+| `VAPID_SUBJECT` | `mailto:ops@neighbouraid.local` | Where a push service complains. |
 | `VITE_API_URL` | empty | Frontend backend URL (Vite proxies in dev). |
 | `VITE_WS_URL` | empty | Frontend WS URL (Vite proxies in dev). |
 

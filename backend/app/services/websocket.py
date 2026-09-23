@@ -1,7 +1,53 @@
+import asyncio
 import json
+import logging
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from fastapi import WebSocket
+
+from .dispatch import eta_minutes, radius_km_for
+
+log = logging.getLogger(__name__)
+
+# asyncio holds only a weak reference to a task, so without this a running
+# fan-out can be collected partway through and vanish. Same pattern, and
+# same reason, as `_background_tasks` in routes/alerts.py.
+_push_tasks: Set[asyncio.Task] = set()
+
+
+def _schedule_push(alert_dict: dict, radius_km: float, reached_live: Set[str]) -> None:
+    """Fan the same alert out to subscribed volunteers who are NOT connected.
+
+    This lives inside `broadcast_nearby` rather than at its eight call sites
+    because the eight would drift: the next person to add a ninth broadcast
+    would have to remember, and nothing would fail if they forgot — the
+    alert would simply never reach anyone with the tab closed.
+
+    Imported lazily and scheduled rather than awaited, for two reasons. The
+    lazy import keeps this module free of a database dependency it otherwise
+    does not have; `create_task` keeps N HTTPS round trips off the path of
+    the reporter who is still waiting for their alert to post.
+    """
+    from .push import is_enabled  # noqa: PLC0415 - avoids a module-level DB dep
+
+    if not is_enabled():
+        return
+
+    async def _run() -> None:
+        try:
+            from .push import push_nearby  # noqa: PLC0415
+            from ..db.client import get_db  # noqa: PLC0415
+
+            sent = await push_nearby(get_db(), alert_dict, radius_km, reached_live)
+            if sent:
+                log.info("pushed alert to %s offline volunteer(s)", sent)
+        except Exception:
+            # A failed notification must never surface as a failed alert.
+            log.exception("push fan-out failed")
+
+    task = asyncio.create_task(_run())
+    _push_tasks.add(task)
+    task.add_done_callback(_push_tasks.discard)
 
 
 # Map category → preferred skill tags. Volunteers tagged with any listed
@@ -83,11 +129,22 @@ class ConnectionManager:
         category = alert_dict.get("category", "other")
         preferred = set(CATEGORY_PREFERRED_SKILLS.get(category, []))
 
+        reached_live: set[str] = set()
         for vid, (ws, coords, skills, has_vehicle) in list(self._active.items()):
             v_lng, v_lat = coords
             distance = _haversine(a_lat, a_lng, v_lat, v_lng)
             skill_match = bool(preferred.intersection(set(skills)))
-            effective_radius = SKILL_RADIUS_KM if skill_match else radius_km
+            # How the volunteer travels now decides how far they are worth
+            # paging. `has_vehicle` was collected at registration and only
+            # ever displayed; someone with a car had the same 5 km as
+            # someone walking, despite covering it four times faster.
+            #
+            # `radius_km` from the caller is still honoured as a floor, so a
+            # caller that deliberately widens the broadcast is not narrowed
+            # by someone's travel mode.
+            effective_radius = max(
+                radius_km, radius_km_for(has_vehicle, skill_match)
+            )
             if distance > effective_radius:
                 continue
             try:
@@ -95,9 +152,16 @@ class ConnectionManager:
                 payload["is_skill_match"] = skill_match
                 payload["your_distance_km"] = round(distance, 2)
                 payload["your_has_vehicle"] = has_vehicle
+                # The number a volunteer can act on. "5.0 km" tells them
+                # nothing about whether they are the right person to go;
+                # "23 min" does.
+                payload["your_eta_minutes"] = eta_minutes(distance, has_vehicle)
                 await ws.send_text(json.dumps(payload, default=str))
+                reached_live.add(vid)
             except Exception:
                 self.disconnect(vid)
+
+        _schedule_push(alert_dict, radius_km, reached_live)
 
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

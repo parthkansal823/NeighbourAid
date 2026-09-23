@@ -23,6 +23,25 @@ pytest-asyncio>=0.24.0
 gunicorn>=23.0.0
 feedparser>=6.0.11
 
+# Web push (app/services/push.py). These two, not `pywebpush`: pywebpush is
+# the reference implementation but hard-depends on BOTH aiohttp and requests
+# — thirteen packages and two more HTTP clients, in a project that already
+# ships httpx. These are the libraries pywebpush itself uses for the parts
+# that matter, and each adds only `cryptography`, already pinned above.
+#   py-vapid  — the RFC 8292 auth JWT (Vapid02; Vapid01 is the expired draft)
+#   http-ece  — RFC 8291 aes128gcm payload encryption
+# Nothing cryptographic is hand-rolled; only the POST is ours.
+py-vapid>=1.9.0
+http-ece>=1.2.0
+
+# Quiet hours (app/services/availability.py) compare local time with
+# `zoneinfo`, which reads the IANA database from the operating system.
+# Linux and macOS ship one; Windows does not, so every ZoneInfo() call
+# raises there and the availability check falls open — the feature silently
+# does nothing on a Windows box while passing CI on Linux. Pure data, no
+# code, and harmless where a system database already exists.
+tzdata>=2025.2
+
 # Transitive pins that pip-audit flagged; listed explicitly so a fresh
 # install can't resolve back to a vulnerable version.
 urllib3>=2.7.0

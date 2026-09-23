@@ -9,6 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .core.config import settings
 from .core.security import decode_token_safe
 from .core.security_headers import SecurityHeadersMiddleware
 from .db.client import connect, disconnect, get_db
@@ -19,6 +20,7 @@ from .routes import (
     help,
     inbound,
     news,
+    push,
     resources,
     safety,
     stats,
@@ -71,9 +73,56 @@ def _warn_if_multi_worker() -> None:
         )
 
 
+def _log_optional_integrations() -> None:
+    """Say at startup which optional pieces are on and which are off.
+
+    Every one of these is designed to degrade silently — that is the whole
+    point of them being optional, and it is right for the request path. It
+    is wrong for the operator. Deploying this today, the only way to learn
+    that `INBOUND_TOKEN` was never set is to send a WhatsApp message and
+    have it vanish, or to notice a 503 in a log nobody is reading.
+
+    So the trade-off is made once, here: silent at runtime, explicit at
+    boot. One INFO line an operator sees on every restart, listing what is
+    actually wired, beats four features that each fail quietly in their own
+    way somewhere else.
+
+    Not a warning — an unset value is a legitimate configuration, and this
+    app is meant to run with all four off.
+    """
+    wired = {
+        "whatsapp-inbound": bool(settings.INBOUND_TOKEN.strip()),
+        "outbound-webhook": bool(settings.ALERT_WEBHOOK_URL.strip()),
+        "web-push": bool(
+            settings.VAPID_PUBLIC_KEY.strip() and settings.VAPID_PRIVATE_KEY.strip()
+        ),
+        "llm-text": bool(settings.LLM_MODEL_PATH.strip()),
+        "llm-vision": bool(
+            settings.LLM_VISION_MODEL_PATH.strip()
+            and settings.LLM_VISION_MMPROJ_PATH.strip()
+        ),
+    }
+    if os.getenv("NA_DISABLE_AI_MODEL") == "1":
+        # The kill switch overrides the paths, so reporting the paths alone
+        # would tell the operator the opposite of what is running.
+        wired["llm-text"] = wired["llm-vision"] = False
+
+    on = sorted(name for name, ok in wired.items() if ok)
+    off = sorted(name for name, ok in wired.items() if not ok)
+    # ASCII only: this goes through whatever handler the host installs, and a
+    # Windows console handler on a cp1252 code page raises on an em dash
+    # rather than degrading — a crash at boot over a punctuation mark.
+    log.info(
+        "Optional integrations - on: %s | off: %s",
+        ", ".join(on) or "none",
+        ", ".join(off) or "none",
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _warn_if_multi_worker()
+    _log_optional_integrations()
     await connect()
     yield
     await disconnect()
@@ -126,6 +175,7 @@ app.include_router(resources.router)
 app.include_router(inbound.router)
 app.include_router(geo.router)
 app.include_router(help.router)
+app.include_router(push.router)
 
 
 def _safe_errors(errors):

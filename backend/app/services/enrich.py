@@ -57,7 +57,7 @@ async def _maybe_upgrade_urgency(db, alert_id: ObjectId, update: dict) -> None:
     """Ask the local LLM, but only where the classifier matched nothing.
 
     `keyword:default` is the classifier saying so explicitly: no pattern, no
-    keyword in any of the eight languages, so MEDIUM is a guess rather than a
+    keyword in any of the eleven languages, so MEDIUM is a guess rather than a
     judgement. That is exactly the implied-danger case the model is better at
     (6/7 vs 5/7 measured) and the only place it is worth its seconds.
 

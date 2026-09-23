@@ -344,15 +344,11 @@ export default function Home() {
             to={heroPrimary.to}
             className={`group relative overflow-hidden tap ${heroPrimary.tone} text-white font-semibold px-6 sm:px-8 py-3 rounded-xl transition-colors duration-200 press-in`}
           >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
-            />
             <span className="relative">{heroPrimary.label}</span>
           </Link>
           <Link
             to="/map"
-            className="border border-gray-700 hover:border-orange-500/60 text-gray-300 hover:text-white font-semibold px-6 sm:px-8 py-3 rounded-xl transition-all duration-300 hover:-translate-y-0.5 hover:bg-orange-500/5 active:translate-y-0 active:scale-[0.98]"
+            className="border border-gray-700 hover:border-orange-500/60 text-gray-300 hover:text-white font-semibold px-6 sm:px-8 py-3 rounded-xl transition-colors duration-300 hover:bg-orange-500/5"
           >
             {t('home_cta_map')}
           </Link>
@@ -459,7 +455,7 @@ export default function Home() {
                   <Link
                     key={item.title}
                     to={item.to}
-                    className="group bg-gray-950/80 border border-gray-800 rounded-xl p-4 hover:border-orange-500/40 hover:-translate-y-0.5 transition-all duration-200"
+                    className="group bg-gray-950/80 border border-gray-800 rounded-xl p-4 hover:border-orange-500/40 transition-colors duration-200"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="font-semibold text-white">{item.title}</h3>
@@ -488,14 +484,14 @@ export default function Home() {
           ].map(({ step, title, desc }, i) => (
             <div
               key={step}
-              className="group relative bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-5 sm:p-6 card-hoverable reveal-up overflow-hidden"
+              className="group relative surface-card p-5 sm:p-6 card-hoverable reveal-up overflow-hidden"
               style={{ animationDelay: `${100 + i * 100}ms` }}
             >
               <div
                 aria-hidden
-                className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-orange-500/0 group-hover:bg-orange-500/10 blur-2xl transition-all duration-500"
+                className="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full bg-orange-500/0 group-hover:bg-orange-500/10 blur-2xl transition-colors duration-500"
               />
-              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl bg-linear-to-br from-orange-500/30 to-orange-500/5 text-orange-300 text-xl font-black mb-3 border border-orange-500/30 shadow-inner shadow-orange-500/10 group-hover:scale-110 transition-transform duration-300">
+              <div className="relative inline-flex items-center justify-center w-11 h-11 rounded-xl bg-accent-soft text-accent text-xl font-black mb-3 border border-accent/30 group-hover:scale-110 transition-transform duration-300">
                 {step}
               </div>
               <h3 className="relative font-semibold text-white mb-2">{title}</h3>
@@ -533,12 +529,12 @@ export default function Home() {
               return (
                 <div
                   key={`${v.name}-${i}`}
-                  className={`group relative flex items-center justify-between gap-3 px-4 sm:px-5 py-3 hover:bg-gray-800/40 transition-all duration-200 hover:pl-6 ${podiumGlow}`}
+                  className={`group relative flex items-center justify-between gap-3 px-4 sm:px-5 py-3 hover:bg-gray-800/40 transition-colors duration-200 hover:pl-6 ${podiumGlow}`}
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
                   <span
                     aria-hidden
-                    className="absolute left-0 top-0 bottom-0 w-0.5 bg-linear-to-b from-orange-400 to-amber-300 scale-y-0 group-hover:scale-y-100 origin-top transition-transform duration-300"
+                    className="absolute left-0 top-0 bottom-0 w-0.5 bg-accent scale-y-0 group-hover:scale-y-100 origin-top transition-transform duration-300"
                   />
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-lg font-black text-orange-400 w-7 text-center shrink-0 tabular-nums">
@@ -611,7 +607,7 @@ export default function Home() {
                   href={n.link}
                   target="_blank"
                   rel="noreferrer"
-                  className="group relative bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-4 block card-hoverable overflow-hidden"
+                  className="group relative surface-card p-4 block card-hoverable overflow-hidden"
                 >
                   <span
                     aria-hidden
@@ -656,11 +652,11 @@ export default function Home() {
           {urgencyLevels.map(({ level, color, example }, i) => (
             <div
               key={level}
-              className="flex items-center gap-3 sm:gap-4 bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 card-hoverable reveal-up"
+              className="flex items-center gap-3 sm:gap-4 surface-card p-3 sm:p-4 card-hoverable reveal-up"
               style={{ animationDelay: `${i * 70}ms` }}
             >
               <div
-                className={`${color} text-white text-xs font-bold px-3 py-1.5 rounded-lg min-w-[80px] text-center shrink-0 shadow-md ${
+                className={`${color} text-white text-xs font-bold px-3 py-1.5 rounded-lg min-w-[80px] text-center shrink-0 ${
                   level === 'CRITICAL' ? 'shadow-red-500/40' : level === 'HIGH' ? 'shadow-orange-500/30' : ''
                 }`}
               >
@@ -709,7 +705,7 @@ function FlowCard({ card, index }) {
 function StatTile({ value, label, accent = 'text-orange-400', delay = 0 }) {
   return (
     <div
-      className="group relative bg-linear-to-br from-gray-900/90 to-gray-900/60 backdrop-blur-sm border border-gray-800 rounded-xl py-3 px-3 sm:px-4 text-center card-hoverable overflow-hidden reveal-up"
+      className="group relative surface-card py-3 px-3 sm:px-4 text-center card-hoverable overflow-hidden reveal-up"
       style={{ animationDelay: `${delay}ms` }}
     >
       <span

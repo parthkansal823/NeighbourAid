@@ -59,7 +59,7 @@ combines:
 3. **Multi-source verification** — composite `verified_score (0–100)`
    blends community witnesses, corroborating reports, live weather,
    and photo evidence.
-4. **Built for India** — 8-language UI (English, हिन्दी, বাংলা, मराठी, తెలుగు, தமிழ், ગુજરાતી, ਪੰਜਾਬੀ)
+4. **Built for India** — 11-language UI (English, हिन्दी, বাংলা, मराठी, తెలుగు, தமிழ், ગુજરાતી, ਪੰਜਾਬੀ, ಕನ್ನಡ, മലയാളം, ଓଡ଼ିଆ)
    with auto-translation of user content, India emergency dialer
    (112 / 100 / 108 / 101 / 1091 / 1098), and category-specific
    one-tap dispatch.
@@ -248,7 +248,7 @@ Hetzner — anywhere with Docker.
 | Maps | **Leaflet + react-leaflet + OSM tiles** | Free, no API key |
 | Backend | **FastAPI + Uvicorn/Gunicorn** | Async, WebSockets, auto OpenAPI |
 | Database | **MongoDB 7 + PyMongo async** | 2dsphere geospatial index for `$nearSphere` |
-| Triage | **Keyword + pattern classifier** (`app/services/vocab.py`) | 8 languages, ~0.05 ms, no weights, no API key |
+| Triage | **Keyword + pattern classifier** (`app/services/vocab.py`) | 11 languages, ~0.03 ms, no weights, no API key |
 | Photo eval | **Pillow** | Decode + verify, no vision model |
 | Translation | **Google `translate_a/single` (key-less)** | Optional, falls back to original |
 | Auth | **PyJWT (JWT) + bcrypt** | Stateless |
@@ -476,6 +476,9 @@ Requirements:
 | `ALERT_WEBHOOK_URL` | backend | empty | Outbound n8n / Zapier / Make webhook on alert create |
 | `ALERT_WEBHOOK_TIMEOUT_SECONDS` | backend | `4.0` | Hard cap on the webhook POST |
 | `INBOUND_TOKEN` | backend | empty | Shared secret for `/api/inbound/whatsapp`; empty disables the route |
+| `VAPID_PUBLIC_KEY` | backend | empty | Web push. Generate with `python -m app.services.push` |
+| `VAPID_PRIVATE_KEY` | backend | empty | Web push signing key — a credential. Both keys or push stays off |
+| `VAPID_SUBJECT` | backend | `mailto:…` | Contact the push service can reach (RFC 8292) |
 | `SKIP_MODEL_DOWNLOAD` | backend Docker build arg | `0` | `1` to skip model in `docker build` |
 | `VITE_API_URL` | frontend | empty | Absolute backend URL in prod |
 | `VITE_WS_URL` | frontend | empty | Absolute WS URL in prod (e.g. `wss://api.example.com`) |

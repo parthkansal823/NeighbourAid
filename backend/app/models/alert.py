@@ -96,6 +96,10 @@ class AlertCreate(BaseModel):
     description: str = Field(min_length=10, max_length=2000)
     location: GeoPoint
     photos: List[str] = Field(default_factory=list)
+    # A practice alert. Runs the real pipeline so volunteers learn the
+    # real flow, but is excluded from every public count, the leaderboard
+    # and trust scores. See services/drill.py.
+    is_drill: bool = False
 
     @field_validator("description")
     @classmethod

@@ -91,6 +91,23 @@ class Settings(BaseSettings):
     # header. Empty string disables the route entirely (default).
     INBOUND_TOKEN: str = ""
 
+    # ---- Web push (see app/services/push.py) ----
+    #
+    # Off unless both keys are set. Generate a pair once, per deployment:
+    #
+    #     python -c "from py_vapid import Vapid02; v=Vapid02(); v.generate_keys(); \
+    #                v.save_key('vapid.pem'); print(v.public_key_urlsafe_base64())"
+    #
+    # The private key signs the JWT that proves to a push service the message
+    # came from this server. It is a credential: treat it like JWT_SECRET.
+    # Rotating it invalidates every existing subscription, because browsers
+    # bind a subscription to the public key it was created with.
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    # RFC 8292 requires a contact the push service can reach if this server
+    # starts misbehaving. `mailto:` or an https URL.
+    VAPID_SUBJECT: str = "mailto:ops@neighbouraid.local"
+
     model_config = SettingsConfigDict(env_file=_ENV_FILES, extra="ignore")
 
     @property

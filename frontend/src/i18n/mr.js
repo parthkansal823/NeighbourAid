@@ -82,7 +82,7 @@ export default {
   home_how_1_title: 'आपत्काल नोंदवा',
   home_how_1_desc: 'प्रकार, तपशील आणि तुमचे GPS ठिकाण द्या. ३० सेकंदांत पूर्ण.',
   home_how_2_title: 'तात्काळ ट्रायाज',
-  home_how_2_desc: 'तुमचा अहवाल लगेच CRITICAL / HIGH / MEDIUM / LOW मध्ये वर्गीकृत होतो — आमच्या आठही भाषांमध्ये.',
+  home_how_2_desc: 'तुमचा अहवाल लगेच CRITICAL / HIGH / MEDIUM / LOW मध्ये वर्गीकृत होतो — आमच्या अकराही भाषांमध्ये.',
   home_how_3_title: 'स्वयंसेवकांना सूचना',
   home_how_3_desc: 'जवळच्या स्वयंसेवकांना लगेच सूचना मिळते आणि ते अलर्ट स्वीकारू किंवा सोडवू शकतात.',
 
@@ -180,6 +180,9 @@ export default {
   post_submitting: 'अलर्ट पाठवत आहे…',
   post_min_chars: 'कृपया अधिक तपशील द्या (किमान १० अक्षरे)',
   post_failed: 'अलर्ट पाठवता आला नाही',
+  drill_label: 'हा एक सराव आहे',
+  drill_hint: 'खरा प्रवाह चालतो जेणेकरून स्वयंसेवक सराव करू शकतील. कोणत्याही मोजणीत किंवा ट्रस्ट स्कोअरमध्ये धरले जात नाही.',
+  drill_badge: 'सराव - खरी आणीबाणी नाही',
 
   // Category labels
   cat_medical: 'वैद्यकीय',
@@ -217,6 +220,12 @@ export default {
     'ब्राउझर सूचना सुरू करा, म्हणजे हा टॅब मागे असतानाही अलर्ट चुकणार नाहीत.',
   vol_enable: 'सुरू करा',
   vol_notif_on: 'पार्श्वभूमी सूचना सुरू',
+  vol_enable_push: 'हा टॅब बंद असतानाही अलर्ट मिळवा. जवळच्या आणीबाणीत तुमचा फोन वाजेल.',
+  vol_enabling: 'सुरू होत आहे…',
+  vol_push_on: 'बॅकग्राउंड अलर्ट सुरू — बंद करण्यासाठी टॅप करा',
+  vol_push_denied: 'सूचना ब्लॉक आहेत. ब्राउझर सेटिंग्जमध्ये या साइटसाठी परवानगी द्या.',
+  vol_push_unavailable: 'या सर्व्हरवर बॅकग्राउंड अलर्ट सेट केलेले नाहीत.',
+  vol_push_failed: 'बॅकग्राउंड अलर्ट सुरू करता आले नाहीत',
   vol_failed: 'अलर्ट लोड करता आले नाहीत',
 
   // My alerts
@@ -256,6 +265,26 @@ export default {
   profile_no_geo: 'या ब्राउझरमध्ये स्थान सुविधा नाही',
   profile_load_failed: 'प्रोफाइल लोड करता आले नाही',
   profile_update_failed: 'ठिकाण अद्ययावत करता आले नाही',
+  avail_title: 'शांत तास',
+  avail_hint: 'फक्त तुमच्या फोनवर येणाऱ्या सूचनांवर परिणाम करते. फीड उघडल्यावर सर्व काही नेहमी दिसेल.',
+  avail_from: 'उपलब्ध',
+  avail_to: 'पर्यंत',
+  avail_critical_always: 'CRITICAL साठी नेहमी उठवा',
+  avail_critical_hint: 'श्वास न येणे, हृदयविकाराचा झटका, बुडणे.',
+  avail_save: 'तास जतन करा',
+  avail_snooze: '2 तास व्यस्त',
+  avail_busy_until: 'व्यस्त, पर्यंत',
+  avail_timezone: 'टाइमझोन',
+  avail_saved: 'शांत तास जतन झाले.',
+  avail_failed: 'शांत तास जतन करता आले नाहीत',
+  responder_call: 'कॉल करा',
+  profile_phone: 'तुमचा फोन नंबर',
+  profile_phone_hint: 'ऐच्छिक. फक्त तुमचा अलर्ट स्वीकारणाऱ्या त्या एका स्वयंसेवकाला दिला जातो — किंवा तुम्ही स्वयंसेवक असाल तर त्या एका रिपोर्टरला. कधीही सार्वजनिक नाही.',
+  profile_phone_ph: 'फोन किंवा व्हॉट्सअॅप',
+  profile_phone_save: 'नंबर जतन करा',
+  profile_phone_saved: 'फोन नंबर जतन झाला.',
+  profile_phone_cleared: 'फोन नंबर काढून टाकला.',
+  profile_phone_failed: 'फोन नंबर अपडेट करता आला नाही',
 
   // Safety check-ins
   safety_title: 'सुरक्षा नोंद',
@@ -303,6 +332,14 @@ export default {
   res_delete_failed: 'साधन काढता आले नाही',
   res_name_too_short: 'नाव किमान २ अक्षरांचे हवे',
   res_no_location: 'ठिकाण उपलब्ध नाही — कृपया GPS परवानगी द्या',
+  match_title: 'जवळची संसाधने',
+  res_kind_shelter: 'निवारा',
+  res_kind_food: 'अन्न',
+  res_kind_blood: 'रक्त',
+  res_kind_oxygen: 'ऑक्सिजन',
+  res_kind_water: 'पाणी',
+  res_kind_medical_camp: 'वैद्यकीय शिबिर',
+  res_kind_other: 'इतर',
 
   // Alert card
   card_directions: 'दिशा',
@@ -327,6 +364,7 @@ export default {
   card_similar_nearby: 'जवळ तत्सम',
   card_weather_match: 'हवामान जुळते',
   card_ai_confident: 'खात्री',
+  card_min_away: 'मिनिटे दूर',
 
   // Emergency dialer
   dialer_title: 'भारतातील आपत्कालीन क्रमांक',

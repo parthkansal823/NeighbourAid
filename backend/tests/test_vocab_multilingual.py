@@ -218,6 +218,73 @@ def test_pura_does_not_match_inside_the_hindi_word_for_entire():
     assert ai._heuristic_urgency("गावात महापूर आला आहे")[0] == "HIGH"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "minor issue fire in the kitchen",
+        "मामूली आग लगी है",
+        "ಸಣ್ಣ ಬೆಂಕಿ ಇದೆ",
+        "ചെറിയ തീപിടിത്തം",
+        "ଘରେ ଛୋଟ ନିଆଁ",
+        "small gas leak, not urgent",
+        "trapped in the lift, question about tomorrow",
+    ],
+)
+def test_a_spreading_hazard_is_never_talked_down(text):
+    """A reporter can be right that their injury is minor. They cannot be
+    right that a fire is.
+
+    The de-escalation rule reads a LOW qualifier as the reporter describing
+    their own situation, which is sound for an injury and wrong for anything
+    that gets worse on its own. Before the SPREADING_HAZARDS exemption every
+    one of these scored LOW — beneath genuine LOW reports in the volunteer
+    feed, which is the worst place for a fire to sit.
+    """
+    urgency, reason, _, _ = ai._heuristic_urgency(text)
+    assert urgency == "HIGH", reason
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "stray dog has a minor injury on its leg, can wait until tomorrow",
+        "आवारा कुत्ता घायल है, कल देख लेना",
+    ],
+)
+def test_de_escalation_still_applies_to_what_it_was_written_for(text):
+    """The counterweight to the test above: narrowing the rule must not
+    disable it. An injury with an explicit "it can wait" is still LOW."""
+    urgency, reason, _, _ = ai._heuristic_urgency(text)
+    assert urgency == "LOW"
+    assert reason == "keyword:high-deescalated"
+
+
+def test_spreading_hazards_all_name_real_concepts():
+    """A typo here would disable the exemption silently — the intersection
+    would just come back empty and every hazard would de-escalate again."""
+    assert ai.SPREADING_HAZARDS <= set(vocab.CONCEPTS)
+
+
+@pytest.mark.parametrize(
+    ("code", "text"),
+    [
+        ("kn", "ಅವನು ಉಸಿರಾಡುತ್ತಿಲ್ಲ ಬೇಗ ಬನ್ನಿ"),
+        ("ml", "അവൻ ശ്വാസം എടുക്കുന്നില്ല"),
+        ("or", "ସେ ନିଶ୍ୱାସ ନେଉନାହିଁ"),
+    ],
+)
+def test_the_three_newest_languages_reach_critical(code, text):
+    """The reason the vocabulary had to land before the UI dictionaries.
+
+    An unmatched report returns MEDIUM/keyword:default. Shipping a Kannada
+    UI without Kannada terms would invite someone to report that a person is
+    not breathing and then rank it MEDIUM — a silent failure, in the one
+    language the app had just told them to use.
+    """
+    assert vocab.detect_language(text) == code
+    assert ai._heuristic_urgency(text)[0] == "CRITICAL"
+
+
 def test_no_control_characters_in_the_vocabulary_source():
     """Guards a bug that silently disabled every English pattern.
 

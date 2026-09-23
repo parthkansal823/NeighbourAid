@@ -425,7 +425,7 @@
       <div class="anim sub" style="animation-delay:.25s">A hyperlocal crisis &amp; help network for India — real-time, AI-triaged, multi-source verified, powered by a <span style="color:var(--ink)">zero-API-key</span> stack.</div>
 
       <div class="stats stagger">
-        <div class="stat"><div class="n">464</div><div class="l">Tests passing</div></div>
+        <div class="stat"><div class="n">528</div><div class="l">Tests passing</div></div>
         <div class="stat"><div class="n">8</div><div class="l">Languages</div></div>
         <div class="stat"><div class="n">5<span class="u">km</span></div><div class="l">Volunteer radius</div></div>
         <div class="stat"><div class="n">0<span class="u">₹</span></div><div class="l">Paid APIs</div></div>
@@ -590,7 +590,7 @@
       <div class="prob-stats stagger">
         <div class="prob-stat"><div class="big">5<span class="u">km</span></div><div class="lab">Dispatch radius · auto-extends to 15</div></div>
         <div class="prob-stat"><div class="big">0.03<span class="u">ms</span></div><div class="lab">Triage latency · no network call</div></div>
-        <div class="prob-stat"><div class="big">464</div><div class="lab">Tests passing in CI</div></div>
+        <div class="prob-stat"><div class="big">528</div><div class="lab">Tests passing in CI</div></div>
         <div class="prob-stat"><div class="big">0<span class="u">₹</span></div><div class="lab">Paid API keys required</div></div>
       </div>
     </div>
@@ -628,7 +628,7 @@
         <div class="sol-cell">
           <div class="idx">— 04</div>
           <h3>Built for India</h3>
-          <p>8 languages incl. <span class="deva">हिन्दी</span> / <span class="gurm">ਪੰਜਾਬੀ</span> + 112/108/101 dialer + WhatsApp inbound.</p>
+          <p>11 languages incl. <span class="deva">हिन्दी</span> / <span class="gurm">ਪੰਜਾਬੀ</span> + 112/108/101 dialer + WhatsApp inbound.</p>
           <div class="meta">en-IN · hi-IN · pa-IN</div>
         </div>
         <div class="sol-cell">
@@ -685,8 +685,8 @@
         <div class="feat-col">
           <h3>Comms &amp; Reach</h3>
           <ul>
-            <li>8-language UI + on-device translation</li>
-            <li>Native push via Service Worker</li>
+            <li>11-language UI + on-device translation</li>
+            <li>Web push (VAPID) — reaches a closed tab</li>
             <li>Share link / WhatsApp / QR fallback</li>
             <li>Inbound WhatsApp webhook (Twilio / n8n)</li>
             <li>Buddy ping → sms: / mailto: chips</li>
@@ -713,7 +713,7 @@
               <tr><th>Layer</th><th>Choice</th><th>Why we picked it</th></tr>
             </thead>
             <tbody>
-              <tr><td class="layer">Frontend</td><td class="choice">React 19 · Vite · Tailwind</td><td class="why">Fast HMR, ~223 KB gzipped first load</td></tr>
+              <tr><td class="layer">Frontend</td><td class="choice">React 19 · Vite · Tailwind</td><td class="why">Fast HMR, ~221 KB gzipped first load</td></tr>
               <tr><td class="layer">Maps</td><td class="choice">Leaflet · react-leaflet · OSM</td><td class="why">Free, no API key, India-ready</td></tr>
               <tr><td class="layer">Backend</td><td class="choice">FastAPI · Uvicorn / Gunicorn</td><td class="why">Async, WebSockets, auto OpenAPI</td></tr>
               <tr><td class="layer">Database</td><td class="choice">MongoDB · PyMongo async</td><td class="why">2dsphere geospatial $nearSphere</td></tr>
@@ -907,11 +907,11 @@
     </div>
     <div class="frame">
       <h2 class="title anim">Reach every Indian neighbour.</h2>
-      <div class="lede anim" style="animation-delay:.15s">8-language UI <span class="dash">/</span> WhatsApp inbound <span class="dash">/</span> QR &amp; web share <span class="dash">/</span> emergency dialer.</div>
+      <div class="lede anim" style="animation-delay:.15s">11-language UI <span class="dash">/</span> WhatsApp inbound <span class="dash">/</span> QR &amp; web share <span class="dash">/</span> emergency dialer.</div>
 
       <div class="comm-grid">
         <div class="anim-fade" style="animation-delay:.3s">
-          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron);margin-bottom:14px">— 8-language UI &amp; auto-translate</h3>
+          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron);margin-bottom:14px">— 11-language UI &amp; auto-translate</h3>
           <div class="lang-row">
             <div class="lang-tag">EN</div>
             <div><div class="text">Help is on the way.</div><div class="name">English</div></div>
@@ -962,12 +962,12 @@
     </div>
     <div class="frame">
       <h2 class="title anim">Quality, testing, deploy.</h2>
-      <div class="lede anim" style="animation-delay:.15s">464 tests · CI on Python 3.12 + 3.13 · runs on free-tier infra.</div>
+      <div class="lede anim" style="animation-delay:.15s">528 tests · CI on Python 3.12 + 3.13 · runs on free-tier infra.</div>
 
       <div class="test-stats stagger">
-        <div class="test-stat"><div class="n acc">464</div><div class="l">Total tests</div></div>
-        <div class="test-stat"><div class="n">383</div><div class="l">Backend (pytest)</div></div>
-        <div class="test-stat"><div class="n">81</div><div class="l">Frontend (Vitest)</div></div>
+        <div class="test-stat"><div class="n acc">528</div><div class="l">Total tests</div></div>
+        <div class="test-stat"><div class="n">438</div><div class="l">Backend (pytest)</div></div>
+        <div class="test-stat"><div class="n">90</div><div class="l">Frontend (Vitest)</div></div>
         <div class="test-stat"><div class="n">2</div><div class="l">Python versions in CI</div></div>
         <div class="test-stat"><div class="n">$0</div><div class="l">Monthly infra cost</div></div>
       </div>
@@ -1016,8 +1016,8 @@
 
       <div class="road stagger">
         <div class="road-cell"><div class="q">Q2 · 2026</div><h4>NDRF / IMD feed</h4><p>Auto-generate alerts from official disaster feeds.</p></div>
-        <div class="road-cell"><div class="q">Q3 · 2026</div><h4>True web push</h4><p>VAPID + push subscriptions for closed tabs.</p></div>
-        <div class="road-cell"><div class="q">Q3 · 2026</div><h4>Kannada · Malayalam · Odia</h4><p>Tamil, Bengali, Telugu, Marathi and Gujarati already shipped.</p></div>
+        <div class="road-cell"><div class="q">Q3 · 2026</div><h4>Shared fan-out state</h4><p>WebSocket and rate limits are per-process, so the API runs on one worker. Moving both behind shared storage is what lets it scale out.</p></div>
+        <div class="road-cell"><div class="q">Q3 · 2026</div><h4>Assamese · Urdu</h4><p>Urdu needs RTL layout, which nothing else in the UI does yet. Eleven languages ship today.</p></div>
         <div class="road-cell"><div class="q">Q4 · 2026</div><h4>React Native app</h4><p>Android-first, low-connectivity optimised.</p></div>
         <div class="road-cell"><div class="q">Q4 · 2026</div><h4>Fine-tuned HF model</h4><p>Trained on Indian crisis text corpus.</p></div>
         <div class="road-cell"><div class="q">2027</div><h4>K8s + E2E</h4><p>Multi-region scale + Playwright tests.</p></div>

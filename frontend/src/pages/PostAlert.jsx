@@ -60,6 +60,11 @@ export default function PostAlert() {
     location: { type: 'Point', coordinates: [76.7794, 30.7333] },
   })
   const [photos, setPhotos] = useState([])
+  // Drills run the real pipeline so volunteers learn the real flow, but
+  // are excluded from every count and from trust scores. Signed-in only:
+  // an anonymous endpoint that can mint uncounted alerts is a way to make
+  // the numbers lie for free.
+  const [isDrill, setIsDrill] = useState(false)
   const [locLoading, setLocLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -197,6 +202,7 @@ export default function PostAlert() {
     setError('')
     setSubmitting(true)
     const payload = { ...form, photos }
+    if (!isAnonymous && isDrill) payload.is_drill = true
     try {
       const { data } = await api.post(endpoint, payload)
       // Anonymous reporters have no /my-alerts to return to — send them to the
@@ -297,9 +303,9 @@ export default function PostAlert() {
                   key={cat}
                   type="button"
                   onClick={() => setForm({ ...form, category: cat })}
-                  className={`py-2.5 rounded-lg border capitalize text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${
+                  className={`py-2.5 rounded-lg border capitalize text-sm font-medium transition-colors duration-200 active:scale-95 ${
                     form.category === cat
-                      ? 'border-orange-500 bg-linear-to-b from-orange-500/25 to-orange-500/10 text-orange-300 shadow-xs shadow-orange-500/15'
+                      ? 'border-orange-500 bg-orange-500/15 text-orange-300'
                       : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200 hover:bg-gray-800/40'
                   }`}
                 >
@@ -374,7 +380,7 @@ export default function PostAlert() {
               rows={4}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 resize-none text-base placeholder:text-gray-600"
+              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 resize-none text-base placeholder:text-gray-600"
               placeholder={t('post_description_placeholder')}
             />
             {voice.error && (
@@ -464,7 +470,7 @@ export default function PostAlert() {
                 <button
                   type="button"
                   onClick={detectLocation}
-                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm transition-all duration-200 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shadow-xs shadow-black/40"
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm transition-colors duration-200 whitespace-nowrap active:scale-95"
                 >
                   <MapPin className="h-4 w-4 inline-block mr-1 -mt-0.5" aria-hidden />
                   {t('post_retry_location')}
@@ -507,15 +513,30 @@ export default function PostAlert() {
             )}
           </div>
 
+          {/* Signed-in only. The anonymous endpoint has no drill flag at
+              all, so nobody can create uncounted alerts without an account. */}
+          {!isAnonymous && (
+            <label className="flex items-start gap-2 rounded-xl border border-line bg-surface-1 px-3 py-2.5 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={isDrill}
+                onChange={(e) => setIsDrill(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-orange-500"
+              />
+              <span>
+                {t('drill_label')}
+                <span className="block text-xs text-gray-500">
+                  {t('drill_hint')}
+                </span>
+              </span>
+            </label>
+          )}
+
           <button
             type="submit"
             disabled={submitting || !locationSet}
             className="group relative w-full tap bg-critical hover:bg-red-400 active:bg-red-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors duration-200 press-in overflow-hidden"
           >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
-            />
             <span className="relative inline-flex items-center justify-center gap-2">
               {submitting && (
                 <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden>

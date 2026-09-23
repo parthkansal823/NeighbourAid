@@ -21,7 +21,13 @@
       "Edit(frontend/android/app/src/main/assets/public/**)",
       "Edit(frontend/android/.gradle/**)",
       "Edit(frontend/android/build/**)",
-      "Edit(models/**)",
+      "Edit(**/*.gguf)",
+      "Edit(**/*.onnx)",
+      "Edit(**/*.safetensors)",
+      "Edit(**/*.bin)",
+      "Edit(**/*.pt)",
+      "Edit(**/*.pth)",
+
       "Read(backend/.env)",
       "Read(.env)"
     ]

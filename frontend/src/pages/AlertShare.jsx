@@ -12,10 +12,10 @@ import {
 } from '../components/icons'
 
 const URGENCY_BADGE = {
-  CRITICAL: 'bg-linear-to-b from-red-500 to-red-600 text-white shadow-xs shadow-red-500/40',
-  HIGH: 'bg-linear-to-b from-orange-400 to-orange-500 text-white shadow-xs shadow-orange-500/40',
-  MEDIUM: 'bg-linear-to-b from-yellow-400 to-yellow-500 text-black shadow-xs shadow-yellow-500/40',
-  LOW: 'bg-linear-to-b from-green-500 to-green-600 text-white shadow-xs shadow-green-500/30',
+  CRITICAL: 'bg-red-500 text-white',
+  HIGH: 'bg-orange-400 text-white',
+  MEDIUM: 'bg-yellow-400 text-black',
+  LOW: 'bg-green-500 text-white',
 }
 
 
@@ -95,23 +95,19 @@ export default function AlertShare() {
         <div className="relative flex flex-wrap gap-2 mt-4">
           <Link
             to={mapsUrl}
-            className="group relative bg-linear-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-md shadow-blue-500/20 hover:shadow-blue-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+            className="group relative bg-blue-500 hover:bg-blue-400 active:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:shadow-blue-500/40 transition-colors duration-200 overflow-hidden"
           >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
-            />
             <span className="relative inline-flex items-center gap-1.5"><Compass className="h-4 w-4" aria-hidden />Directions</span>
           </Link>
           <a
             href="tel:112"
-            className="bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+            className="bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:shadow-red-500/40 transition-colors duration-200"
           >
             <PhoneCall className="h-4 w-4 inline-block mr-1.5 -mt-0.5" aria-hidden />112 Emergency
           </a>
           <Link
             to="/register"
-            className="border border-orange-500/60 text-orange-300 hover:text-orange-200 hover:bg-orange-500/10 text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+            className="border border-orange-500/60 text-orange-300 hover:text-orange-200 hover:bg-orange-500/10 text-sm font-semibold px-4 py-2 rounded-lg transition-colors duration-200"
           >
             Join NeighbourAid <ArrowRight className="h-4 w-4 inline-block ml-1 -mt-0.5" aria-hidden />
           </Link>
@@ -119,7 +115,7 @@ export default function AlertShare() {
       </section>
 
       {alert.photos?.length > 0 && (
-        <section className="bg-linear-to-b from-gray-900/90 to-gray-900/70 border border-gray-800 rounded-2xl p-4 reveal-up stagger-1">
+        <section className="surface-card p-4 reveal-up stagger-1">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3">
             Photos
           </h2>
@@ -129,7 +125,7 @@ export default function AlertShare() {
                 key={i}
                 src={src}
                 alt={`evidence ${i + 1}`}
-                className="aspect-square object-cover rounded-lg border border-gray-700 bg-gray-800 hover:scale-[1.02] hover:border-orange-500/40 transition-all duration-200 cursor-zoom-in"
+                className="aspect-square object-cover rounded-lg border border-gray-700 bg-gray-800 hover:scale-[1.02] hover:border-orange-500/40 transition-colors duration-200 cursor-zoom-in"
               />
             ))}
           </div>

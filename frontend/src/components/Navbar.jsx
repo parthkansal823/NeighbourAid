@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 
 const navLink = ({ isActive }) =>
-  `relative py-1 transition-colors after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-linear-to-r after:from-orange-400 after:to-amber-300 after:origin-left after:transition-transform after:duration-300 ${
+  `relative py-1 transition-colors after:absolute after:left-0 after:right-0 after:-bottom-1 after:h-0.5 after:rounded-full after:bg-accent after:origin-left after:transition-transform after:duration-300 ${
     isActive
       ? 'text-white after:scale-x-100'
       : 'text-gray-400 hover:text-white after:scale-x-0 hover:after:scale-x-100'
@@ -36,7 +36,7 @@ function LanguageMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-xs border border-gray-700 hover:border-orange-500/60 hover:bg-orange-500/5 text-gray-300 hover:text-white px-2.5 py-1 rounded-md transition-all duration-200"
+        className="flex items-center gap-1 text-xs border border-gray-700 hover:border-orange-500/60 hover:bg-orange-500/5 text-gray-300 hover:text-white px-2.5 py-1 rounded-md transition-colors duration-200"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Change language"
@@ -136,7 +136,7 @@ export default function Navbar() {
 
   return (
     <nav
-      className={`sticky top-0 z-40 glass border-b transition-all duration-300 ${
+      className={`sticky top-0 z-40 glass border-b transition-colors duration-300 ${
         scrolled
           ? 'border-line'
           : 'border-gray-900'
@@ -184,14 +184,14 @@ export default function Navbar() {
                   reachable from every page — not buried behind signup. */}
               <Link
                 to="/post-alert"
-                className="bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 inline-flex items-center gap-1.5"
+                className="bg-red-500 hover:bg-red-400 active:bg-red-600 text-white px-4 py-1.5 rounded-lg hover:shadow-red-500/40 transition-colors duration-200 inline-flex items-center gap-1.5"
               >
                 <Siren className="h-4 w-4" aria-hidden />
                 {t('nav_report')}
               </Link>
               <Link
                 to="/register"
-                className="border border-gray-700 hover:border-orange-500/60 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-all duration-200"
+                className="border border-gray-700 hover:border-orange-500/60 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
               >
                 {t('nav_join')}
               </Link>
@@ -205,7 +205,7 @@ export default function Navbar() {
                   </NavLink>
                   <Link
                     to="/post-alert"
-                    className="bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5"
+                    className="bg-red-500 hover:bg-red-400 active:bg-red-600 text-white px-4 py-1.5 rounded-lg hover:shadow-red-500/40 transition-colors duration-200"
                   >
                     {t('nav_report')}
                   </Link>
@@ -214,7 +214,7 @@ export default function Navbar() {
               {user.role === 'volunteer' && (
                 <Link
                   to="/volunteer"
-                  className="bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white px-4 py-1.5 rounded-lg shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-200 hover:-translate-y-0.5"
+                  className="bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white px-4 py-1.5 rounded-lg hover:shadow-emerald-500/40 transition-colors duration-200"
                 >
                   {t('nav_volunteer')}
                 </Link>
@@ -246,17 +246,17 @@ export default function Navbar() {
           >
             <div className="relative w-[22px] h-[22px]">
               <span
-                className={`absolute left-0 top-[5px] block h-0.5 w-full rounded-full bg-current transition-all duration-300 ${
+                className={`absolute left-0 top-[5px] block h-0.5 w-full rounded-full bg-current transition-colors duration-300 ${
                   menuOpen ? 'translate-y-[6px] rotate-45' : ''
                 }`}
               />
               <span
-                className={`absolute left-0 top-[11px] block h-0.5 w-full rounded-full bg-current transition-all duration-200 ${
+                className={`absolute left-0 top-[11px] block h-0.5 w-full rounded-full bg-current transition-colors duration-200 ${
                   menuOpen ? 'opacity-0 -translate-x-2' : 'opacity-100'
                 }`}
               />
               <span
-                className={`absolute left-0 top-[17px] block h-0.5 w-full rounded-full bg-current transition-all duration-300 ${
+                className={`absolute left-0 top-[17px] block h-0.5 w-full rounded-full bg-current transition-colors duration-300 ${
                   menuOpen ? 'translate-y-[-6px] -rotate-45' : ''
                 }`}
               />
@@ -266,7 +266,7 @@ export default function Navbar() {
       </div>
 
       <div
-        className={`md:hidden overflow-hidden border-t border-gray-800/60 transition-all duration-300 ease-out ${
+        className={`md:hidden overflow-hidden border-t border-gray-800/60 transition-colors duration-300 ease-out ${
           menuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
@@ -310,7 +310,7 @@ export default function Navbar() {
               <Link
                 onClick={closeMenu}
                 to="/post-alert"
-                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-center font-semibold shadow-md shadow-red-500/20 transition-all"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-center font-semibold transition-all"
               >
                 <Siren className="h-4 w-4" aria-hidden />
                 {t('nav_report')}
@@ -343,7 +343,7 @@ export default function Navbar() {
                   <Link
                     onClick={closeMenu}
                     to="/post-alert"
-                    className="block px-3 py-2 rounded-lg bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-center font-semibold shadow-md shadow-red-500/20 transition-all"
+                    className="block px-3 py-2 rounded-lg bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-center font-semibold transition-all"
                   >
                     {t('nav_report')}
                   </Link>
@@ -353,7 +353,7 @@ export default function Navbar() {
                 <Link
                   onClick={closeMenu}
                   to="/volunteer"
-                  className="block px-3 py-2 rounded-lg bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-center font-semibold shadow-md shadow-emerald-500/20 transition-all"
+                  className="block px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white text-center font-semibold transition-all"
                 >
                   {t('nav_volunteer')}
                 </Link>

@@ -81,7 +81,7 @@ export default {
   home_how_title: 'কীভাবে কাজ করে',
   home_how_1_title: 'সংকট পোস্ট করুন',
   home_how_1_desc: 'বিভাগ, বিবরণ ও আপনার GPS অবস্থান দিন। ৩০ সেকেন্ডেই শেষ।',
-  home_how_2_desc: 'আপনার রিপোর্ট সঙ্গে সঙ্গে CRITICAL / HIGH / MEDIUM / LOW-এ ভাগ করা হয় — আমাদের ৮টি ভাষার যেকোনোটিতে।',
+  home_how_2_desc: 'আপনার রিপোর্ট সঙ্গে সঙ্গে CRITICAL / HIGH / MEDIUM / LOW-এ ভাগ করা হয় — আমাদের ১১টি ভাষার যেকোনোটিতে।',
   home_how_2_title: 'তাৎক্ষণিক ট্রায়াজ',
   home_how_3_title: 'স্বেচ্ছাসেবকদের খবর',
   home_how_3_desc: 'কাছের স্বেচ্ছাসেবকরা সঙ্গে সঙ্গে সংকেত পান এবং অ্যালার্ট গ্রহণ বা সমাধান করতে পারেন।',
@@ -180,6 +180,9 @@ export default {
   post_submitting: 'অ্যালার্ট পাঠানো হচ্ছে…',
   post_min_chars: 'অনুগ্রহ করে আরও বিস্তারিত লিখুন (কমপক্ষে ১০ অক্ষর)',
   post_failed: 'অ্যালার্ট পাঠানো যায়নি',
+  drill_label: 'এটি একটি মহড়া',
+  drill_hint: 'আসল প্রক্রিয়া চলে যাতে স্বেচ্ছাসেবকরা অনুশীলন করতে পারেন। কোনো গণনা বা ট্রাস্ট স্কোরে ধরা হয় না।',
+  drill_badge: 'মহড়া - সত্যিকারের জরুরি অবস্থা নয়',
 
   // Category labels
   cat_medical: 'চিকিৎসা',
@@ -217,6 +220,12 @@ export default {
     'ব্রাউজার নোটিফিকেশন চালু করুন, যাতে এই ট্যাব পিছনে থাকলেও অ্যালার্ট মিস না হয়।',
   vol_enable: 'চালু করুন',
   vol_notif_on: 'ব্যাকগ্রাউন্ড নোটিফিকেশন চালু',
+  vol_enable_push: 'এই ট্যাব বন্ধ থাকলেও অ্যালার্ট পান। কাছের জরুরি অবস্থায় আপনার ফোন বাজবে।',
+  vol_enabling: 'চালু হচ্ছে…',
+  vol_push_on: 'ব্যাকগ্রাউন্ড অ্যালার্ট চালু — বন্ধ করতে ট্যাপ করুন',
+  vol_push_denied: 'নোটিফিকেশন ব্লক করা আছে। ব্রাউজার সেটিংসে এই সাইটের জন্য অনুমতি দিন।',
+  vol_push_unavailable: 'এই সার্ভারে ব্যাকগ্রাউন্ড অ্যালার্ট সেট করা নেই।',
+  vol_push_failed: 'ব্যাকগ্রাউন্ড অ্যালার্ট চালু করা গেল না',
   vol_failed: 'অ্যালার্ট লোড করা যায়নি',
 
   // My alerts
@@ -256,6 +265,26 @@ export default {
   profile_no_geo: 'এই ব্রাউজারে অবস্থান সেবা নেই',
   profile_load_failed: 'প্রোফাইল লোড করা যায়নি',
   profile_update_failed: 'অবস্থান আপডেট করা যায়নি',
+  avail_title: 'নীরব সময়',
+  avail_hint: 'শুধু আপনার ফোনে আসা নোটিফিকেশনে প্রভাব ফেলে। ফিড খুললে সব সময় সবকিছু দেখা যাবে।',
+  avail_from: 'উপলব্ধ',
+  avail_to: 'থেকে',
+  avail_critical_always: 'CRITICAL-এর জন্য সবসময় জাগান',
+  avail_critical_hint: 'শ্বাস না নেওয়া, হৃদরোগ, ডুবে যাওয়া।',
+  avail_save: 'সময় সংরক্ষণ করুন',
+  avail_snooze: '২ ঘণ্টা ব্যস্ত',
+  avail_busy_until: 'ব্যস্ত, পর্যন্ত',
+  avail_timezone: 'টাইমজোন',
+  avail_saved: 'নীরব সময় সংরক্ষিত হয়েছে।',
+  avail_failed: 'নীরব সময় সংরক্ষণ করা গেল না',
+  responder_call: 'কল করুন',
+  profile_phone: 'আপনার ফোন নম্বর',
+  profile_phone_hint: 'ঐচ্ছিক। শুধু সেই একজন স্বেচ্ছাসেবককে দেওয়া হয় যিনি আপনার অ্যালার্ট গ্রহণ করেন — অথবা আপনি স্বেচ্ছাসেবক হলে, সেই একজন রিপোর্টারকে। কখনও প্রকাশ্যে নয়।',
+  profile_phone_ph: 'ফোন বা হোয়াটসঅ্যাপ',
+  profile_phone_save: 'নম্বর সংরক্ষণ করুন',
+  profile_phone_saved: 'ফোন নম্বর সংরক্ষিত হয়েছে।',
+  profile_phone_cleared: 'ফোন নম্বর সরানো হয়েছে।',
+  profile_phone_failed: 'ফোন নম্বর আপডেট করা যায়নি',
 
   // Safety check-ins
   safety_title: 'নিরাপত্তা জানান',
@@ -303,6 +332,14 @@ export default {
   res_delete_failed: 'সহায়তা সরানো যায়নি',
   res_name_too_short: 'নাম কমপক্ষে ২ অক্ষরের হতে হবে',
   res_no_location: 'অবস্থান পাওয়া যাচ্ছে না — GPS অনুমতি দিন',
+  match_title: 'কাছের সম্পদ',
+  res_kind_shelter: 'আশ্রয়',
+  res_kind_food: 'খাবার',
+  res_kind_blood: 'রক্ত',
+  res_kind_oxygen: 'অক্সিজেন',
+  res_kind_water: 'জল',
+  res_kind_medical_camp: 'মেডিকেল ক্যাম্প',
+  res_kind_other: 'অন্যান্য',
 
   // Alert card
   card_directions: 'পথ',
@@ -327,6 +364,7 @@ export default {
   card_similar_nearby: 'কাছাকাছি অনুরূপ',
   card_weather_match: 'আবহাওয়া মিলছে',
   card_ai_confident: 'নিশ্চিত',
+  card_min_away: 'মিনিট দূরে',
 
   // Emergency dialer
   dialer_title: 'ভারতের জরুরি নম্বর',

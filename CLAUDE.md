@@ -9,7 +9,7 @@ MongoDB backend, React/Vite frontend, Capacitor android shell.
 - `backend/app/` — FastAPI. `routes/` endpoints, `services/` logic (AI triage,
   geocode, news, websocket), `models/` pydantic schemas, `db/client.py` Mongo.
 - `frontend/src/` — React 19. `pages/` routes, `components/`, `utils/`,
-  `hooks/`, `i18n/` (8 languages).
+  `hooks/`, `i18n/` (11 languages).
 - `frontend/android/` — generated Capacitor shell. Not hand-edited.
 - `docs/` — the long-form documentation; `README.md` and `DEPLOY.md` at root.
 

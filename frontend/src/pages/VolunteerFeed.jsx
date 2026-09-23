@@ -68,6 +68,7 @@ export default function VolunteerFeed() {
   // inside an effect: if the browser has no geolocation API we already know
   // at first render that there is nothing to load and what to say about it.
   const [loading, setLoading] = useState(GEOLOCATION_SUPPORTED)
+  const [pushBusy, setPushBusy] = useState(false)
   const [error, setError] = useState('')
   const [geoError, setGeoError] = useState(
     GEOLOCATION_SUPPORTED ? '' : GEO_UNSUPPORTED_MESSAGE
@@ -193,19 +194,26 @@ export default function VolunteerFeed() {
         playPing()
         // Hands-free TTS for CRITICAL only — anything lower is too noisy.
         if (incoming.urgency === 'CRITICAL') {
+          // Spoken as minutes, not kilometres. Someone hearing this is
+          // deciding whether to get up, and "four kilometres" does not
+          // answer that when four kilometres is over an hour on foot.
           const distancePart =
-            typeof incoming.your_distance_km === 'number'
-              ? `${incoming.your_distance_km.toFixed(1)} kilometres away`
-              : ''
+            typeof incoming.your_eta_minutes === 'number'
+              ? `about ${incoming.your_eta_minutes} minutes away`
+              : typeof incoming.your_distance_km === 'number'
+                ? `${incoming.your_distance_km.toFixed(1)} kilometres away`
+                : ''
           voiceSpeakRef.current?.(
             `Critical ${incoming.category} alert${distancePart ? `, ${distancePart}` : ''}`,
             { lang: ttsLocaleFor(langRef.current) }
           )
         }
         const distance =
-          typeof incoming.your_distance_km === 'number'
-            ? ` · ${incoming.your_distance_km.toFixed(1)} km away`
-            : ''
+          typeof incoming.your_eta_minutes === 'number'
+            ? ` · ~${incoming.your_eta_minutes} min away`
+            : typeof incoming.your_distance_km === 'number'
+              ? ` · ${incoming.your_distance_km.toFixed(1)} km away`
+              : ''
         const skillTag = incoming.is_skill_match ? ' · MATCHES YOUR SKILLS' : ''
         const title = `${incoming.urgency} · ${incoming.category}${skillTag}`
         toast({
@@ -243,6 +251,24 @@ export default function VolunteerFeed() {
   }, [navigate])
 
   const notifEnabled = notif.permission === 'granted'
+
+  const enablePush = async () => {
+    setPushBusy(true)
+    try {
+      const result = await notif.subscribe()
+      if (result === 'denied') {
+        toast({ variant: 'error', title: t('vol_push_denied') })
+      } else if (result === 'not-configured') {
+        // This deployment has no VAPID keys. Saying so beats a generic
+        // failure, because nothing the volunteer does will fix it.
+        toast({ variant: 'error', title: t('vol_push_unavailable') })
+      } else if (result !== 'subscribed') {
+        toast({ variant: 'error', title: t('vol_push_failed') })
+      }
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   const updateAlert = (updated) => {
     setAlerts((prev) => prev.map((a) => (a.id === updated.id ? updated : a)))
@@ -292,21 +318,35 @@ export default function VolunteerFeed() {
         </div>
       )}
 
-      {notif.permission === 'default' && (
-        <div className="bg-linear-to-br from-gray-900 to-gray-900/60 border border-gray-800 rounded-xl px-4 py-3 mb-6 flex flex-col sm:flex-row sm:items-center gap-3 reveal-up stagger-1 shadow-md shadow-black/20">
+      {/* Offered whenever push is possible and not yet on. Keying this on
+          `permission === 'default'` alone was not enough once push existed:
+          "permission granted but never subscribed" is a real state, and it
+          is the one where a volunteer believes they are covered and is not. */}
+      {notif.pushSupported && !notif.pushEnabled && notif.permission !== 'denied' && (
+        <div className="surface-card px-4 py-3 mb-6 flex flex-col sm:flex-row sm:items-center gap-3 reveal-up stagger-1">
           <div className="text-sm text-gray-300 flex-1">
-            {t('vol_enable_notif')}
+            {t('vol_enable_push')}
           </div>
           <button
-            onClick={notif.request}
-            className="text-xs bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white px-3 py-1.5 rounded-lg shadow-xs shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 whitespace-nowrap self-start sm:self-auto inline-flex items-center gap-1.5"
+            onClick={enablePush}
+            disabled={pushBusy}
+            className="tap text-xs bg-accent hover:bg-orange-400 active:bg-orange-600 text-gray-950 px-3 rounded-lg transition-colors duration-200 press-in whitespace-nowrap self-start sm:self-auto inline-flex items-center gap-1.5 disabled:opacity-60"
           >
             <Bell className="h-3.5 w-3.5" aria-hidden />
-            {t('vol_enable')}
+            {pushBusy ? t('vol_enabling') : t('vol_enable')}
           </button>
         </div>
       )}
-      {notifEnabled && (
+      {notif.pushEnabled && (
+        <button
+          type="button"
+          onClick={notif.unsubscribe}
+          className="text-[11px] text-gray-600 mb-2 hover:text-gray-400 transition-colors"
+        >
+          {t('vol_push_on')}
+        </button>
+      )}
+      {!notif.pushSupported && notifEnabled && (
         <div className="text-[11px] text-gray-600 mb-2">{t('vol_notif_on')}</div>
       )}
 
@@ -314,9 +354,9 @@ export default function VolunteerFeed() {
         <button
           type="button"
           onClick={() => voiceAlert.setEnabled((v) => !v)}
-          className={`text-[11px] mb-4 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
+          className={`text-[11px] mb-4 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-colors duration-200 ${
             voiceAlert.enabled
-              ? 'border-blue-700 bg-blue-950/40 text-blue-300 shadow-xs shadow-blue-500/15'
+              ? 'border-blue-700 bg-blue-950/40 text-blue-300'
               : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-blue-500/40'
           }`}
           title="Read out CRITICAL alerts via your device's voice"

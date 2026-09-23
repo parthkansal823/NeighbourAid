@@ -82,10 +82,26 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     role: UserRole
     location: GeoPoint
+    # Optional, and released to exactly one other person at a time: see
+    # `contact_phone_for` in routes/alerts.py. Not the same thing as an
+    # emergency contact below — that is someone the user would ping, this is
+    # how the person on the other end of one accepted alert reaches them.
+    phone: Optional[str] = Field(default=None, max_length=32)
     # Volunteer-only optional fields. Ignored for reporters.
     skills: List[VolunteerSkill] = Field(default_factory=list)
     has_vehicle: bool = False
     emergency_contacts: List[EmergencyContact] = Field(default_factory=list, max_length=5)
+
+    @field_validator("phone")
+    @classmethod
+    def strip_phone(cls, v: Optional[str]) -> Optional[str]:
+        # "" and "   " both mean "I did not give one". Storing them as empty
+        # strings would make the release check below think a number exists
+        # and render a dead tel: link on a call button someone taps in an
+        # emergency.
+        if v is None:
+            return v
+        return v.strip() or None
 
     @field_validator("name")
     @classmethod
@@ -126,6 +142,28 @@ class LocationUpdate(BaseModel):
     location: GeoPoint
 
 
+class Availability(BaseModel):
+    """When a volunteer is willing to have their phone buzz.
+
+    Hours are local and carry their own IANA zone, because "ten at night"
+    is meaningless without knowing whose ten. The browser reports the zone
+    (`Intl.DateTimeFormat().resolvedOptions().timeZone`); the server
+    compares with it. Defaults are all-hours, so this only ever narrows.
+
+    Only push is affected — see services/availability.py.
+    """
+
+    timezone: str = Field(default="Asia/Kolkata", max_length=64)
+    from_hour: int = Field(default=0, ge=0, le=23)
+    to_hour: int = Field(default=24, ge=0, le=24)
+    # A CRITICAL alert is someone not breathing. Left on by default, and
+    # switching it off is a decision the volunteer has to make deliberately.
+    critical_always: bool = True
+    # "Not right now" — driving, in surgery, at a funeral. Absolute rather
+    # than a duration so a server restart cannot extend it.
+    busy_until: Optional[datetime] = None
+
+
 class ProfileUpdate(BaseModel):
     """Partial update for fields a user can change post-registration. Any
     None field is left untouched."""
@@ -133,6 +171,16 @@ class ProfileUpdate(BaseModel):
     skills: Optional[List[VolunteerSkill]] = None
     has_vehicle: Optional[bool] = None
     emergency_contacts: Optional[List[EmergencyContact]] = Field(default=None, max_length=5)
+    # Empty string is meaningful here and None is not: None means "leave my
+    # number alone", "" means "delete it". A partial update with no way to
+    # clear a field is a field you can only ever add.
+    phone: Optional[str] = Field(default=None, max_length=32)
+    availability: Optional[Availability] = None
+
+    @field_validator("phone")
+    @classmethod
+    def strip_phone(cls, v: Optional[str]) -> Optional[str]:
+        return v.strip() if v is not None else None
 
 
 class UserOut(BaseModel):

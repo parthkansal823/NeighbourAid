@@ -362,6 +362,73 @@ function EtaStrip({ alert, onUpdate, canEdit }) {
   )
 }
 
+// Categories the backend maps to no resource kind at all. Checked here so a
+// missing-person card never fires a request that can only ever return [];
+// the server has the same list and is the authority — this is a round trip
+// saved, not a second source of truth.
+const NO_RESOURCE_MATCH = new Set(['missing', 'violence', 'animal', 'power', 'other'])
+
+/**
+ * Pinned resources that would actually help this alert.
+ *
+ * The data for both halves has been in the app for a long time and never
+ * met: someone pins an oxygen cylinder, someone else reports that a person
+ * cannot breathe, and the two show on different screens.
+ *
+ * Renders nothing at all when there is no match — an empty "Nearby
+ * resources" heading on a card in an emergency is worse than no heading.
+ */
+function MatchingResources({ alertId, category }) {
+  const { t } = useI18n()
+  const [rows, setRows] = useState([])
+
+  useEffect(() => {
+    if (!alertId || NO_RESOURCE_MATCH.has(category)) return
+    let cancelled = false
+    api
+      .get(`/api/alerts/${alertId}/resources`)
+      .then(({ data }) => {
+        if (!cancelled) setRows(data.resources || [])
+      })
+      // Silent. This decorates a card; a failed decoration must not put an
+      // error where a volunteer is looking for an address.
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [alertId, category])
+
+  if (!rows.length) return null
+
+  return (
+    <div className="mt-3 rounded-lg border border-teal-500/30 bg-teal-500/5 px-3 py-2">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-teal-300">
+        {t('match_title')}
+      </p>
+      <ul className="mt-1.5 space-y-1">
+        {rows.map((r) => (
+          <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
+            <span className="min-w-0 truncate text-gray-200">
+              {r.name}
+              <span className="ml-1.5 text-[11px] uppercase tracking-wider text-teal-400/80">
+                {t(`res_kind_${r.kind}`) ?? r.kind}
+              </span>
+            </span>
+            {r.contact && (
+              <a
+                href={`tel:${r.contact}`}
+                className="tap shrink-0 rounded-full bg-teal-600 px-2.5 text-[11px] text-white transition-colors hover:bg-teal-500"
+              >
+                {t('responder_call')}
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
 export default function AlertCard({ alert, onUpdate }) {
   const { user } = useAuth()
   const { t } = useI18n()
@@ -492,6 +559,16 @@ export default function AlertCard({ alert, onUpdate }) {
         aria-hidden
         className={`absolute inset-y-0 left-0 w-1 ${URGENCY_BAR[alert.urgency] ?? 'bg-gray-600'}`}
       />
+      {/* A full-width bar, not a pill beside the others. Every other badge
+          here modifies how urgent the alert is; this one says the alert is
+          not real, and someone scanning a feed at speed has to register
+          that before anything else on the card. */}
+      {alert.is_drill && (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-blue-500/50 bg-blue-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-blue-300">
+          <span aria-hidden>▲</span>
+          <span>{t('drill_badge')}</span>
+        </div>
+      )}
       {isSkillMatch && (
         <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-accent-soft text-accent border border-accent/40 px-2 py-0.5 rounded-full">
           <Sparkles className="h-3 w-3 animate-pulse" aria-hidden /> Matches your skills
@@ -516,10 +593,27 @@ export default function AlertCard({ alert, onUpdate }) {
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${URGENCY_BADGE[alert.urgency]} ${alert.urgency === 'CRITICAL' ? 'glow-red' : ''}`}>
             {alert.urgency}
           </span>
-          {typeof alert.your_distance_km === 'number' && (
-            <span className="text-[11px] text-gray-400 bg-gray-900/70 border border-gray-800 px-2 py-0.5 rounded-full backdrop-blur-xs">
-              {alert.your_distance_km.toFixed(1)} km
+          {/* Minutes, with the distance as the secondary figure. "4.2 km"
+              tells a volunteer nothing about whether they are the right
+              person to go — a 4.2 km walk is 78 minutes. "78 min" is the
+              number they can act on. See backend services/dispatch.py. */}
+          {typeof alert.your_eta_minutes === 'number' ? (
+            <span
+              className="text-[11px] text-gray-300 bg-surface-2 border border-line px-2 py-0.5 rounded-full tabular-nums"
+              title={
+                typeof alert.your_distance_km === 'number'
+                  ? `${alert.your_distance_km.toFixed(1)} km away`
+                  : undefined
+              }
+            >
+              ~{alert.your_eta_minutes} {t('card_min_away')}
             </span>
+          ) : (
+            typeof alert.your_distance_km === 'number' && (
+              <span className="text-[11px] text-gray-400 bg-surface-2 border border-line px-2 py-0.5 rounded-full">
+                {alert.your_distance_km.toFixed(1)} km
+              </span>
+            )
           )}
           <span className="text-xs text-gray-400 whitespace-nowrap tabular-nums">{createdAgo}</span>
         </div>
@@ -750,6 +844,8 @@ export default function AlertCard({ alert, onUpdate }) {
           )}
         </div>
       </div>
+
+      <MatchingResources alertId={alert.id} category={alert.category} />
 
       {showUpdates && (
         <div className="mt-3 border-t border-gray-800 pt-3 space-y-2">

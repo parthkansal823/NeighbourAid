@@ -82,7 +82,7 @@ export default {
   home_how_1_title: 'అత్యవసరాన్ని పోస్ట్ చేయండి',
   home_how_1_desc: 'విభాగం, వివరణ, మీ GPS స్థానం ఇవ్వండి. 30 సెకన్లలో పూర్తి.',
   home_how_2_title: 'తక్షణ ట్రయాజ్',
-  home_how_2_desc: 'మీ నివేదిక వెంటనే CRITICAL / HIGH / MEDIUM / LOW గా వర్గీకరించబడుతుంది — మా 8 భాషల్లో దేనిలోనైనా.',
+  home_how_2_desc: 'మీ నివేదిక వెంటనే CRITICAL / HIGH / MEDIUM / LOW గా వర్గీకరించబడుతుంది — మా 11 భాషల్లో దేనిలోనైనా.',
   home_how_3_title: 'వాలంటీర్లకు సమాచారం',
   home_how_3_desc: 'దగ్గరలోని వాలంటీర్లకు వెంటనే సంకేతం అందుతుంది, వారు అలర్ట్‌ను స్వీకరించవచ్చు లేదా పరిష్కరించవచ్చు.',
 
@@ -180,6 +180,9 @@ export default {
   post_submitting: 'అలర్ట్ పంపుతోంది…',
   post_min_chars: 'దయచేసి మరింత వివరంగా రాయండి (కనీసం 10 అక్షరాలు)',
   post_failed: 'అలర్ట్ పంపడం విఫలమైంది',
+  drill_label: 'ఇది ఒక అభ్యాసం',
+  drill_hint: 'వాలంటీర్లు అభ్యాసం చేయడానికి నిజమైన ప్రక్రియ నడుస్తుంది. ఏ లెక్కలోనూ, ట్రస్ట్ స్కోర్‌లోనూ లెక్కించరు.',
+  drill_badge: 'అభ్యాసం - నిజమైన అత్యవసరం కాదు',
 
   // Category labels
   cat_medical: 'వైద్యం',
@@ -217,6 +220,12 @@ export default {
     'బ్రౌజర్ నోటిఫికేషన్లు ఆన్ చేయండి, ఈ ట్యాబ్ వెనుక ఉన్నా అలర్ట్‌లు మిస్ కావు.',
   vol_enable: 'ఆన్ చేయండి',
   vol_notif_on: 'బ్యాక్‌గ్రౌండ్ నోటిఫికేషన్లు ఆన్',
+  vol_enable_push: 'ఈ ట్యాబ్ మూసి ఉన్నా అలర్ట్‌లు పొందండి. దగ్గర్లో అత్యవసరం ఉంటే మీ ఫోన్ మోగుతుంది.',
+  vol_enabling: 'ప్రారంభమవుతోంది…',
+  vol_push_on: 'బ్యాక్‌గ్రౌండ్ అలర్ట్‌లు ఆన్ — ఆఫ్ చేయడానికి నొక్కండి',
+  vol_push_denied: 'నోటిఫికేషన్‌లు బ్లాక్ చేయబడ్డాయి. బ్రౌజర్ సెట్టింగ్‌లలో ఈ సైట్‌కు అనుమతి ఇవ్వండి.',
+  vol_push_unavailable: 'ఈ సర్వర్‌లో బ్యాక్‌గ్రౌండ్ అలర్ట్‌లు సెటప్ కాలేదు.',
+  vol_push_failed: 'బ్యాక్‌గ్రౌండ్ అలర్ట్‌లు ఆన్ చేయలేకపోయాం',
   vol_failed: 'అలర్ట్‌లు లోడ్ కాలేదు',
 
   // My alerts
@@ -256,6 +265,26 @@ export default {
   profile_no_geo: 'ఈ బ్రౌజర్‌లో స్థాన సేవ లేదు',
   profile_load_failed: 'ప్రొఫైల్ లోడ్ కాలేదు',
   profile_update_failed: 'స్థానం నవీకరించడం విఫలమైంది',
+  avail_title: 'నిశ్శబ్ద గంటలు',
+  avail_hint: 'మీ ఫోన్‌కు వచ్చే నోటిఫికేషన్‌లపై మాత్రమే ప్రభావం. ఫీడ్ తెరిచినప్పుడు అన్నీ ఎప్పుడూ కనిపిస్తాయి.',
+  avail_from: 'అందుబాటులో',
+  avail_to: 'వరకు',
+  avail_critical_always: 'CRITICAL కోసం ఎప్పుడూ లేపండి',
+  avail_critical_hint: 'ఊపిరి ఆడకపోవడం, గుండెపోటు, మునిగిపోవడం.',
+  avail_save: 'గంటలు సేవ్ చేయండి',
+  avail_snooze: '2 గంటలు బిజీ',
+  avail_busy_until: 'బిజీ, వరకు',
+  avail_timezone: 'టైమ్‌జోన్',
+  avail_saved: 'నిశ్శబ్ద గంటలు సేవ్ అయ్యాయి.',
+  avail_failed: 'నిశ్శబ్ద గంటలు సేవ్ చేయలేకపోయాం',
+  responder_call: 'కాల్ చేయండి',
+  profile_phone: 'మీ ఫోన్ నంబర్',
+  profile_phone_hint: 'ఐచ్ఛికం. మీ అలర్ట్‌ను ఆమోదించిన ఆ ఒక్క వాలంటీర్‌కు మాత్రమే ఇవ్వబడుతుంది — లేదా మీరు వాలంటీర్ అయితే, ఆ ఒక్క రిపోర్టర్‌కు. ఎప్పుడూ బహిరంగంగా కాదు.',
+  profile_phone_ph: 'ఫోన్ లేదా వాట్సాప్',
+  profile_phone_save: 'నంబర్ సేవ్ చేయండి',
+  profile_phone_saved: 'ఫోన్ నంబర్ సేవ్ అయింది.',
+  profile_phone_cleared: 'ఫోన్ నంబర్ తొలగించబడింది.',
+  profile_phone_failed: 'ఫోన్ నంబర్ అప్‌డేట్ చేయలేకపోయాం',
 
   // Safety check-ins
   safety_title: 'భద్రతా సమాచారం',
@@ -303,6 +332,14 @@ export default {
   res_delete_failed: 'వనరు తొలగించడం విఫలమైంది',
   res_name_too_short: 'పేరు కనీసం 2 అక్షరాలు ఉండాలి',
   res_no_location: 'స్థానం అందుబాటులో లేదు — GPS అనుమతి ఇవ్వండి',
+  match_title: 'దగ్గర్లోని వనరులు',
+  res_kind_shelter: 'ఆశ్రయం',
+  res_kind_food: 'ఆహారం',
+  res_kind_blood: 'రక్తం',
+  res_kind_oxygen: 'ఆక్సిజన్',
+  res_kind_water: 'నీరు',
+  res_kind_medical_camp: 'వైద్య శిబిరం',
+  res_kind_other: 'ఇతర',
 
   // Alert card
   card_directions: 'దారి',
@@ -327,6 +364,7 @@ export default {
   card_similar_nearby: 'దగ్గరలో సారూప్యమైనవి',
   card_weather_match: 'వాతావరణం సరిపోతోంది',
   card_ai_confident: 'నమ్మకం',
+  card_min_away: 'నిమిషాల దూరం',
 
   // Emergency dialer
   dialer_title: 'భారత అత్యవసర నంబర్లు',

@@ -67,6 +67,54 @@ self.addEventListener('fetch', (event) => {
   }
 })
 
+// Web push. Fires with the tab closed, which is the entire reason this
+// exists — `useNotifications` can only reach someone already looking at the
+// app, and a crisis app is not something people sit with.
+//
+// The payload is encrypted end to end (RFC 8291) and decrypted by the
+// browser before it gets here; see backend/app/services/push.py.
+self.addEventListener('push', (event) => {
+  // A push with no data is legal and some services send one to keep a
+  // subscription warm. Showing an empty notification would be worse than
+  // showing nothing, but a subscription that never displays anything can be
+  // revoked by the browser — so this shows a generic line rather than
+  // silently returning.
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    /* not JSON — fall through to the generic notification */
+  }
+
+  const urgency = (data.urgency || 'MEDIUM').toUpperCase()
+  const critical = urgency === 'CRITICAL'
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'NeighbourAid alert', {
+      body: [data.body, data.where].filter(Boolean).join(' · ') || 'Tap to open',
+      // Both exist at the web root beside the manifest. The manifest has
+      // referenced icon-192 since it was written; the file itself was only
+      // added with this feature, which is also why "Add to home screen"
+      // never appeared on Android — Chrome wants a >=192px PNG first.
+      icon: '/icon-192.png',
+      badge: '/badge-72.png',
+      // Tagging by alert id means a re-push of the SAME alert replaces its
+      // notification instead of stacking a second one. During a flood the
+      // difference is one line in the shade versus twenty.
+      tag: data.id ? `alert-${data.id}` : 'neighbouraid',
+      // ...but a replacement should still buzz when it is critical, or the
+      // tag would silently swallow the update that mattered.
+      renotify: critical,
+      // Only CRITICAL stays on screen until it is dealt with. Applying this
+      // to everything is how a notification tray becomes something people
+      // clear without reading.
+      requireInteraction: critical,
+      vibrate: critical ? [200, 100, 200, 100, 200] : [100],
+      data: { alertId: data.id, urgency, category: data.category },
+    })
+  )
+})
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const data = event.notification.data || {}

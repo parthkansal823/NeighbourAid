@@ -82,7 +82,7 @@ export default {
   home_how_1_title: 'Post a Crisis',
   home_how_1_desc: 'Fill in the category, description, and your GPS location. Done in 30 seconds.',
   home_how_2_title: 'Instant triage',
-  home_how_2_desc: 'Your report is classified as CRITICAL / HIGH / MEDIUM / LOW instantly, in any of our 8 languages.',
+  home_how_2_desc: 'Your report is classified as CRITICAL / HIGH / MEDIUM / LOW instantly, in any of our 11 languages.',
   home_how_3_title: 'Volunteers Notified',
   home_how_3_desc: 'Nearby volunteers get a live WebSocket ping and can accept or resolve the alert.',
 
@@ -180,6 +180,9 @@ export default {
   post_submitting: 'Posting alert…',
   post_min_chars: 'Please provide a more detailed description (min 10 chars)',
   post_failed: 'Failed to post alert',
+  drill_label: 'This is a practice drill',
+  drill_hint: 'Runs the real flow so volunteers can practise. Excluded from all counts and trust scores.',
+  drill_badge: 'Drill - not a real emergency',
 
   // Category labels
   cat_medical: 'medical',
@@ -217,6 +220,12 @@ export default {
     'Enable browser notifications so you don’t miss alerts when this tab is in the background.',
   vol_enable: 'Enable',
   vol_notif_on: 'Background notifications on',
+  vol_enable_push: 'Get alerts even when this tab is closed. Your phone will buzz for nearby emergencies.',
+  vol_enabling: 'Enabling…',
+  vol_push_on: 'Background alerts on — tap to turn off',
+  vol_push_denied: 'Notifications are blocked. Allow them for this site in your browser settings.',
+  vol_push_unavailable: 'Background alerts are not set up on this server.',
+  vol_push_failed: 'Could not enable background alerts',
   vol_failed: 'Failed to load alerts',
 
   // My alerts
@@ -256,6 +265,26 @@ export default {
   profile_no_geo: 'Geolocation is not available in this browser',
   profile_load_failed: 'Failed to load profile',
   profile_update_failed: 'Failed to update location',
+  avail_title: 'Quiet hours',
+  avail_hint: 'Only affects notifications sent to your phone. The feed still shows everything whenever you open it.',
+  avail_from: 'Available from',
+  avail_to: 'until',
+  avail_critical_always: 'Always wake me for CRITICAL',
+  avail_critical_hint: 'Someone not breathing, cardiac arrest, drowning.',
+  avail_save: 'Save hours',
+  avail_snooze: 'Busy for 2 hours',
+  avail_busy_until: 'Busy until',
+  avail_timezone: 'Timezone',
+  avail_saved: 'Quiet hours saved.',
+  avail_failed: 'Could not save quiet hours',
+  responder_call: 'Call',
+  profile_phone: 'Your phone number',
+  profile_phone_hint: 'Optional. Released only to the one volunteer who accepts your alert — or, if you are the volunteer, to that one reporter. Never shown publicly.',
+  profile_phone_ph: 'Phone or WhatsApp',
+  profile_phone_save: 'Save number',
+  profile_phone_saved: 'Phone number saved.',
+  profile_phone_cleared: 'Phone number removed.',
+  profile_phone_failed: 'Could not update phone number',
 
   // Safety check-ins
   safety_title: 'Safety Check-ins',
@@ -303,6 +332,14 @@ export default {
   res_delete_failed: 'Failed to remove resource',
   res_name_too_short: 'Resource name must be at least 2 characters',
   res_no_location: 'Location not available — please allow GPS access',
+  match_title: 'Nearby resources',
+  res_kind_shelter: 'shelter',
+  res_kind_food: 'food',
+  res_kind_blood: 'blood',
+  res_kind_oxygen: 'oxygen',
+  res_kind_water: 'water',
+  res_kind_medical_camp: 'medical camp',
+  res_kind_other: 'other',
 
   // Alert card
   card_directions: 'Directions',
@@ -327,6 +364,7 @@ export default {
   card_similar_nearby: 'similar nearby',
   card_weather_match: 'weather-match',
   card_ai_confident: 'confident',
+  card_min_away: 'min away',
 
   // Emergency dialer
   dialer_title: 'India Emergency Numbers',

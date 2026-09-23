@@ -82,7 +82,7 @@ export default {
   home_how_1_title: 'संकट दर्ज करें',
   home_how_1_desc: 'श्रेणी, विवरण और अपना GPS स्थान भरें। 30 सेकंड में हो जाएगा।',
   home_how_2_title: 'तुरंत ट्रायाज',
-  home_how_2_desc: 'आपकी रिपोर्ट तुरंत CRITICAL / HIGH / MEDIUM / LOW में बाँटी जाती है — हमारी सभी 8 भाषाओं में।',
+  home_how_2_desc: 'आपकी रिपोर्ट तुरंत CRITICAL / HIGH / MEDIUM / LOW में बाँटी जाती है — हमारी सभी 11 भाषाओं में।',
   home_how_3_title: 'स्वयंसेवक सूचित',
   home_how_3_desc: 'पास के स्वयंसेवकों को लाइव सूचना मिलती है और वे अलर्ट स्वीकार या हल कर सकते हैं।',
 
@@ -180,6 +180,9 @@ export default {
   post_submitting: 'अलर्ट भेजा जा रहा है…',
   post_min_chars: 'कृपया अधिक विस्तृत विवरण दें (कम से कम 10 अक्षर)',
   post_failed: 'अलर्ट भेजने में विफल',
+  drill_label: 'यह एक अभ्यास है',
+  drill_hint: 'असली फ़्लो चलता है ताकि वॉलंटियर अभ्यास कर सकें। किसी गिनती या ट्रस्ट स्कोर में नहीं गिना जाता।',
+  drill_badge: 'अभ्यास - असली आपातकाल नहीं',
 
   // Category labels
   cat_medical: 'चिकित्सा',
@@ -217,6 +220,12 @@ export default {
     'ब्राउज़र नोटिफ़िकेशन चालू करें ताकि यह टैब बैकग्राउंड में होने पर भी अलर्ट मिलें।',
   vol_enable: 'चालू करें',
   vol_notif_on: 'बैकग्राउंड नोटिफ़िकेशन चालू',
+  vol_enable_push: 'यह टैब बंद होने पर भी अलर्ट पाएँ। पास की इमरजेंसी पर आपका फ़ोन बजेगा।',
+  vol_enabling: 'चालू हो रहा है…',
+  vol_push_on: 'बैकग्राउंड अलर्ट चालू — बंद करने के लिए टैप करें',
+  vol_push_denied: 'नोटिफ़िकेशन ब्लॉक हैं। ब्राउज़र सेटिंग्स में इस साइट के लिए अनुमति दें।',
+  vol_push_unavailable: 'इस सर्वर पर बैकग्राउंड अलर्ट सेट नहीं हैं।',
+  vol_push_failed: 'बैकग्राउंड अलर्ट चालू नहीं हो सके',
   vol_failed: 'अलर्ट लोड करने में विफल',
 
   // My alerts
@@ -256,6 +265,26 @@ export default {
   profile_no_geo: 'Geolocation इस ब्राउज़र में उपलब्ध नहीं है',
   profile_load_failed: 'प्रोफ़ाइल लोड करने में विफल',
   profile_update_failed: 'स्थान अपडेट करने में विफल',
+  avail_title: 'शांत घंटे',
+  avail_hint: 'सिर्फ़ आपके फ़ोन पर आने वाले नोटिफ़िकेशन पर असर डालता है। फ़ीड खोलने पर सब कुछ हमेशा दिखेगा।',
+  avail_from: 'उपलब्ध',
+  avail_to: 'से',
+  avail_critical_always: 'CRITICAL के लिए हमेशा जगाएँ',
+  avail_critical_hint: 'साँस न आना, दिल का दौरा, डूबना।',
+  avail_save: 'घंटे सेव करें',
+  avail_snooze: '2 घंटे व्यस्त',
+  avail_busy_until: 'व्यस्त, तक',
+  avail_timezone: 'टाइमज़ोन',
+  avail_saved: 'शांत घंटे सेव हो गए।',
+  avail_failed: 'शांत घंटे सेव नहीं हो सके',
+  responder_call: 'कॉल करें',
+  profile_phone: 'आपका फ़ोन नंबर',
+  profile_phone_hint: 'वैकल्पिक। सिर्फ़ उस एक वॉलंटियर को दिया जाता है जो आपका अलर्ट स्वीकार करता है — या अगर आप वॉलंटियर हैं, तो उस एक रिपोर्टर को। सार्वजनिक कभी नहीं।',
+  profile_phone_ph: 'फ़ोन या व्हाट्सऐप',
+  profile_phone_save: 'नंबर सेव करें',
+  profile_phone_saved: 'फ़ोन नंबर सेव हो गया।',
+  profile_phone_cleared: 'फ़ोन नंबर हटा दिया गया।',
+  profile_phone_failed: 'फ़ोन नंबर अपडेट नहीं हो सका',
 
   // Safety
   safety_title: 'सुरक्षा चेक-इन',
@@ -303,6 +332,14 @@ export default {
   res_delete_failed: 'संसाधन हटाने में विफल',
   res_name_too_short: 'नाम कम से कम 2 अक्षर का होना चाहिए',
   res_no_location: 'स्थान उपलब्ध नहीं — कृपया GPS की अनुमति दें',
+  match_title: 'पास के संसाधन',
+  res_kind_shelter: 'आश्रय',
+  res_kind_food: 'भोजन',
+  res_kind_blood: 'रक्त',
+  res_kind_oxygen: 'ऑक्सीजन',
+  res_kind_water: 'पानी',
+  res_kind_medical_camp: 'मेडिकल कैंप',
+  res_kind_other: 'अन्य',
 
   // Alert card
   card_directions: 'दिशा',
@@ -327,6 +364,7 @@ export default {
   card_similar_nearby: 'समान पास में',
   card_weather_match: 'मौसम-मिलान',
   card_ai_confident: 'विश्वास',
+  card_min_away: 'मिनट दूर',
 
   // Dialer
   dialer_title: 'भारत आपातकालीन नंबर',

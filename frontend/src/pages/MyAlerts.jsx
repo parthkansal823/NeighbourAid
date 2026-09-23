@@ -18,10 +18,10 @@ import {
 } from '../components/icons'
 
 const URGENCY_BADGE = {
-  CRITICAL: 'bg-linear-to-b from-red-500 to-red-600 text-white shadow-xs shadow-red-500/40',
-  HIGH: 'bg-linear-to-b from-orange-400 to-orange-500 text-white shadow-xs shadow-orange-500/40',
-  MEDIUM: 'bg-linear-to-b from-yellow-400 to-yellow-500 text-black shadow-xs shadow-yellow-500/40',
-  LOW: 'bg-linear-to-b from-green-500 to-green-600 text-white shadow-xs shadow-green-500/30',
+  CRITICAL: 'bg-red-500 text-white',
+  HIGH: 'bg-orange-400 text-white',
+  MEDIUM: 'bg-yellow-400 text-black',
+  LOW: 'bg-green-500 text-white',
 }
 
 const STATUS_BADGE = {
@@ -149,7 +149,7 @@ export default function MyAlerts() {
         </div>
         <Link
           to="/post-alert"
-          className="bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] whitespace-nowrap"
+          className="bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg hover:shadow-red-500/40 transition-colors duration-200 whitespace-nowrap"
         >
           + {t('mine_new')}
         </Link>
@@ -171,7 +171,7 @@ export default function MyAlerts() {
           action={
             <Link
               to="/post-alert"
-              className="inline-block bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]"
+              className="inline-block bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:shadow-red-500/40 transition-colors duration-200"
             >
               {t('mine_post_first')}
               <ArrowRight className="h-4 w-4 inline-block ml-1.5 -mt-0.5" aria-hidden />

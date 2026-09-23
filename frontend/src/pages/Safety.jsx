@@ -10,8 +10,8 @@ import BuddyPing from '../components/BuddyPing'
 import { useTimeAgo } from '../hooks/useTimeAgo'
 
 const STATUS_STYLE = {
-  safe: 'bg-linear-to-br from-green-900/60 to-green-950/40 text-green-300 border-green-700/70',
-  need_help: 'bg-linear-to-br from-red-900/60 to-red-950/40 text-red-300 border-red-700/70',
+  safe: 'bg-green-900/50 text-green-300 border-green-700/70',
+  need_help: 'bg-red-900/50 text-red-300 border-red-700/70',
 }
 
 function CheckinRow({ checkin, index = 0 }) {
@@ -22,7 +22,7 @@ function CheckinRow({ checkin, index = 0 }) {
 
   return (
     <li
-      className={`border rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/30 reveal-up ${STATUS_STYLE[checkin.status]}`}
+      className={`border rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors duration-200 reveal-up ${STATUS_STYLE[checkin.status]}`}
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <div className="flex items-center justify-between text-sm gap-2">
@@ -176,7 +176,7 @@ export default function Safety() {
               setRefreshing(true)
               void load()
             }}
-            className="text-xs border border-gray-700 hover:border-orange-500/50 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-all duration-200"
+            className="text-xs border border-gray-700 hover:border-orange-500/50 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
           >
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
@@ -242,29 +242,21 @@ export default function Safety() {
               onChange={(e) => setNote(e.target.value)}
               placeholder={t('safety_note_ph')}
               maxLength={280}
-              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600"
+              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 placeholder:text-gray-600"
             />
             <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => checkin('safe')}
                 disabled={!coords || !!saving}
-                className="group relative flex-1 bg-linear-to-b from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+                className="group relative flex-1 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg hover:shadow-emerald-500/40 transition-colors duration-200 overflow-hidden"
               >
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
-                />
                 <span className="relative">{saving === 'safe' ? t('safety_saving') : `Safe: ${t('safety_i_am_safe')}`}</span>
               </button>
               <button
                 onClick={() => checkin('need_help')}
                 disabled={!coords || !!saving}
-                className="group relative flex-1 bg-linear-to-b from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg shadow-md shadow-red-500/20 hover:shadow-red-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+                className="group relative flex-1 bg-red-500 hover:bg-red-400 active:bg-red-600 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg hover:shadow-red-500/40 transition-colors duration-200 overflow-hidden"
               >
-                <span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
-                />
                 <span className="relative">{saving === 'need_help' ? t('safety_saving') : `Help: ${t('safety_i_need_help')}`}</span>
               </button>
             </div>
@@ -294,9 +286,9 @@ export default function Safety() {
                 key={item.value}
                 type="button"
                 onClick={() => setFilter(item.value)}
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors duration-200 ${
                   filter === item.value
-                    ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-xs shadow-orange-500/15'
+                    ? 'border-orange-500 bg-orange-500/15 text-orange-200'
                     : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
                 }`}
               >
@@ -311,7 +303,7 @@ export default function Safety() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, note, or status"
-          className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600 mb-3"
+          className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 placeholder:text-gray-600 mb-3"
         />
 
         {loading ? (

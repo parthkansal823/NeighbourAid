@@ -7,6 +7,7 @@ from bson import ObjectId
 from fastapi import APIRouter
 
 from ..db.client import get_db
+from ..services.drill import NOT_A_DRILL
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
@@ -17,8 +18,10 @@ async def stats():
     now = datetime.now(timezone.utc)
     since_24h = now - timedelta(hours=24)
 
-    active_filter = {"status": {"$ne": "resolved"}}
-    last_24h_filter = {"created_at": {"$gte": since_24h}}
+    # Practice alerts are excluded from everything a human reads as
+    # "how much is really happening". See services/drill.py.
+    active_filter = {"status": {"$ne": "resolved"}, **NOT_A_DRILL}
+    last_24h_filter = {"created_at": {"$gte": since_24h}, **NOT_A_DRILL}
 
     # One round trip, not four. These counts are independent, but awaiting
     # them in sequence made the landing page wait out four full round trips to
@@ -126,7 +129,8 @@ async def leaderboard(limit: int = 5, days: int = 30):
     limit = max(1, min(limit, 50))
     since = datetime.now(timezone.utc) - timedelta(days=days)
     pipeline = [
-        {"$match": {"accepted_by": {"$ne": None}, "created_at": {"$gte": since}}},
+        {"$match": {"accepted_by": {"$ne": None}, "created_at": {"$gte": since},
+                    **NOT_A_DRILL}},
         {
             "$group": {
                 "_id": "$accepted_by",

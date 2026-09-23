@@ -6,12 +6,15 @@ import bn from '../i18n/bn'
 import en from '../i18n/en'
 import gu from '../i18n/gu'
 import hi from '../i18n/hi'
+import kn from '../i18n/kn'
+import ml from '../i18n/ml'
 import mr from '../i18n/mr'
+import or from '../i18n/or'
 import pa from '../i18n/pa'
 import ta from '../i18n/ta'
 import te from '../i18n/te'
 
-const DICTS = { en, hi, bn, mr, te, ta, gu, pa }
+const DICTS = { en, hi, bn, mr, te, ta, gu, pa, kn, ml, or }
 
 function Probe() {
   const { t, lang, setLang } = useI18n()

@@ -113,3 +113,102 @@ class TestMultiWorkerWarning:
         monkeypatch.setenv("WEB_CONCURRENCY", "not-a-number")
         with caplog.at_level("WARNING"):
             main._warn_if_multi_worker()
+
+
+class TestOptionalIntegrationsLine:
+    """Four features degrade silently by design. That is right for the
+    request path and wrong for the operator, who otherwise learns that
+    INBOUND_TOKEN was never set by sending a WhatsApp message and watching
+    it vanish. One INFO line at boot is the whole fix."""
+
+    @staticmethod
+    def _emit(monkeypatch, caplog, **env):
+        import app.main as main
+        from app.core.config import settings
+
+        for key, value in env.items():
+            if key.startswith("NA_"):
+                monkeypatch.setenv(key, value)
+            else:
+                monkeypatch.setattr(settings, key, value, raising=False)
+        caplog.clear()
+        with caplog.at_level("INFO"):
+            main._log_optional_integrations()
+        return next(
+            r.getMessage()
+            for r in caplog.records
+            if "Optional integrations" in r.getMessage()
+        )
+
+    def test_reports_everything_off_by_default(self, monkeypatch, caplog):
+        msg = self._emit(
+            monkeypatch,
+            caplog,
+            INBOUND_TOKEN="",
+            ALERT_WEBHOOK_URL="",
+            LLM_MODEL_PATH="",
+            LLM_VISION_MODEL_PATH="",
+            LLM_VISION_MMPROJ_PATH="",
+        )
+        assert "on: none" in msg
+        assert "whatsapp-inbound" in msg.split("off:")[1]
+
+    def test_names_what_is_actually_wired(self, monkeypatch, caplog):
+        msg = self._emit(
+            monkeypatch,
+            caplog,
+            INBOUND_TOKEN="s3cret",
+            ALERT_WEBHOOK_URL="",
+            LLM_MODEL_PATH="/models/gemma.gguf",
+            LLM_VISION_MODEL_PATH="",
+            LLM_VISION_MMPROJ_PATH="",
+        )
+        on, off = msg.split("on:")[1].split("| off:")
+        assert "whatsapp-inbound" in on and "llm-text" in on
+        assert "outbound-webhook" in off and "llm-vision" in off
+
+    def test_vision_needs_both_halves(self, monkeypatch, caplog):
+        """mmproj without weights, or weights without mmproj, loads nothing.
+        Reporting it as on because one path is set would be worse than
+        saying nothing."""
+        msg = self._emit(
+            monkeypatch,
+            caplog,
+            INBOUND_TOKEN="",
+            ALERT_WEBHOOK_URL="",
+            LLM_MODEL_PATH="",
+            LLM_VISION_MODEL_PATH="/models/smolvlm.gguf",
+            LLM_VISION_MMPROJ_PATH="",
+        )
+        assert "llm-vision" in msg.split("off:")[1]
+
+    def test_the_kill_switch_wins_over_the_paths(self, monkeypatch, caplog):
+        """NA_DISABLE_AI_MODEL=1 turns the models off whatever the paths say,
+        so reporting the paths would tell the operator the opposite of what
+        is running."""
+        msg = self._emit(
+            monkeypatch,
+            caplog,
+            NA_DISABLE_AI_MODEL="1",
+            INBOUND_TOKEN="",
+            ALERT_WEBHOOK_URL="",
+            LLM_MODEL_PATH="/models/gemma.gguf",
+            LLM_VISION_MODEL_PATH="/models/smolvlm.gguf",
+            LLM_VISION_MMPROJ_PATH="/models/mmproj.gguf",
+        )
+        assert "on: none" in msg
+
+    def test_the_line_is_ascii_only(self, monkeypatch, caplog):
+        """It goes through whatever handler the host installs, and a Windows
+        console handler on cp1252 raises on an em dash rather than degrading
+        — a crash at boot over a punctuation mark."""
+        msg = self._emit(
+            monkeypatch,
+            caplog,
+            INBOUND_TOKEN="",
+            ALERT_WEBHOOK_URL="",
+            LLM_MODEL_PATH="",
+            LLM_VISION_MODEL_PATH="",
+            LLM_VISION_MMPROJ_PATH="",
+        )
+        msg.encode("cp1252")  # raises UnicodeEncodeError if it ever regresses

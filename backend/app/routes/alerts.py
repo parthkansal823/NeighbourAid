@@ -11,8 +11,10 @@ from ..core.limits import limit_write
 from ..core.security import decode_token_safe, get_current_user, require_role
 from ..db.client import get_db
 from ..models.alert import AlertCreate, AlertUpdateCreate, ETAUpdate
-from ..services.ai import generate_headline, triage as ai_triage
+from ..services.ai import URGENCY_WEIGHT, generate_headline, triage as ai_triage
+from ..services.dispatch import MAX_DISPATCH_RADIUS_KM, eta_minutes, radius_km_for
 from ..services.enrich import enrich_alert
+from ..services.matching import MATCH_RADIUS_M, nearby_resources
 from ..services.photo import analyze_photos
 from ..services.ratelimit import anonymous_alert_limiter
 from ..services.verification import (
@@ -109,6 +111,7 @@ def _serialize(doc: dict, include_photos: bool = True) -> dict:
     doc.setdefault("photo_confidence", 0.0)
     doc.setdefault("photo_findings", "")
     doc.setdefault("is_anonymous", False)
+    doc.setdefault("is_drill", False)
     # The IP hash is forensic-only — never expose it via the API.
     doc.pop("anonymous_ip_hash", None)
     # Photo count is stored denormalised on the doc so it survives list
@@ -285,7 +288,12 @@ async def get_nearby(request: Request, lat: float, lng: float, km: float = 5.0):
             await manager.broadcast_nearby(_serialize(doc, include_photos=False))
         except Exception:  # noqa: BLE001
             pass
-    query_radius_km = max(km, SKILL_RADIUS_KM) if volunteer else km
+    # The DB query has to reach at least as far as the widest radius any
+    # volunteer can qualify for, or the per-volunteer filter below never
+    # sees the alerts it would have kept. That used to be SKILL_RADIUS_KM;
+    # once a vehicle-owning volunteer with a matching skill could reach
+    # 25 km, bounding the query at 15 km silently dropped the band between.
+    query_radius_km = max(km, MAX_DISPATCH_RADIUS_KM) if volunteer else km
     cursor = db.alerts.find(
         {
             "location": {
@@ -311,6 +319,7 @@ async def get_nearby(request: Request, lat: float, lng: float, km: float = 5.0):
         return [_serialize(doc, include_photos=False) async for doc in cursor]
 
     preferred_skills = set(volunteer["skills"])
+    has_vehicle = bool(volunteer["has_vehicle"])
     out = []
     async for doc in cursor:
         item = _serialize(doc, include_photos=False)
@@ -318,13 +327,23 @@ async def get_nearby(request: Request, lat: float, lng: float, km: float = 5.0):
         distance_km = _haversine_m(lat, lng, a_lat, a_lng) / 1000
         category_skills = set(CATEGORY_PREFERRED_SKILLS.get(item.get("category", "other"), []))
         skill_match = bool(preferred_skills.intersection(category_skills))
-        effective_radius = SKILL_RADIUS_KM if skill_match else max(km, DEFAULT_RADIUS_KM)
+        # Same rule as the WebSocket fan-out in services/websocket.py. These
+        # two answer the same question — "is this volunteer worth paging" —
+        # and if they ever disagree, a volunteer sees an alert arrive live
+        # that then vanishes when the feed refreshes.
+        effective_radius = max(km, radius_km_for(has_vehicle, skill_match))
         if distance_km > effective_radius:
             continue
         item["is_skill_match"] = skill_match
         item["your_distance_km"] = round(distance_km, 2)
-        item["your_has_vehicle"] = volunteer["has_vehicle"]
+        item["your_has_vehicle"] = has_vehicle
+        item["your_eta_minutes"] = eta_minutes(distance_km, has_vehicle)
         out.append(item)
+
+    # Soonest-arriving first. Distance ordering put a 93-minute walk above a
+    # 14-minute drive whenever the walk was marginally shorter in a straight
+    # line, which is the whole reason this exists.
+    out.sort(key=lambda a: (a["your_eta_minutes"], -URGENCY_WEIGHT.get(a.get("urgency"), 0)))
     return out
 
 
@@ -434,6 +453,9 @@ async def create_alert(
 
     doc = {
         "reporter_id": ObjectId(reporter_id),
+        # Practice alerts run the real pipeline but are excluded from
+        # every count, the leaderboard and trust. services/drill.py.
+        "is_drill": bool(alert.is_drill),
         "category": alert.category.value,
         "description": alert.description,
         "headline": headline,
@@ -682,6 +704,32 @@ async def get_photos(alert_id: str):
     return {"photos": doc.get("photos") or []}
 
 
+@router.get("/{alert_id}/resources")
+async def get_matching_resources(alert_id: str):
+    """Pinned resources that would actually help this alert, nearest first.
+
+    Lazy, like `/photos`, and for the same reason: the list endpoints are
+    already stripped for payload size and this would add a geo query per
+    card. The panel only matters on an alert someone has opened.
+
+    Public, because the resource list itself is public and an alert someone
+    can read is one they can help with. Heavily-flagged alerts 404 here too,
+    so a spam report cannot be used to surface a resource list.
+    """
+    db = get_db()
+    doc = await db.alerts.find_one(
+        {"_id": _oid(alert_id)}, {"category": 1, "location": 1, "flags": 1}
+    )
+    if not doc or (doc.get("flags") or 0) >= FLAG_HIDE_THRESHOLD:
+        raise HTTPException(404, "Alert not found")
+
+    coords = (doc.get("location") or {}).get("coordinates") or []
+    if len(coords) != 2:
+        return {"resources": [], "radius_km": MATCH_RADIUS_M / 1000}
+    found = await nearby_resources(db, doc.get("category") or "other", coords)
+    return {"resources": found, "radius_km": MATCH_RADIUS_M / 1000}
+
+
 @router.get("/{alert_id}/responder")
 async def get_responder_position(
     alert_id: str,
@@ -703,15 +751,28 @@ async def get_responder_position(
     oid = _oid(alert_id)
     alert = await db.alerts.find_one(
         {"_id": oid},
-        {"reporter_id": 1, "accepted_by": 1, "status": 1, "eta_minutes": 1, "eta_set_at": 1},
+        {
+            "reporter_id": 1,
+            "accepted_by": 1,
+            "status": 1,
+            "eta_minutes": 1,
+            "eta_set_at": 1,
+            "is_anonymous": 1,
+        },
     )
     if not alert:
         raise HTTPException(404, "Alert not found")
 
     accepted_by = alert.get("accepted_by")
     if alert.get("status") != "accepted" or not accepted_by:
+        # Same keys as the accepted branch below, all empty. A client that
+        # polls this endpoint should not have to handle two different shapes
+        # depending on whether anyone has accepted yet.
         return {
             "responder_id": None,
+            "responder_name": None,
+            "responder_phone": None,
+            "reporter_phone": None,
             "coordinates": None,
             "live": False,
             "eta_minutes": alert.get("eta_minutes"),
@@ -727,17 +788,47 @@ async def get_responder_position(
     coords = manager.coords_for(str(accepted_by))
     live = coords is not None
 
-    # One lookup covers both needs: the responder's display name always, and
-    # their saved home location only when the live socket has nothing.
-    user = await db.users.find_one({"_id": accepted_by}, {"location": 1, "name": 1})
+    # One lookup covers three needs: the responder's display name always,
+    # their saved home location only when the live socket has nothing, and
+    # their number only when the caller is the reporter.
+    user = await db.users.find_one(
+        {"_id": accepted_by}, {"location": 1, "name": 1, "phone": 1}
+    )
     if not live and user and isinstance(user.get("location"), dict):
         # Better than nothing, but stays marked stale so the UI doesn't
         # render a "live" dot over a location that may be hours old.
         coords = user["location"].get("coordinates") or None
 
+    # Phone numbers, released in exactly one direction each and only once a
+    # volunteer has accepted.
+    #
+    # Status == "accepted" was already required to get here, so there is no
+    # window where a number leaks on an open alert. Each side sees only the
+    # other's: the reporter never gets their own back, and the volunteer is
+    # not handed a list of numbers by reading alerts they did not accept —
+    # the 403 above stops that.
+    #
+    # It is a tel: link for a person standing in the street, not a directory.
+    # Whichever number is released, it is one number, to one person, for one
+    # incident, and only while that person is on their way.
+    is_reporter = user_id == str(alert["reporter_id"])
+    responder_phone = (user or {}).get("phone") if is_reporter else None
+
+    reporter_phone = None
+    if not is_reporter and not alert.get("is_anonymous"):
+        # Anonymous alerts carry a throwaway ObjectId as reporter_id, so this
+        # lookup would miss anyway — but the flag says the intent outright,
+        # and intent is what the next person reading this needs.
+        reporter = await db.users.find_one(
+            {"_id": alert["reporter_id"]}, {"phone": 1, "name": 1}
+        )
+        reporter_phone = (reporter or {}).get("phone")
+
     return {
         "responder_id": str(accepted_by),
         "responder_name": (user or {}).get("name") or "Volunteer",
+        "responder_phone": responder_phone or None,
+        "reporter_phone": reporter_phone or None,
         "coordinates": coords,
         "live": live,
         "eta_minutes": alert.get("eta_minutes"),

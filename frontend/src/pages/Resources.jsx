@@ -301,7 +301,7 @@ export default function Resources() {
   }, [deferredSearch, expiringOnly, filter, pins])
 
   const inputCls =
-    'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-all duration-200 placeholder:text-gray-600'
+    'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 placeholder:text-gray-600'
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
@@ -317,7 +317,7 @@ export default function Resources() {
               setRefreshing(true)
               void load()
             }}
-            className="text-xs border border-gray-700 hover:border-orange-500/50 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-all duration-200"
+            className="text-xs border border-gray-700 hover:border-orange-500/50 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
           >
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
@@ -368,9 +368,9 @@ export default function Resources() {
                 key={k}
                 type="button"
                 onClick={() => setKind(k)}
-                className={`text-xs px-3 py-2 rounded-lg border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 ${
+                className={`text-xs px-3 py-2 rounded-lg border transition-colors duration-200 active:scale-95 ${
                   kind === k
-                    ? 'border-orange-500 bg-linear-to-b from-orange-500/25 to-orange-500/10 text-orange-200 shadow-xs shadow-orange-500/15'
+                    ? 'border-orange-500 bg-orange-500/15 text-orange-200'
                     : 'border-gray-700 text-gray-300 hover:border-orange-500/40 hover:bg-gray-800/40'
                 }`}
               >
@@ -436,12 +436,8 @@ export default function Resources() {
           <button
             type="submit"
             disabled={posting || !coords}
-            className="group relative w-full bg-linear-to-b from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg shadow-md shadow-orange-500/20 hover:shadow-orange-500/40 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] overflow-hidden"
+            className="group relative w-full bg-orange-500 hover:bg-orange-400 active:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-lg hover:shadow-orange-500/40 transition-colors duration-200 overflow-hidden"
           >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-linear-to-r from-transparent via-white/25 to-transparent skew-x-12 -translate-x-full group-hover:translate-x-[400%] transition-transform duration-700 ease-out"
-            />
             <span className="relative">{posting ? t('res_posting') : t('res_post')}</span>
           </button>
         </form>
@@ -482,9 +478,9 @@ export default function Resources() {
             <button
               type="button"
               onClick={() => setFilter('all')}
-              className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 ${
+              className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors duration-200 ${
                 filter === 'all'
-                  ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-xs shadow-orange-500/15'
+                  ? 'border-orange-500 bg-orange-500/15 text-orange-200'
                   : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
               }`}
             >
@@ -495,9 +491,9 @@ export default function Resources() {
                 key={k}
                 type="button"
                 onClick={() => setFilter(k)}
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 ${
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors duration-200 ${
                   filter === k
-                    ? 'border-orange-500 bg-orange-500/15 text-orange-200 shadow-xs shadow-orange-500/15'
+                    ? 'border-orange-500 bg-orange-500/15 text-orange-200'
                     : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
                 }`}
               >

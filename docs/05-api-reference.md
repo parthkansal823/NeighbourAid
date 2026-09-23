@@ -133,6 +133,8 @@ their saved home location if they're offline.
 {
   "responder_id": "65...",
   "responder_name": "Aman",
+  "responder_phone": "+9198...",  // reporter only, null otherwise
+  "reporter_phone": null,         // accepting volunteer only
   "coordinates": [76.7, 30.7],
   "live": true,
   "eta_minutes": 12,
@@ -143,6 +145,22 @@ their saved home location if they're offline.
 
 Only exposes coords while `status == "accepted"`. Once resolved,
 coords stop coming back immediately.
+
+Phone numbers are released in one direction each, and only once a
+volunteer has accepted:
+
+| Caller | Sees | Does not see |
+|---|---|---|
+| Reporter | `responder_phone` (the volunteer's) | `reporter_phone` — always null |
+| Accepting volunteer | `reporter_phone` (the reporter's) | `responder_phone` — always null |
+| Anyone else | — | 403 before either is read |
+
+`phone` is an optional profile field (`PATCH /api/users/me/profile`),
+so both are null when the person never set one. An **anonymous** alert
+never releases `reporter_phone`: there is no account behind it, and the
+`is_anonymous` flag is checked rather than relying on the lookup missing.
+Before anyone accepts, both keys are present and null — the shape does
+not change, so a polling client handles one response, not two.
 
 ### `GET /api/alerts/{id}/updates`
 Auth. Chronological list of situational updates.
@@ -259,8 +277,14 @@ Auth. Update home location.
 ```
 
 ### `PATCH /api/users/me/profile`
-Auth. Patch any of `skills`, `has_vehicle`, `emergency_contacts`.
-Empty body → 400. Unknown skill → 422. >5 contacts → 422.
+Auth. Patch any of `skills`, `has_vehicle`, `emergency_contacts`,
+`phone`. Empty body → 400. Unknown skill → 422. >5 contacts → 422.
+
+`phone` distinguishes absent from empty: omitting it leaves the number
+alone, `""` deletes it. Not the same field as `emergency_contacts` —
+those are people the user would ping, this is how the one volunteer who
+accepts their alert reaches them. See
+`GET /api/alerts/{id}/responder` for who it is released to.
 
 ```jsonc
 {
@@ -362,7 +386,45 @@ gets a −5 trust penalty.
 
 ---
 
-## 5.10 WebSocket
+## 5.10 Web push
+
+### `GET /api/push/key`
+No auth. Returns `{"public_key": "..."}` — the `applicationServerKey`
+for `pushManager.subscribe()`. 503 when the server has no VAPID keys,
+which is how the client learns not to offer the toggle at all.
+
+### `POST /api/push/subscribe`
+Auth. Body is `PushSubscription.toJSON()` verbatim:
+
+```jsonc
+{
+  "endpoint": "https://fcm.googleapis.com/fcm/send/...",  // https only
+  "keys": { "p256dh": "...", "auth": "..." }
+}
+```
+
+Upserts on `endpoint`, not on user — one person may carry a phone and a
+laptop and both should ring. 503 when push is unconfigured, 422 on a
+non-https endpoint.
+
+### `DELETE /api/push/subscribe`
+Auth. Same body. Scoped to the owner, so quoting another device's
+endpoint does not unsubscribe it.
+
+**Delivery.** Every alert is pushed, at every urgency — nothing is
+filtered out. What varies is the RFC 8030 `Urgency` header
+(CRITICAL/HIGH → `high`, MEDIUM → `normal`, LOW → `low`), which tells
+the push service how much battery each one is worth spending. Volunteers
+already reached over the WebSocket are skipped: a notification for an
+alert already on screen is how people learn to turn notifications off.
+
+Subscriptions are deleted on 404 and 410 and on nothing else. A 429 or a
+503 is the service asking us to retry; deleting on either would silently
+unsubscribe a volunteer whose phone was briefly offline.
+
+---
+
+## 5.11 WebSocket
 
 ### `WS /ws/volunteer?token=<jwt>`
 Volunteer-only.
@@ -388,7 +450,7 @@ unexpected close.
 
 ---
 
-## 5.11 Rate limits
+## 5.12 Rate limits
 
 | Endpoint | Limit |
 |---|---|
@@ -397,7 +459,7 @@ unexpected close.
 
 ---
 
-## 5.12 Health
+## 5.13 Health
 
 ### `GET /health`
 `{"status": "ok"}`. Used by Render and similar PaaS for liveness.

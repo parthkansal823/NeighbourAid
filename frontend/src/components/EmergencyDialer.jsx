@@ -28,7 +28,7 @@ export default function EmergencyDialer() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 left-4 z-900 bg-red-600 hover:bg-red-700 text-white font-bold w-14 h-14 rounded-full shadow-xl flex items-center justify-center animate-pulse focus:outline-hidden focus:ring-4 focus:ring-red-400"
+        className="fixed bottom-4 left-4 z-900 bg-red-600 hover:bg-red-700 text-white font-bold w-14 h-14 rounded-full flex items-center justify-center animate-pulse focus:outline-hidden focus:ring-4 focus:ring-red-400"
         aria-label={t('dialer_open')}
         title={t('dialer_tooltip')}
       >

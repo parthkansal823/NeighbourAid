@@ -157,7 +157,7 @@ function Legend() {
   return (
     <div className="absolute bottom-3 right-3 z-400 surface-float bg-surface-1/90 backdrop-blur-sm px-3 py-2 text-[11px] text-gray-300 space-y-1 max-w-[160px] reveal-up">
       <div className="font-semibold text-gray-100 mb-1 flex items-center gap-1">
-        <span className="inline-block w-1 h-3 bg-linear-to-b from-orange-400 to-red-500 rounded-full" />
+        <span className="inline-block w-1 h-3 bg-accent rounded-full" />
         Urgency
       </div>
       {Object.entries(URGENCY_COLORS).map(([level, color]) => (

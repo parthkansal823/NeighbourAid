@@ -23,6 +23,7 @@ async def register(user: UserCreate):
         "skills": [s.value for s in user.skills],
         "has_vehicle": user.has_vehicle,
         "emergency_contacts": [c.model_dump() for c in user.emergency_contacts],
+        "phone": user.phone,
         "created_at": datetime.now(timezone.utc),
     }
     # The find_one above is a friendly fast path, not a guarantee — two

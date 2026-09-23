@@ -1,7 +1,13 @@
 /**
- * Lightweight i18n for the eight languages below. No runtime dependency,
+ * Lightweight i18n for the eleven languages below. No runtime dependency,
  * no build-time tooling — just a dictionary + a tiny context. Every string
  * accessed via `t('key')` falls back to English if a translation is missing.
+ *
+ * A language belongs in three places at once: here, in SPEECH_LOCALES below,
+ * and in backend/app/services/vocab.py. The first two are covered by tests.
+ * The third is not enforceable from this side but matters most — an alert
+ * written in a language the triage vocabulary does not know comes back
+ * MEDIUM by default, however urgent it actually was.
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
@@ -10,14 +16,17 @@ import en from '../i18n/en'
 
 // English is bundled eagerly because it is needed on every render regardless
 // of preference: it is the default language and the per-key fallback. The
-// other seven are ~18 KB of source each and only one can ever be active, so
+// other ten are ~22 KB of source each and only one can ever be active, so
 // they load as separate chunks. Someone opening this on a low-end phone mid
-// crisis should not wait to parse six dictionaries they cannot read.
+// crisis should not wait to parse ten dictionaries they cannot read.
 const LOADERS = {
   bn: () => import('../i18n/bn'),
   gu: () => import('../i18n/gu'),
   hi: () => import('../i18n/hi'),
+  kn: () => import('../i18n/kn'),
+  ml: () => import('../i18n/ml'),
   mr: () => import('../i18n/mr'),
+  or: () => import('../i18n/or'),
   pa: () => import('../i18n/pa'),
   ta: () => import('../i18n/ta'),
   te: () => import('../i18n/te'),
@@ -34,6 +43,9 @@ export const LANGUAGES = [
   { code: 'ta', label: 'தமிழ்', short: 'தமி' },
   { code: 'gu', label: 'ગુજરાતી', short: 'ગુજ' },
   { code: 'pa', label: 'ਪੰਜਾਬੀ', short: 'ਪੰ' },
+  { code: 'kn', label: 'ಕನ್ನಡ', short: 'ಕನ್ನ' },
+  { code: 'ml', label: 'മലയാളം', short: 'മല' },
+  { code: 'or', label: 'ଓଡ଼ିଆ', short: 'ଓଡ଼' },
 ]
 
 export function isSupportedLang(code) {
@@ -61,6 +73,13 @@ const SPEECH_LOCALES = {
   ta: 'ta-IN',
   gu: 'gu-IN',
   pa: 'pa-IN',
+  kn: 'kn-IN',
+  ml: 'ml-IN',
+  // Odia recognition is not offered by every engine. The locale is still the
+  // honest request to make — a browser that cannot serve it declines, which
+  // shows as the mic not starting rather than as confident mistranscription
+  // into another language.
+  or: 'or-IN',
 }
 
 export function speechLocaleFor(code) {

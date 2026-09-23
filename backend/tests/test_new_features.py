@@ -329,3 +329,143 @@ async def test_responder_returns_coords_for_reporter(client):
     assert body["coordinates"] == [76.7, 30.7]
     assert body["responder_name"] == "Aman"
     assert body["eta_minutes"] == 12
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Contact release
+# ──────────────────────────────────────────────────────────────────────
+#
+# A phone number is the one field here that cannot be un-leaked, so these
+# cover the boundary from both sides rather than only the happy path. The
+# rule: once a volunteer has accepted, each side may see the other's number
+# and neither may see anything else.
+
+
+def _accepted(reporter, volunteer, **extra):
+    return {
+        "_id": ObjectId(),
+        "reporter_id": reporter,
+        "accepted_by": volunteer,
+        "status": "accepted",
+        **extra,
+    }
+
+
+@pytest.mark.asyncio
+async def test_reporter_gets_the_volunteers_number(client):
+    c, db = client
+    reporter, volunteer = ObjectId(), ObjectId()
+    db.alerts.find_one = AsyncMock(return_value=_accepted(reporter, volunteer))
+    db.users.find_one = AsyncMock(
+        return_value={"_id": volunteer, "name": "Aman", "phone": "+919000000001"}
+    )
+    resp = await c.get(
+        f"/api/alerts/{ObjectId()}/responder",
+        headers={"Authorization": f"Bearer {_token(sub=str(reporter))}"},
+    )
+    body = resp.json()
+    assert body["responder_phone"] == "+919000000001"
+    # Not handed their own number back, and not a second lookup they did not ask for.
+    assert body["reporter_phone"] is None
+
+
+@pytest.mark.asyncio
+async def test_volunteer_gets_the_reporters_number(client):
+    c, db = client
+    reporter, volunteer = ObjectId(), ObjectId()
+    db.alerts.find_one = AsyncMock(return_value=_accepted(reporter, volunteer))
+
+    async def by_id(query, _projection=None):
+        return {
+            volunteer: {"_id": volunteer, "name": "Aman", "phone": "+919000000001"},
+            reporter: {"_id": reporter, "name": "Sunita", "phone": "+919000000002"},
+        }.get(query["_id"])
+
+    db.users.find_one = AsyncMock(side_effect=by_id)
+    resp = await c.get(
+        f"/api/alerts/{ObjectId()}/responder",
+        headers={"Authorization": f"Bearer {_token(sub=str(volunteer))}"},
+    )
+    body = resp.json()
+    assert body["reporter_phone"] == "+919000000002"
+    # The volunteer must not be able to read a number back out of their own row.
+    assert body["responder_phone"] is None
+
+
+@pytest.mark.asyncio
+async def test_an_anonymous_reporter_has_no_number_to_release(client):
+    """The whole promise of /post-alert. reporter_id on an anonymous alert is
+    a throwaway ObjectId, so the lookup would miss anyway — but this asserts
+    the flag is honoured rather than the miss being lucky."""
+    c, db = client
+    reporter, volunteer = ObjectId(), ObjectId()
+    db.alerts.find_one = AsyncMock(
+        return_value=_accepted(reporter, volunteer, is_anonymous=True)
+    )
+    seen = []
+
+    async def by_id(query, _projection=None):
+        seen.append(query["_id"])
+        return {"_id": volunteer, "name": "Aman", "phone": "+919000000001"}
+
+    db.users.find_one = AsyncMock(side_effect=by_id)
+    resp = await c.get(
+        f"/api/alerts/{ObjectId()}/responder",
+        headers={"Authorization": f"Bearer {_token(sub=str(volunteer))}"},
+    )
+    assert resp.json()["reporter_phone"] is None
+    # The reporter's row is never even read.
+    assert reporter not in seen
+
+
+@pytest.mark.asyncio
+async def test_no_number_before_anyone_accepts(client):
+    """Both keys exist and are null, so a polling client sees one shape."""
+    c, db = client
+    reporter = ObjectId()
+    db.alerts.find_one = AsyncMock(
+        return_value={
+            "_id": ObjectId(),
+            "reporter_id": reporter,
+            "accepted_by": None,
+            "status": "open",
+        }
+    )
+    resp = await c.get(
+        f"/api/alerts/{ObjectId()}/responder",
+        headers={"Authorization": f"Bearer {_token(sub=str(reporter))}"},
+    )
+    body = resp.json()
+    assert body["responder_phone"] is None and body["reporter_phone"] is None
+    assert "responder_name" in body
+
+
+@pytest.mark.asyncio
+async def test_a_stranger_still_gets_403_not_a_number(client):
+    c, db = client
+    db.alerts.find_one = AsyncMock(return_value=_accepted(ObjectId(), ObjectId()))
+    db.users.find_one = AsyncMock(
+        return_value={"_id": ObjectId(), "name": "Aman", "phone": "+919000000001"}
+    )
+    resp = await c.get(
+        f"/api/alerts/{ObjectId()}/responder",
+        headers={"Authorization": f"Bearer {_token()}"},
+    )
+    assert resp.status_code == 403
+    assert "+91" not in resp.text
+
+
+@pytest.mark.asyncio
+async def test_a_blank_number_is_released_as_null_not_empty_string(client):
+    """An empty string would render a call button that dials nothing."""
+    c, db = client
+    reporter, volunteer = ObjectId(), ObjectId()
+    db.alerts.find_one = AsyncMock(return_value=_accepted(reporter, volunteer))
+    db.users.find_one = AsyncMock(
+        return_value={"_id": volunteer, "name": "Aman", "phone": ""}
+    )
+    resp = await c.get(
+        f"/api/alerts/{ObjectId()}/responder",
+        headers={"Authorization": f"Bearer {_token(sub=str(reporter))}"},
+    )
+    assert resp.json()["responder_phone"] is None

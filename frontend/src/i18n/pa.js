@@ -82,7 +82,7 @@ export default {
   home_how_1_title: 'ਸੰਕਟ ਦਰਜ ਕਰੋ',
   home_how_1_desc: 'ਸ਼੍ਰੇਣੀ, ਵੇਰਵਾ ਅਤੇ ਆਪਣਾ GPS ਟਿਕਾਣਾ ਭਰੋ। 30 ਸਕਿੰਟਾਂ ਵਿੱਚ ਪੂਰਾ।',
   home_how_2_title: 'ਤੁਰੰਤ ਟ੍ਰਾਇਆਜ',
-  home_how_2_desc: 'ਤੁਹਾਡੀ ਰਿਪੋਰਟ ਤੁਰੰਤ CRITICAL / HIGH / MEDIUM / LOW ਵਿੱਚ ਵੰਡੀ ਜਾਂਦੀ ਹੈ — ਸਾਡੀਆਂ 8 ਭਾਸ਼ਾਵਾਂ ਵਿੱਚੋਂ ਕਿਸੇ ਵਿੱਚ ਵੀ।',
+  home_how_2_desc: 'ਤੁਹਾਡੀ ਰਿਪੋਰਟ ਤੁਰੰਤ CRITICAL / HIGH / MEDIUM / LOW ਵਿੱਚ ਵੰਡੀ ਜਾਂਦੀ ਹੈ — ਸਾਡੀਆਂ 11 ਭਾਸ਼ਾਵਾਂ ਵਿੱਚੋਂ ਕਿਸੇ ਵਿੱਚ ਵੀ।',
   home_how_3_title: 'ਵਲੰਟੀਅਰ ਸੂਚਿਤ',
   home_how_3_desc: 'ਨੇੜਲੇ ਵਲੰਟੀਅਰਾਂ ਨੂੰ ਲਾਈਵ ਸੂਚਨਾ ਮਿਲਦੀ ਹੈ ਅਤੇ ਉਹ ਅਲਰਟ ਸਵੀਕਾਰ ਜਾਂ ਹੱਲ ਕਰ ਸਕਦੇ ਹਨ।',
 
@@ -180,6 +180,9 @@ export default {
   post_submitting: 'ਅਲਰਟ ਭੇਜਿਆ ਜਾ ਰਿਹਾ…',
   post_min_chars: 'ਕਿਰਪਾ ਕਰਕੇ ਵਧੇਰੇ ਵੇਰਵਾ ਦਿਓ (ਘੱਟੋ-ਘੱਟ 10 ਅੱਖਰ)',
   post_failed: 'ਅਲਰਟ ਭੇਜਣ ਵਿੱਚ ਫੇਲ',
+  drill_label: 'ਇਹ ਇੱਕ ਅਭਿਆਸ ਹੈ',
+  drill_hint: 'ਅਸਲੀ ਪ੍ਰਕਿਰਿਆ ਚੱਲਦੀ ਹੈ ਤਾਂ ਜੋ ਵਲੰਟੀਅਰ ਅਭਿਆਸ ਕਰ ਸਕਣ। ਕਿਸੇ ਗਿਣਤੀ ਜਾਂ ਟਰੱਸਟ ਸਕੋਰ ਵਿੱਚ ਨਹੀਂ ਗਿਣਿਆ ਜਾਂਦਾ।',
+  drill_badge: 'ਅਭਿਆਸ - ਅਸਲੀ ਐਮਰਜੈਂਸੀ ਨਹੀਂ',
 
   // Category labels
   cat_medical: 'ਮੈਡੀਕਲ',
@@ -217,6 +220,12 @@ export default {
     'ਬ੍ਰਾਊਜ਼ਰ ਸੂਚਨਾਵਾਂ ਚਾਲੂ ਕਰੋ ਤਾਂ ਜੋ ਬੈਕਗ੍ਰਾਊਂਡ ਵਿੱਚ ਵੀ ਅਲਰਟ ਮਿਲਣ।',
   vol_enable: 'ਚਾਲੂ ਕਰੋ',
   vol_notif_on: 'ਬੈਕਗ੍ਰਾਊਂਡ ਸੂਚਨਾਵਾਂ ਚਾਲੂ',
+  vol_enable_push: 'ਇਹ ਟੈਬ ਬੰਦ ਹੋਣ \'ਤੇ ਵੀ ਅਲਰਟ ਪਾਓ। ਨੇੜੇ ਐਮਰਜੈਂਸੀ ਹੋਣ \'ਤੇ ਤੁਹਾਡਾ ਫ਼ੋਨ ਵੱਜੇਗਾ।',
+  vol_enabling: 'ਚਾਲੂ ਹੋ ਰਿਹਾ ਹੈ…',
+  vol_push_on: 'ਬੈਕਗਰਾਊਂਡ ਅਲਰਟ ਚਾਲੂ — ਬੰਦ ਕਰਨ ਲਈ ਟੈਪ ਕਰੋ',
+  vol_push_denied: 'ਸੂਚਨਾਵਾਂ ਬਲਾਕ ਹਨ। ਬ੍ਰਾਊਜ਼ਰ ਸੈਟਿੰਗਾਂ ਵਿੱਚ ਇਸ ਸਾਈਟ ਲਈ ਇਜਾਜ਼ਤ ਦਿਓ।',
+  vol_push_unavailable: 'ਇਸ ਸਰਵਰ \'ਤੇ ਬੈਕਗਰਾਊਂਡ ਅਲਰਟ ਸੈੱਟ ਨਹੀਂ ਹਨ।',
+  vol_push_failed: 'ਬੈਕਗਰਾਊਂਡ ਅਲਰਟ ਚਾਲੂ ਨਹੀਂ ਹੋ ਸਕੇ',
   vol_failed: 'ਅਲਰਟ ਲੋਡ ਕਰਨ ਵਿੱਚ ਫੇਲ',
 
   // My alerts
@@ -256,6 +265,26 @@ export default {
   profile_no_geo: 'Geolocation ਇਸ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਉਪਲਬਧ ਨਹੀਂ',
   profile_load_failed: 'ਪ੍ਰੋਫਾਈਲ ਲੋਡ ਕਰਨ ਵਿੱਚ ਫੇਲ',
   profile_update_failed: 'ਟਿਕਾਣਾ ਅਪਡੇਟ ਕਰਨ ਵਿੱਚ ਫੇਲ',
+  avail_title: 'ਸ਼ਾਂਤ ਘੰਟੇ',
+  avail_hint: 'ਸਿਰਫ਼ ਤੁਹਾਡੇ ਫ਼ੋਨ ਉੱਤੇ ਆਉਣ ਵਾਲੀਆਂ ਸੂਚਨਾਵਾਂ ਉੱਤੇ ਅਸਰ ਪਾਉਂਦਾ ਹੈ। ਫੀਡ ਖੋਲ੍ਹਣ ਉੱਤੇ ਸਭ ਕੁਝ ਹਮੇਸ਼ਾ ਦਿਸੇਗਾ।',
+  avail_from: 'ਉਪਲਬਧ',
+  avail_to: 'ਤੱਕ',
+  avail_critical_always: 'CRITICAL ਲਈ ਹਮੇਸ਼ਾ ਜਗਾਓ',
+  avail_critical_hint: 'ਸਾਹ ਨਾ ਆਉਣਾ, ਦਿਲ ਦਾ ਦੌਰਾ, ਡੁੱਬਣਾ।',
+  avail_save: 'ਘੰਟੇ ਸੰਭਾਲੋ',
+  avail_snooze: '2 ਘੰਟੇ ਰੁੱਝੇ',
+  avail_busy_until: 'ਰੁੱਝੇ, ਤੱਕ',
+  avail_timezone: 'ਟਾਈਮਜ਼ੋਨ',
+  avail_saved: 'ਸ਼ਾਂਤ ਘੰਟੇ ਸੰਭਾਲੇ ਗਏ।',
+  avail_failed: 'ਸ਼ਾਂਤ ਘੰਟੇ ਸੰਭਾਲੇ ਨਹੀਂ ਜਾ ਸਕੇ',
+  responder_call: 'ਕਾਲ ਕਰੋ',
+  profile_phone: 'ਤੁਹਾਡਾ ਫ਼ੋਨ ਨੰਬਰ',
+  profile_phone_hint: 'ਵਿਕਲਪਿਕ। ਸਿਰਫ਼ ਉਸ ਇੱਕ ਵਲੰਟੀਅਰ ਨੂੰ ਦਿੱਤਾ ਜਾਂਦਾ ਹੈ ਜੋ ਤੁਹਾਡਾ ਅਲਰਟ ਸਵੀਕਾਰ ਕਰਦਾ ਹੈ — ਜਾਂ ਜੇ ਤੁਸੀਂ ਵਲੰਟੀਅਰ ਹੋ, ਤਾਂ ਉਸ ਇੱਕ ਰਿਪੋਰਟਰ ਨੂੰ। ਕਦੇ ਜਨਤਕ ਨਹੀਂ।',
+  profile_phone_ph: 'ਫ਼ੋਨ ਜਾਂ ਵਟਸਐਪ',
+  profile_phone_save: 'ਨੰਬਰ ਸੰਭਾਲੋ',
+  profile_phone_saved: 'ਫ਼ੋਨ ਨੰਬਰ ਸੰਭਾਲਿਆ ਗਿਆ।',
+  profile_phone_cleared: 'ਫ਼ੋਨ ਨੰਬਰ ਹਟਾ ਦਿੱਤਾ ਗਿਆ।',
+  profile_phone_failed: 'ਫ਼ੋਨ ਨੰਬਰ ਅੱਪਡੇਟ ਨਹੀਂ ਹੋ ਸਕਿਆ',
 
   // Safety
   safety_title: 'ਸੁਰੱਖਿਆ ਚੈੱਕ-ਇਨ',
@@ -303,6 +332,14 @@ export default {
   res_delete_failed: 'ਸਰੋਤ ਹਟਾਉਣ ਵਿੱਚ ਫੇਲ',
   res_name_too_short: 'ਨਾਮ ਘੱਟੋ-ਘੱਟ 2 ਅੱਖਰ ਦਾ ਹੋਣਾ ਚਾਹੀਦਾ',
   res_no_location: 'ਟਿਕਾਣਾ ਉਪਲਬਧ ਨਹੀਂ — ਕਿਰਪਾ ਕਰਕੇ GPS ਦੀ ਆਗਿਆ ਦਿਓ',
+  match_title: 'ਨੇੜਲੇ ਸਰੋਤ',
+  res_kind_shelter: 'ਆਸਰਾ',
+  res_kind_food: 'ਭੋਜਨ',
+  res_kind_blood: 'ਖ਼ੂਨ',
+  res_kind_oxygen: 'ਆਕਸੀਜਨ',
+  res_kind_water: 'ਪਾਣੀ',
+  res_kind_medical_camp: 'ਮੈਡੀਕਲ ਕੈਂਪ',
+  res_kind_other: 'ਹੋਰ',
 
   // Alert card
   card_directions: 'ਦਿਸ਼ਾ',
@@ -327,6 +364,7 @@ export default {
   card_similar_nearby: 'ਸਮਾਨ ਨੇੜੇ',
   card_weather_match: 'ਮੌਸਮ-ਮੇਲ',
   card_ai_confident: 'ਭਰੋਸਾ',
+  card_min_away: 'ਮਿੰਟ ਦੂਰ',
 
   // Dialer
   dialer_title: 'ਭਾਰਤ ਐਮਰਜੈਂਸੀ ਨੰਬਰ',

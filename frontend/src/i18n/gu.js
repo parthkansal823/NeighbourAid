@@ -82,7 +82,7 @@ export default {
   home_how_1_title: 'કટોકટી નોંધો',
   home_how_1_desc: 'શ્રેણી, વિગત અને તમારું GPS સ્થાન આપો. ૩૦ સેકન્ડમાં પૂરું.',
   home_how_2_title: 'તાત્કાલિક ટ્રાયાજ',
-  home_how_2_desc: 'તમારો અહેવાલ તરત જ CRITICAL / HIGH / MEDIUM / LOW માં વર્ગીકૃત થાય છે — અમારી 8 ભાષાઓમાંથી કોઈપણમાં.',
+  home_how_2_desc: 'તમારો અહેવાલ તરત જ CRITICAL / HIGH / MEDIUM / LOW માં વર્ગીકૃત થાય છે — અમારી 11 ભાષાઓમાંથી કોઈપણમાં.',
   home_how_3_title: 'સ્વયંસેવકોને જાણ',
   home_how_3_desc: 'નજીકના સ્વયંસેવકોને તરત સંકેત મળે છે અને તેઓ અલર્ટ સ્વીકારી કે ઉકેલી શકે છે.',
 
@@ -180,6 +180,9 @@ export default {
   post_submitting: 'અલર્ટ મોકલાઈ રહ્યું છે…',
   post_min_chars: 'કૃપા કરીને વધુ વિગત આપો (ઓછામાં ઓછા ૧૦ અક્ષર)',
   post_failed: 'અલર્ટ મોકલી શકાયું નહીં',
+  drill_label: 'આ એક અભ્યાસ છે',
+  drill_hint: 'સ્વયંસેવકો અભ્યાસ કરી શકે તે માટે અસલી પ્રવાહ ચાલે છે. કોઈ ગણતરી કે ટ્રસ્ટ સ્કોરમાં ગણાતું નથી.',
+  drill_badge: 'અભ્યાસ - અસલી કટોકટી નથી',
 
   // Category labels
   cat_medical: 'તબીબી',
@@ -217,6 +220,12 @@ export default {
     'બ્રાઉઝર સૂચનાઓ ચાલુ કરો, જેથી આ ટૅબ પાછળ હોય તોય અલર્ટ ચૂકી ન જાઓ.',
   vol_enable: 'ચાલુ કરો',
   vol_notif_on: 'બેકગ્રાઉન્ડ સૂચનાઓ ચાલુ',
+  vol_enable_push: 'આ ટેબ બંધ હોય ત્યારે પણ ચેતવણી મેળવો. નજીકની કટોકટીમાં તમારો ફોન વાગશે.',
+  vol_enabling: 'ચાલુ થઈ રહ્યું છે…',
+  vol_push_on: 'બેકગ્રાઉન્ડ ચેતવણી ચાલુ — બંધ કરવા ટૅપ કરો',
+  vol_push_denied: 'સૂચનાઓ બ્લૉક છે. બ્રાઉઝર સેટિંગ્સમાં આ સાઇટ માટે પરવાનગી આપો.',
+  vol_push_unavailable: 'આ સર્વર પર બેકગ્રાઉન્ડ ચેતવણી સેટ નથી.',
+  vol_push_failed: 'બેકગ્રાઉન્ડ ચેતવણી ચાલુ કરી શકાઈ નહીં',
   vol_failed: 'અલર્ટ લોડ થઈ શક્યા નહીં',
 
   // My alerts
@@ -256,6 +265,26 @@ export default {
   profile_no_geo: 'આ બ્રાઉઝરમાં સ્થાન સુવિધા નથી',
   profile_load_failed: 'પ્રોફાઇલ લોડ થઈ શકી નહીં',
   profile_update_failed: 'સ્થાન અપડેટ થઈ શક્યું નહીં',
+  avail_title: 'શાંત કલાકો',
+  avail_hint: 'ફક્ત તમારા ફોન પર આવતી સૂચનાઓને અસર કરે છે. ફીડ ખોલો ત્યારે બધું હંમેશા દેખાશે.',
+  avail_from: 'ઉપલબ્ધ',
+  avail_to: 'સુધી',
+  avail_critical_always: 'CRITICAL માટે હંમેશા જગાડો',
+  avail_critical_hint: 'શ્વાસ ન આવવો, હૃદયરોગનો હુમલો, ડૂબવું.',
+  avail_save: 'કલાકો સાચવો',
+  avail_snooze: '2 કલાક વ્યસ્ત',
+  avail_busy_until: 'વ્યસ્ત, સુધી',
+  avail_timezone: 'ટાઇમઝોન',
+  avail_saved: 'શાંત કલાકો સચવાયા.',
+  avail_failed: 'શાંત કલાકો સાચવી શકાયા નહીં',
+  responder_call: 'કૉલ કરો',
+  profile_phone: 'તમારો ફોન નંબર',
+  profile_phone_hint: 'વૈકલ્પિક. ફક્ત તમારી ચેતવણી સ્વીકારનાર તે એક સ્વયંસેવકને આપવામાં આવે છે — અથવા તમે સ્વયંસેવક હો તો તે એક રિપોર્ટરને. ક્યારેય જાહેર નહીં.',
+  profile_phone_ph: 'ફોન અથવા વોટ્સએપ',
+  profile_phone_save: 'નંબર સાચવો',
+  profile_phone_saved: 'ફોન નંબર સાચવાયો.',
+  profile_phone_cleared: 'ફોન નંબર દૂર કરાયો.',
+  profile_phone_failed: 'ફોન નંબર અપડેટ કરી શકાયો નહીં',
 
   // Safety check-ins
   safety_title: 'સલામતી નોંધ',
@@ -303,6 +332,14 @@ export default {
   res_delete_failed: 'સંસાધન દૂર થઈ શક્યું નહીં',
   res_name_too_short: 'નામ ઓછામાં ઓછા ૨ અક્ષરનું હોવું જોઈએ',
   res_no_location: 'સ્થાન ઉપલબ્ધ નથી — કૃપા કરીને GPS પરવાનગી આપો',
+  match_title: 'નજીકના સંસાધનો',
+  res_kind_shelter: 'આશ્રય',
+  res_kind_food: 'ખોરાક',
+  res_kind_blood: 'લોહી',
+  res_kind_oxygen: 'ઓક્સિજન',
+  res_kind_water: 'પાણી',
+  res_kind_medical_camp: 'મેડિકલ કેમ્પ',
+  res_kind_other: 'અન્ય',
 
   // Alert card
   card_directions: 'દિશા',
@@ -327,6 +364,7 @@ export default {
   card_similar_nearby: 'નજીકમાં સમાન',
   card_weather_match: 'હવામાન મળે છે',
   card_ai_confident: 'ખાતરી',
+  card_min_away: 'મિનિટ દૂર',
 
   // Emergency dialer
   dialer_title: 'ભારતના કટોકટી નંબર',

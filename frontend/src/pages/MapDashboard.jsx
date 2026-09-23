@@ -218,7 +218,7 @@ export default function MapDashboard() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-57px)]">
-      <div className="glass border-b border-gray-800 px-3 sm:px-6 py-2 sm:py-3 space-y-2 shadow-md shadow-black/30">
+      <div className="glass border-b border-gray-800 px-3 sm:px-6 py-2 sm:py-3 space-y-2">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <span className="text-white font-semibold text-sm sm:text-base inline-flex items-center gap-2">
             <MapIcon className="h-4 w-4" aria-hidden />
@@ -229,9 +229,9 @@ export default function MapDashboard() {
               <button
                 key={f}
                 onClick={() => setUrgencyFilter(f)}
-                className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
+                className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-colors duration-200 ${
                   urgencyFilter === f
-                    ? 'border-orange-500 bg-linear-to-b from-orange-500/30 to-orange-500/10 text-orange-200 shadow-xs shadow-orange-500/20'
+                    ? 'border-orange-500 bg-orange-500/15 text-orange-200'
                     : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
                 }`}
               >
@@ -263,9 +263,9 @@ export default function MapDashboard() {
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
-              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
+              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-colors duration-200 ${
                 categoryFilter === cat
-                  ? 'border-blue-500 bg-linear-to-b from-blue-500/30 to-blue-500/10 text-blue-200 shadow-xs shadow-blue-500/20'
+                  ? 'border-blue-500 bg-blue-500/15 text-blue-200'
                   : 'border-gray-700 text-gray-500 hover:border-blue-500/40 hover:text-gray-300'
               }`}
             >
@@ -286,7 +286,7 @@ export default function MapDashboard() {
             {destination && (
               <button
                 onClick={clearDestination}
-                className="text-xs border border-orange-700/60 bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 hover:text-orange-200 px-2 py-0.5 rounded-md transition-all duration-200"
+                className="text-xs border border-orange-700/60 bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 hover:text-orange-200 px-2 py-0.5 rounded-md transition-colors duration-200"
                 title="Clear destination"
               >
                 <><X className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />Clear route</>
@@ -294,9 +294,9 @@ export default function MapDashboard() {
             )}
             <button
               onClick={() => setShowHeat((v) => !v)}
-              className={`text-xs border px-2 py-0.5 rounded-md transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
+              className={`text-xs border px-2 py-0.5 rounded-md transition-colors duration-200 ${
                 showHeat
-                  ? 'border-orange-500 bg-linear-to-b from-orange-500/30 to-orange-500/10 text-orange-200 shadow-xs shadow-orange-500/20'
+                  ? 'border-orange-500 bg-orange-500/15 text-orange-200'
                   : 'border-gray-700 text-gray-300 hover:border-orange-500/40'
               }`}
               title="Toggle 72-hour heatmap overlay"
@@ -306,7 +306,7 @@ export default function MapDashboard() {
             <button
               onClick={recenterNow}
               disabled={locating}
-              className="text-xs border border-gray-700 hover:border-blue-500/60 hover:text-white text-gray-300 px-2 py-0.5 rounded-md transition-all duration-200 disabled:opacity-50 hover:-translate-y-0.5 active:translate-y-0"
+              className="text-xs border border-gray-700 hover:border-blue-500/60 hover:text-white text-gray-300 px-2 py-0.5 rounded-md transition-colors duration-200 disabled:opacity-50"
               title="Recenter to current location"
             >
               {locating ? (

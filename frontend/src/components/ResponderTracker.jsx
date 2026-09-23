@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import api from '../utils/api'
-import { AlertTriangle } from './icons'
+import { useI18n } from '../utils/i18n'
+import { AlertTriangle, PhoneCall } from './icons'
 
 /**
  * Live tracker for an accepted alert. Polls /api/alerts/{id}/responder
@@ -38,6 +39,7 @@ const targetIcon = L.divIcon({
 })
 
 export default function ResponderTracker({ alert }) {
+  const { t } = useI18n()
   const [responder, setResponder] = useState(null)
   const [error, setError] = useState('')
 
@@ -82,6 +84,9 @@ export default function ResponderTracker({ alert }) {
     )
   if (!responder) return null
 
+  // Exactly one of these is ever non-null for a given viewer, so a single
+  // button covers both sides of the call.
+  const callNumber = responder.responder_phone || responder.reporter_phone
   const [aLng, aLat] = alert.location?.coordinates ?? [0, 0]
   const responderCoords = responder.coordinates // [lng, lat]
   const center = responderCoords
@@ -106,11 +111,28 @@ export default function ResponderTracker({ alert }) {
             {responder.live ? 'live' : 'last known'}
           </span>
         </span>
-        {responder.eta_minutes != null && (
-          <span className="text-emerald-300 font-semibold">
-            ETA {responder.eta_minutes} min
-          </span>
-        )}
+        <span className="flex items-center gap-2">
+          {responder.eta_minutes != null && (
+            <span className="text-emerald-300 font-semibold">
+              ETA {responder.eta_minutes} min
+            </span>
+          )}
+          {/* The server decides which number, if either, this viewer may
+              have — the reporter gets the volunteer's, the volunteer gets
+              the reporter's, and an anonymous reporter has none to give.
+              Whichever it released is the one to dial, so the component
+              does not re-derive a rule it cannot enforce anyway. */}
+          {callNumber && (
+            <a
+              href={`tel:${callNumber}`}
+              className="tap inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 text-white
+                         transition-colors hover:bg-emerald-500"
+            >
+              <PhoneCall className="h-3.5 w-3.5" aria-hidden />
+              {t('responder_call')}
+            </a>
+          )}
+        </span>
       </div>
       <div className="h-40 relative">
         <MapContainer

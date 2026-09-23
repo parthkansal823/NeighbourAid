@@ -6,7 +6,7 @@ that drove the call ("explainability"), so a volunteer can see WHY an alert
 outranked another rather than just its label.
 
 Entirely local: keyword matching over the multilingual vocabulary in
-vocab.py, covering all eight languages the app ships in. No API key, no
+vocab.py, covering all eleven languages the app ships in. No API key, no
 network call, no per-alert cost, and it answers in well under a millisecond.
 
 The honest limit is that keywords catch *stated* danger, not *implied*
@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 # Heuristic vocabulary lives in vocab.py: it is data, and long enough that
-# inlining it here buried the logic. Covers all eight languages the UI ships
+# inlining it here buried the logic. Covers all eleven languages the UI ships
 # in - see that module for why matching uses stems, not inflected forms.
 from .vocab import (
     CONCEPTS as _CONCEPTS,
@@ -56,6 +56,17 @@ log = logging.getLogger(__name__)
 # --------------------------------------------------------------------------
 # Aspect classifiers
 # --------------------------------------------------------------------------
+
+# Concepts whose HIGH ranking a reporter's own qualifier cannot talk down.
+# The common thread is that they get worse on their own: an injury that is
+# minor now is still minor in an hour, a fire is not. Names must exist in
+# vocab.CONCEPTS — the assertion below fails the import rather than letting
+# a typo silently disable the exemption.
+SPREADING_HAZARDS = frozenset({"fire", "gas_leak", "flood", "collapse", "trapped"})
+assert SPREADING_HAZARDS <= set(_CONCEPTS), (
+    f"unknown concept(s): {SPREADING_HAZARDS - set(_CONCEPTS)}"
+)
+
 
 def _heuristic_urgency(text: str) -> tuple[str, str, list[str], float]:
     """Returns (urgency, reason, triggers, heuristic_confidence)."""
@@ -105,8 +116,18 @@ def _heuristic_urgency(text: str) -> tuple[str, str, list[str], float]:
         # already returned above and is never downgraded, because "not
         # breathing, come tomorrow" must stay CRITICAL no matter what the
         # reporter believes about the timeline.
+        #
+        # SPREADING_HAZARDS is the same exemption one level down. A reporter
+        # can be right that their own injury is minor; they cannot be right
+        # that a fire is. "मामूली आग लगी है" (there is a minor fire) was
+        # scoring LOW on `मामूली`, below genuine LOW reports in the feed,
+        # and a small fire is the one you still want a volunteer at.
+        #
+        # Drawn from CONCEPTS rather than a second keyword list so it covers
+        # every language the app ships in, and so adding a language to
+        # CONCEPTS cannot leave this behind.
         low_hits = [w for w in _LOW_TERMS if w in low]
-        if low_hits:
+        if low_hits and not (concepts_in(text) & SPREADING_HAZARDS):
             return (
                 "LOW",
                 "keyword:high-deescalated",
@@ -239,7 +260,7 @@ def _char_similarity(a: str, b: str) -> float:
 
 
 def concepts_in(text: str) -> frozenset[str]:
-    """Which incident concepts this report mentions, in any of the 8 languages.
+    """Which incident concepts this report mentions, in any of the 11 languages.
 
     The cross-language half of `similarity`. See vocab.CONCEPTS for why the
     terms are grouped by meaning rather than by urgency.
@@ -273,7 +294,7 @@ def similarity(a: str, b: str) -> float:
     The second was added because the first scores exactly 0.000 across
     scripts. "Fire near Gate 3 of the building" and "गेट 3 के पास आग लगी है"
     are one fire and share no 4-gram, so `filter_corroborating` treated them
-    as unrelated — in an app shipping eight languages, the reports most likely
+    as unrelated — in an app shipping eleven languages, the reports most likely
     to corroborate each other were the ones guaranteed never to match.
 
     max() rather than a blend, deliberately: it can only ever raise a score,
