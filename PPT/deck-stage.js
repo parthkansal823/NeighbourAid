@@ -4,7 +4,9 @@
  * Handles:
  *  (a) speaker notes — reads <script type="application/json" id="speaker-notes">
  *      and posts {slideIndexChanged: N} to the parent window on nav.
- *  (b) keyboard navigation — ←/→, PgUp/PgDn, Space, Home/End, number keys.
+ *  (b) keyboard navigation — ←/→/↑/↓, PgUp/PgDn, Space, Home/End, number
+ *      keys, plus T theme, F fullscreen, R reset. (Printing is the
+ *      browser's own Ctrl+P; see the @media print block below.)
  *  (c) press R to reset to slide 0 (with a tasteful keyboard hint).
  *  (d) bottom-center overlay showing slide count + hints, fades out on idle.
  *  (e) auto-scaling — inner canvas is a fixed design size (default 1920×1080)
@@ -124,31 +126,32 @@
 
     .overlay {
       position: fixed;
-      left: 50%;
-      bottom: 22px;
-      transform: translate(-50%, 6px) scale(0.92);
+      right: 20px;
+      top: 50%;
+      transform: translate(8px, -50%) scale(0.94);
       filter: blur(6px);
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 4px;
-      padding: 4px;
+      gap: 2px;
+      padding: 6px 4px;
       background: #000;
       color: #fff;
-      border-radius: 999px;
+      border-radius: 22px;
       font-size: 12px;
       font-feature-settings: "tnum" 1;
       letter-spacing: 0.01em;
       opacity: 0;
       pointer-events: none;
       transition: opacity 260ms ease, transform 260ms cubic-bezier(.2,.8,.2,1), filter 260ms ease;
-      transform-origin: center bottom;
+      transform-origin: right center;
       z-index: 2147483000;
       user-select: none;
     }
     .overlay[data-visible] {
       opacity: 1;
       pointer-events: auto;
-      transform: translate(-50%, 0) scale(1);
+      transform: translate(0, -50%) scale(1);
       filter: blur(0);
     }
 
@@ -178,15 +181,7 @@
     .btn:focus-visible { outline: none; }
     .btn::-moz-focus-inner { border: 0; }
     .btn svg { width: 14px; height: 14px; display: block; }
-    .btn.reset {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.02em;
-      padding: 0 10px 0 12px;
-      gap: 6px;
-      color: rgba(255,255,255,0.72);
-    }
-    .btn.reset .kbd {
+    .btn .kbd {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -200,24 +195,47 @@
       background: rgba(255,255,255,0.12);
       border-radius: 4px;
     }
+    /* The shortcut letters are for someone who has stopped to look; at
+       rest the icons carry the bar. */
+    .btn .kbd { display: none; }
 
     .count {
       font-variant-numeric: tabular-nums;
       color: #fff;
       font-weight: 500;
-      padding: 0 8px;
-      min-width: 42px;
+      padding: 3px 0 5px;
+      min-width: 30px;
       text-align: center;
       font-size: 12px;
+      line-height: 1.15;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
     }
-    .count .sep { color: rgba(255,255,255,0.45); margin: 0 3px; font-weight: 400; }
-    .count .total { color: rgba(255,255,255,0.55); }
+    .count .total { color: rgba(255,255,255,0.5); font-size: 10px; font-weight: 400; }
+    /* Progress rail. Width is set from JS on every slide change. */
+    .count .track {
+      width: 18px;
+      height: 2px;
+      border-radius: 1px;
+      background: rgba(255,255,255,0.2);
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .count .track i {
+      display: block;
+      height: 100%;
+      background: #fff;
+      border-radius: 1px;
+      transition: width 260ms cubic-bezier(.2,.8,.2,1);
+    }
 
     .divider {
-      width: 1px;
-      height: 14px;
+      width: 14px;
+      height: 1px;
       background: rgba(255,255,255,0.18);
-      margin: 0 2px;
+      margin: 2px 0;
     }
 
     /* ── Print: one page per slide, no chrome ────────────────────────────
@@ -366,6 +384,17 @@
       this.setTheme(this.theme === 'light' ? 'dark' : 'light');
     }
 
+    /** Fullscreen is a promise that rejects when the gesture is not trusted
+     *  -- an unhandled rejection in the console otherwise. */
+    toggleFullscreen() {
+      const el = document.documentElement;
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => {});
+      }
+    }
+
     _render() {
       const style = document.createElement('style');
       style.textContent = stylesheet;
@@ -408,15 +437,20 @@
       overlay.setAttribute('aria-label', 'Deck controls');
       overlay.setAttribute('data-noncommentable', '');
       overlay.innerHTML = `
-        <button class="btn prev" type="button" aria-label="Previous slide" title="Previous (←)">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>
+        <button class="btn prev" type="button" aria-label="Previous slide" title="Previous (↑ / ←)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l5-5 5 5"/></svg>
         </button>
-        <span class="count" aria-live="polite"><span class="current">1</span><span class="sep">/</span><span class="total">1</span></span>
-        <button class="btn next" type="button" aria-label="Next slide" title="Next (→)">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg>
+        <span class="count" aria-live="polite"><span class="current">1</span><span class="total">1</span><span class="track"><i style="width:0%"></i></span></span>
+        <button class="btn next" type="button" aria-label="Next slide" title="Next (↓ / →)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l5 5 5-5"/></svg>
         </button>
         <span class="divider"></span>
-        <button class="btn reset" type="button" aria-label="Reset to first slide" title="Reset (R)">Reset<span class="kbd">R</span></button>
+        <button class="btn full" type="button" aria-label="Toggle fullscreen" title="Fullscreen (F)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2H2v4M10 2h4v4M14 10v4h-4M6 14H2v-4"/></svg>
+        </button>
+        <button class="btn reset" type="button" aria-label="Reset to first slide" title="Reset (R)">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.7-3.9M13.5 1.6V5h-3.4"/></svg>
+        </button>
         <span class="divider"></span>
         <button class="btn theme" type="button" aria-label="Switch between dark and light" title="Theme (T)" aria-pressed="false">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor" stroke="none"/></svg>
@@ -427,6 +461,7 @@
       overlay.querySelector('.prev').addEventListener('click', () => this._go(this._index - 1, 'click'));
       overlay.querySelector('.next').addEventListener('click', () => this._go(this._index + 1, 'click'));
       overlay.querySelector('.reset').addEventListener('click', () => this._go(0, 'click'));
+      overlay.querySelector('.full').addEventListener('click', () => this.toggleFullscreen());
       this._themeBtn = overlay.querySelector('.theme');
       this._themeBtn.addEventListener('click', () => this.toggleTheme());
 
@@ -436,6 +471,7 @@
       this._overlay = overlay;
       this._countEl = overlay.querySelector('.current');
       this._totalEl = overlay.querySelector('.total');
+      this._trackEl = overlay.querySelector('.track i');
     }
 
     /** @page must live in the document stylesheet — it's a no-op inside
@@ -538,6 +574,12 @@
         else s.removeAttribute('data-deck-active');
       });
       if (this._countEl) this._countEl.textContent = String(curr + 1);
+      if (this._trackEl) {
+        const pct = this._slides.length > 1
+          ? (curr / (this._slides.length - 1)) * 100
+          : 100;
+        this._trackEl.style.width = pct + '%';
+      }
 
       if (broadcast) {
         // (1) Legacy: host-window postMessage for speaker-notes renderers.
@@ -617,9 +659,10 @@
       const key = e.key;
       let handled = true;
 
-      if (key === 'ArrowRight' || key === 'PageDown' || key === ' ' || key === 'Spacebar') {
+      if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown'
+          || key === ' ' || key === 'Spacebar') {
         this._go(this._index + 1, 'keyboard');
-      } else if (key === 'ArrowLeft' || key === 'PageUp') {
+      } else if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') {
         this._go(this._index - 1, 'keyboard');
       } else if (key === 'Home') {
         this._go(0, 'keyboard');
@@ -627,6 +670,8 @@
         this._go(this._slides.length - 1, 'keyboard');
       } else if (key === 't' || key === 'T') {
         this.toggleTheme();
+      } else if (key === 'f' || key === 'F') {
+        this.toggleFullscreen();
       } else if (key === 'r' || key === 'R') {
         this._go(0, 'keyboard');
       } else if (/^[0-9]$/.test(key)) {
