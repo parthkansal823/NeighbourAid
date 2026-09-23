@@ -591,6 +591,19 @@
   @media print{
     html, body{overflow:visible !important;background:#fff !important}
 
+    /* Fit the slide to the page the dialog actually gave us -- see the
+       note above; 1 on the deck's own 1920x1080 page, less on paper. */
+    :root{--fit:min(100vw / 1920px, 100vh / 1080px)}
+    section{
+      width:1920px !important;
+      height:1080px !important;
+      transform:scale(var(--fit)) !important;
+      transform-origin:top left !important;
+      /* Reclaim the layout space the transform does not shrink, or each
+         slide drags a blank page after it. */
+      margin:0 calc(1920px * (var(--fit) - 1)) calc(1080px * (var(--fit) - 1)) 0 !important;
+    }
+
     .anim, .anim-fade, .anim-scale, .anim-x, .anim-y,
     .stagger > *, .ring,
     section:not([data-deck-active]) .anim{
