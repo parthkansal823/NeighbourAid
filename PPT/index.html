@@ -12,10 +12,10 @@
 (function () {
   try {
     var stored = localStorage.getItem('neighbouraid-deck-theme');
-    var light = stored
-      ? stored === 'light'
-      : window.matchMedia('(prefers-color-scheme: light)').matches;
-    if (light) document.documentElement.setAttribute('data-theme', 'light');
+    // Light is the deck's own look; dark is opt-in via the T control.
+    // A stored choice still wins, so someone who picked dark keeps it.
+    var dark = stored === 'dark';
+    if (!dark) document.documentElement.setAttribute('data-theme', 'light');
   } catch (e) { /* private mode, or no matchMedia — dark is the default */ }
 })();
 </script>
@@ -55,13 +55,13 @@
     most common reason a room asks you to turn the lights back on.
   */
   :root[data-theme="light"]{
-    --bg:#FAF7F0;
-    --bg-2:#F1ECE1;
+    --bg:#FFFFFF;
+    --bg-2:#F6F5F2;
     --ink:#16181D;
     --ink-dim:#5A564E;
     --ink-faint:#8C877C;
-    --rule:#D8D1C4;
-    --rule-soft:#E8E2D6;
+    --rule:#DCD8D0;
+    --rule-soft:#EDEAE4;
     --saffron:oklch(0.52 0.16 60);
     --saffron-soft:oklch(0.52 0.16 60 / 0.12);
     --teal:oklch(0.50 0.09 200);
@@ -69,7 +69,7 @@
     --crit:oklch(0.50 0.20 25);
     --warn:oklch(0.55 0.16 75);
     --ok:oklch(0.48 0.12 160);
-    --letterbox:#E4DED1;
+    --letterbox:#E6E4E0;
   }
 
   *{box-sizing:border-box;margin:0;padding:0}
@@ -85,7 +85,7 @@
   .mono{font-family:'IBM Plex Mono',monospace;font-feature-settings:"zero"}
 
   /* ============ SHARED CHROME ============ */
-  .chrome{position:absolute;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:32px 60px;color:var(--ink-dim);font-size:18px;letter-spacing:0.08em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;z-index:5}
+  .chrome{position:absolute;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:32px 60px;color:var(--ink-dim);font-size:23px;letter-spacing:0.08em;text-transform:uppercase;font-family:'IBM Plex Mono',monospace;z-index:5}
   .chrome.top{top:0}
   .chrome.bot{bottom:0}
   .chrome .dot{width:8px;height:8px;border-radius:50%;background:var(--saffron);display:inline-block;margin-right:14px;vertical-align:1px;box-shadow:0 0 0 4px var(--saffron-soft)}
@@ -132,7 +132,7 @@
   .cover .chrome .right{padding-right:420px}
   .chrome .pgcount{color:var(--ink)}
 
-  .section-tag{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.16em;color:var(--saffron);text-transform:uppercase}
+  .section-tag{font-family:'IBM Plex Mono',monospace;font-size:23px;letter-spacing:0.06em;color:var(--saffron);text-transform:uppercase}
   .section-tag .num{color:var(--saffron)}
   .section-tag .sep{color:var(--ink-faint);margin:0 14px}
   .section-tag .name{color:var(--ink-dim)}
@@ -142,10 +142,10 @@
     display:flex;flex-direction:column;
   }
 
-  h1.title{font-size:104px;line-height:0.96;letter-spacing:-0.035em;font-weight:600;color:var(--ink);margin-top:18px}
-  h2.title{font-size:88px;line-height:0.98;letter-spacing:-0.03em;font-weight:600;color:var(--ink);margin-top:18px}
-  .lede{font-size:32px;line-height:1.32;color:var(--ink-dim);max-width:1200px;margin-top:36px;font-weight:400;letter-spacing:-0.005em}
-  .body{font-size:24px;line-height:1.5;color:var(--ink-dim)}
+  h1.title{font-size:84px;line-height:1.02;letter-spacing:-0.015em;font-weight:600;color:var(--ink);margin-top:18px}
+  h2.title{font-size:72px;line-height:1.04;letter-spacing:-0.015em;font-weight:600;color:var(--ink);margin-top:18px}
+  .lede{font-size:36px;line-height:1.32;color:var(--ink-dim);max-width:1200px;margin-top:36px;font-weight:400;letter-spacing:-0.005em}
+  .body{font-size:27px;line-height:1.5;color:var(--ink-dim)}
 
   .rule{height:1px;background:var(--rule);width:100%}
   .rule-soft{height:1px;background:var(--rule-soft);width:100%}
@@ -213,14 +213,7 @@
 
   /* ============ SLIDE 1: COVER ============ */
   .cover{position:relative}
-  .cover-grid{
-    position:absolute;inset:0;
-    background-image:
-      linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size:80px 80px;
-    mask-image:radial-gradient(ellipse 80% 60% at 70% 50%, #000 30%, transparent 80%);
-  }
+  .cover-grid{display:none}
   .cover .left{position:absolute;left:100px;top:50%;transform:translateY(-50%);max-width:1100px;z-index:3}
   /* Direct child only. The chrome bar also has a `.right` cell, and
      without the combinator this rule captured it too — turning the
@@ -228,16 +221,16 @@
      inside it behind the map. */
   .cover > .right{position:absolute;right:70px;top:50%;transform:translateY(-50%);width:640px;height:640px;z-index:2}
 
-  .badge{display:inline-flex;align-items:center;gap:14px;padding:10px 20px;border:1px solid var(--rule);border-radius:999px;font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-dim)}
+  .badge{display:inline-flex;align-items:center;gap:14px;padding:10px 20px;border:1px solid var(--rule);border-radius:999px;font-family:'IBM Plex Mono',monospace;font-size:21px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-dim)}
   .badge .live{width:8px;height:8px;border-radius:50%;background:var(--saffron);box-shadow:0 0 0 6px var(--saffron-soft);animation:blink 1.6s infinite}
 
-  .cover h1{font-size:172px;line-height:0.92;letter-spacing:-0.045em;font-weight:600;margin-top:36px}
-  .cover h1 .accent{color:var(--saffron);font-style:italic;font-weight:500}
-  .cover .sub{font-size:34px;color:var(--ink-dim);margin-top:30px;max-width:900px;line-height:1.32}
+  .cover h1{font-size:124px;line-height:1.0;letter-spacing:-0.02em;font-weight:600;margin-top:0}
+  .cover h1 .accent{color:var(--saffron);font-weight:600}
+  .cover .sub{font-size:38px;color:var(--ink-dim);margin-top:30px;max-width:900px;line-height:1.32}
   .cover .stats{display:flex;gap:64px;margin-top:64px;padding-top:36px;border-top:1px solid var(--rule)}
   .cover .stats .stat .n{font-size:56px;font-weight:600;letter-spacing:-0.02em;color:var(--ink);font-family:'Inter Tight',sans-serif}
-  .cover .stats .stat .n .u{font-size:30px;color:var(--ink-dim);margin-left:4px}
-  .cover .stats .stat .l{font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-faint);margin-top:8px}
+  .cover .stats .stat .n .u{font-size:34px;color:var(--ink-dim);margin-left:4px}
+  .cover .stats .stat .l{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:8px}
 
   /* Team credits. Monospace UIDs in a column of their own so the three
      rows line up on the digits rather than on the names, which are
@@ -246,14 +239,14 @@
     display:flex;flex-direction:column;gap:14px;max-width:640px}
   /* baseline alignment, so the small label and the big code sit on one
      line however far apart their sizes drift. */
-  .proj-code{font-family:'IBM Plex Mono',monospace;font-size:15px;
-    letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);
+  .proj-code{font-family:'IBM Plex Mono',monospace;font-size:20px;
+    letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);
     margin-bottom:18px;display:flex;align-items:baseline;gap:14px}
-  .proj-code span{color:var(--saffron);font-size:27px;letter-spacing:0.06em}
-  .team-row{display:flex;gap:28px;align-items:baseline;font-size:34px}
+  .proj-code span{color:var(--saffron);font-size:30px;letter-spacing:0.06em}
+  .team-row{display:flex;gap:28px;align-items:baseline;font-size:38px}
   /* --ink-dim, not --ink-faint: faint is for things you may ignore, and
      a UID on a title card is not one of them. */
-  .team-row .uid{font-family:'IBM Plex Mono',monospace;font-size:24px;
+  .team-row .uid{font-family:'IBM Plex Mono',monospace;font-size:27px;
     letter-spacing:0.06em;color:var(--ink-dim);min-width:210px}
   .team-row .who{color:var(--ink);font-weight:500;letter-spacing:-0.01em}
 
@@ -285,8 +278,8 @@
 
   .map-label{
     position:absolute;left:50%;bottom:6%;transform:translateX(-50%);
-    font-family:'IBM Plex Mono',monospace;font-size:13px;
-    letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-faint);
+    font-family:'IBM Plex Mono',monospace;font-size:17px;
+    letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);
     white-space:nowrap;
   }
 
@@ -297,7 +290,7 @@
     section[data-deck-active] .india{animation:none;stroke-dashoffset:0}
     section[data-deck-active] .ring{animation:none}
   }
-  .pin{position:absolute;width:18px;height:18px;border-radius:50%;background:var(--saffron);box-shadow:0 0 0 6px var(--saffron-soft),0 0 32px var(--saffron);left:50%;top:50%;margin-left:-9px;margin-top:-9px;z-index:3}
+  .pin{position:absolute;width:18px;height:18px;border-radius:50%;background:var(--saffron);box-shadow:0 0 0 5px var(--saffron-soft);left:50%;top:50%;margin-left:-9px;margin-top:-9px;z-index:3}
   /* The inner ring is the page background, not a colour: it separates
      the dot from whichever state fill happens to sit under it. */
   .helper{position:absolute;width:9px;height:9px;border-radius:50%;
@@ -305,86 +298,94 @@
     box-shadow:0 0 0 2px var(--bg),0 0 0 5px var(--teal-soft)}
   .helper span,.pin span{position:absolute;top:50%;
     transform:translateY(-50%);font-family:'IBM Plex Mono',monospace;
-    font-size:11px;letter-spacing:0.1em;text-transform:uppercase;
+    font-size:16px;letter-spacing:0.1em;text-transform:uppercase;
     color:var(--ink-dim);white-space:nowrap;pointer-events:none}
   .helper.r span{left:15px}
   .helper.l span{right:15px}
   /* The pin's own label sits above it, clear of the dispatch rings. */
   .pin span{top:auto;bottom:22px;left:50%;transform:translateX(-50%);
-    color:var(--saffron);font-size:12px}
+    color:var(--saffron);font-size:16px}
 
   /* ============ SLIDE 2: PROBLEM ============ */
   .prob-head{display:flex;align-items:flex-end;justify-content:space-between;gap:60px;margin-bottom:60px}
   .prob-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
   .prob-cell{padding:48px 36px 56px;border-right:1px solid var(--rule)}
   .prob-cell:last-child{border-right:none}
-  .prob-cell .num{font-family:'IBM Plex Mono',monospace;color:var(--ink-faint);font-size:16px;letter-spacing:0.16em}
-  .prob-cell h3{font-size:34px;line-height:1.15;font-weight:500;letter-spacing:-0.015em;color:var(--ink);margin-top:24px}
-  .prob-cell p{font-size:20px;line-height:1.45;color:var(--ink-dim);margin-top:16px}
-  .prob-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:60px;margin-top:60px}
-  .prob-stat .big{font-size:88px;font-weight:600;letter-spacing:-0.03em;line-height:1;color:var(--ink)}
-  .prob-stat .big .u{font-size:34px;color:var(--saffron);margin-left:6px}
-  .prob-stat .lab{font-family:'IBM Plex Mono',monospace;font-size:15px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-dim);margin-top:14px;line-height:1.4;max-width:300px}
+  .prob-cell .num{font-family:'IBM Plex Mono',monospace;color:var(--ink-faint);font-size:21px;letter-spacing:0.06em}
+  .prob-cell h3{font-size:38px;line-height:1.15;font-weight:500;letter-spacing:-0.015em;color:var(--ink);margin-top:24px}
+  .prob-cell p{font-size:26px;line-height:1.45;color:var(--ink-dim);margin-top:16px}
+  .prob-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:60px;margin-top:60px}
+  .prob-stat .big{font-size:30px;font-weight:600;letter-spacing:-0.01em;line-height:1.25;color:var(--ink)}
+  .prob-stat .big .u{font-size:38px;color:var(--saffron);margin-left:6px}
+  .prob-stat .lab{font-family:'IBM Plex Mono',monospace;font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-dim);margin-top:14px;line-height:1.4;max-width:300px}
 
   /* ============ SLIDE 3: SOLUTION ============ */
   .sol-grid{display:grid;grid-template-columns:1.1fr 1fr 1fr;gap:0;flex:1;border-top:1px solid var(--rule)}
-  .sol-cell{padding:34px 36px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);position:relative}
+  .sol-cell{padding:26px 32px;border-right:1px solid var(--rule);border-bottom:1px solid var(--rule);position:relative}
   .sol-cell:nth-child(3n){border-right:none}
-  .sol-cell .idx{font-family:'IBM Plex Mono',monospace;color:var(--saffron);font-size:16px;letter-spacing:0.16em}
-  .sol-cell h3{font-size:32px;font-weight:500;letter-spacing:-0.015em;margin-top:14px;color:var(--ink)}
-  .sol-cell p{font-size:20px;line-height:1.45;color:var(--ink-dim);margin-top:13px}
-  .sol-cell .meta{font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.1em;color:var(--ink-faint);text-transform:uppercase;margin-top:16px}
+  .sol-cell .idx{font-family:'IBM Plex Mono',monospace;color:var(--saffron);font-size:21px;letter-spacing:0.06em}
+  .sol-cell h3{font-size:36px;font-weight:500;letter-spacing:-0.015em;margin-top:14px;color:var(--ink)}
+  .sol-cell p{font-size:26px;line-height:1.45;color:var(--ink-dim);margin-top:13px}
+  /* Points, not prose. The marker is a ::before so the text keeps the
+     full width of these fairly narrow cells. */
+  .sol-cell .pts{list-style:none;margin-top:13px}
+  .sol-cell .pts li{position:relative;padding-left:17px;font-size:25px;
+    line-height:1.4;color:var(--ink-dim);margin-top:7px}
+  .sol-cell .pts li::before{content:"";position:absolute;left:0;top:9px;
+    width:5px;height:5px;border-radius:50%;background:var(--saffron);
+    opacity:0.75}
+  .sol-cell .meta{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.1em;color:var(--ink-faint);text-transform:uppercase;margin-top:16px}
   .sol-hero{grid-column:1;grid-row:1 / span 2;background:linear-gradient(180deg,var(--saffron-soft) 0%,transparent 100%)}
-  .sol-hero h3{font-size:42px;line-height:1.05}
-  .sol-hero p{font-size:22px}
+  .sol-hero h3{font-size:47px;line-height:1.05}
+  .sol-hero p{font-size:25px}
 
   /* ============ SLIDE 4: FEATURES ============ */
-  .feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:48px;margin-top:48px;flex:1}
-  .feat-col h3{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.14em;text-transform:uppercase;color:var(--saffron);padding-bottom:18px;border-bottom:1px solid var(--saffron);margin-bottom:28px}
+  .feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:40px;margin-top:34px;flex:1}
+  .feat-col h3{font-family:'IBM Plex Mono',monospace;font-size:23px;letter-spacing:0.06em;text-transform:uppercase;color:var(--saffron);padding-bottom:18px;border-bottom:1px solid var(--saffron);margin-bottom:28px}
   .feat-col ul{list-style:none}
-  .feat-col li{padding:18px 0;border-bottom:1px solid var(--rule-soft);font-size:20px;line-height:1.45;color:var(--ink);display:flex;gap:14px;align-items:flex-start}
+  .feat-col li{padding:13px 0;border-bottom:1px solid var(--rule-soft);font-size:26px;line-height:1.45;color:var(--ink);display:flex;gap:14px;align-items:flex-start}
   .feat-col li:last-child{border-bottom:none}
   .feat-col li::before{content:"";width:8px;height:8px;background:var(--ink-faint);margin-top:11px;flex-shrink:0;border-radius:1px;transform:rotate(45deg)}
 
   /* ============ SLIDE 5: TECH STACK ============ */
-  .stack-wrap{display:grid;grid-template-columns:1.6fr 1fr;gap:80px;flex:1;margin-top:40px}
+  .stack-wrap{display:grid;grid-template-columns:1.6fr 1fr;gap:64px;flex:1;margin-top:28px}
   .stack-table{width:100%;border-collapse:collapse}
-  .stack-table thead th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;padding:16px 12px;border-bottom:1px solid var(--rule)}
-  .stack-table td{padding:22px 12px;font-size:20px;color:var(--ink);border-bottom:1px solid var(--rule-soft);vertical-align:top}
-  .stack-table td.layer{font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-dim);width:170px}
+  .stack-table thead th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;padding:12px 12px;border-bottom:1px solid var(--rule)}
+  .stack-table td{padding:16px 12px;font-size:26px;color:var(--ink);border-bottom:1px solid var(--rule-soft);vertical-align:top}
+  .stack-table td.layer{font-family:'IBM Plex Mono',monospace;font-size:21px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-dim);width:170px}
   .stack-table td.choice{color:var(--ink);font-weight:500}
-  .stack-table td.why{color:var(--ink-dim);font-size:18px}
+  .stack-table td.why{color:var(--ink-dim);font-size:23px}
 
-  .stack-side h4{font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.14em;text-transform:uppercase;color:var(--saffron);margin-bottom:24px}
-  .stack-tiles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .stack-tile{padding:24px 22px;border:1px solid var(--rule);background:var(--bg-2);border-radius:6px}
-  .stack-tile .name{font-size:22px;font-weight:500;color:var(--ink)}
-  .stack-tile .note{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.06em;color:var(--ink-dim);margin-top:8px}
+  .stack-side h4{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--saffron);margin-bottom:24px}
+  .stack-tiles{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .stack-tile{padding:19px 22px;border:1px solid var(--rule);background:var(--bg-2);border-radius:6px}
+  .stack-tile .name{font-size:25px;font-weight:500;color:var(--ink)}
+  .stack-tile .note{font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:0.06em;color:var(--ink-dim);margin-top:8px}
 
   /* ============ SLIDE 6: ARCHITECTURE ============ */
   .arch{flex:1;display:flex;flex-direction:column;margin-top:30px}
   .arch-row{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;flex:1}
   .arch-tier{border:1px solid var(--rule);background:var(--bg-2);border-radius:6px;padding:28px;display:flex;flex-direction:column;position:relative}
   .arch-tier.center{background:linear-gradient(180deg,rgba(255,255,255,0.03),transparent);border-color:var(--saffron)}
-  .arch-tier .label{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron)}
-  .arch-tier h3{font-size:28px;font-weight:500;margin-top:14px;color:var(--ink);letter-spacing:-0.01em}
+  .arch-tier .label{font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:0.06em;text-transform:uppercase;color:var(--saffron)}
+  .arch-tier h3{font-size:31px;font-weight:500;margin-top:14px;color:var(--ink);letter-spacing:-0.01em}
   .arch-tier ul{list-style:none;margin-top:20px;flex:1}
-  .arch-tier ul li{padding:10px 0;font-size:17px;color:var(--ink-dim);border-bottom:1px solid var(--rule-soft);display:flex;gap:10px}
+  .arch-tier ul li{padding:10px 0;font-size:22px;color:var(--ink-dim);border-bottom:1px solid var(--rule-soft);display:flex;gap:10px}
   .arch-tier ul li:last-child{border-bottom:none}
-  .arch-tier ul li .k{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.08em;min-width:60px;flex-shrink:0}
+  .arch-tier ul li .k{font-family:'IBM Plex Mono',monospace;font-size:17px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.08em;min-width:60px;flex-shrink:0}
 
   .arch-flow{margin-top:32px;padding:26px 36px 24px;border:1px solid var(--rule);border-radius:6px;display:flex;align-items:center;gap:18px;background:var(--bg-2)}
-  .arch-flow .step{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--ink);letter-spacing:0.06em}
+  .arch-flow .step{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--ink);letter-spacing:0.06em}
   .arch-flow .step .n{color:var(--saffron);margin-right:10px}
   .arch-flow .arrow{color:var(--ink-faint)}
-  .arch-flow .lab{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.16em;color:var(--saffron);text-transform:uppercase;margin-right:30px;align-self:flex-start;margin-top:2px;flex-shrink:0}
+  .arch-flow .lab{font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:0.06em;color:var(--saffron);text-transform:uppercase;margin-right:30px;align-self:flex-start;margin-top:2px;flex-shrink:0}
 
   /* ============ SLIDE 7: AI INTELLIGENCE ============ */
   .ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;flex:1;margin-top:40px}
-  .ai-pane h3{font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron);margin-bottom:14px}
-  .ai-pane .pane-sub{font-size:22px;color:var(--ink-dim);margin-bottom:32px;line-height:1.4}
+  .ai-pane h3{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--saffron);margin-bottom:14px}
+  .ai-pane .pane-sub{font-size:25px;color:var(--ink-dim);margin-bottom:32px;line-height:1.4}
   .urg-row{display:flex;align-items:center;gap:24px;padding:22px 0;border-bottom:1px solid var(--rule-soft)}
-  .urg-row .lab{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.1em;text-transform:uppercase;width:140px;color:var(--ink)}
+  .urg-row .lab{font-family:'IBM Plex Mono',monospace;font-size:23px;letter-spacing:0.1em;text-transform:uppercase;width:140px;color:var(--ink)}
   .urg-row .bar{flex:1;height:14px;background:var(--rule-soft);border-radius:2px;overflow:hidden;position:relative}
   .urg-row .bar .fill{position:absolute;left:0;top:0;bottom:0;border-radius:2px;transform-origin:left;transform:scaleX(0)}
   section[data-deck-active] .urg-row .bar .fill{animation:drawX 1.1s cubic-bezier(.6,.05,.2,1) forwards}
@@ -395,44 +396,44 @@
   section[data-deck-active] .urg-row:nth-of-type(3) .fill{animation-delay:.5s}
   section[data-deck-active] .urg-row:nth-of-type(4) .fill{animation-delay:.65s}
   .urg-head{display:flex;justify-content:space-between;align-items:baseline;
-    font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;
+    font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:0.06em;
     text-transform:uppercase;color:var(--ink-faint);padding-bottom:10px;
     border-bottom:1px solid var(--rule)}
-  .urg-row .pct{font-family:'IBM Plex Mono',monospace;font-size:20px;width:64px;text-align:right;color:var(--ink)}
+  .urg-row .pct{font-family:'IBM Plex Mono',monospace;font-size:26px;width:64px;text-align:right;color:var(--ink)}
 
   .score-card{border:1px solid var(--rule);background:var(--bg-2);border-radius:8px;padding:24px 26px;margin-top:6px}
   .score-big{display:flex;align-items:center;gap:20px;border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:16px}
   .score-big .n{font-size:96px;font-weight:600;letter-spacing:-0.04em;color:var(--ink);line-height:1}
-  .score-big .d{font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--ink-faint)}
-  .score-big .label{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:var(--saffron);padding:6px 12px;border:1px solid var(--saffron);border-radius:999px}
+  .score-big .d{font-family:'IBM Plex Mono',monospace;font-size:25px;color:var(--ink-faint)}
+  .score-big .label{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:0.06em;text-transform:uppercase;color:var(--saffron);padding:6px 12px;border:1px solid var(--saffron);border-radius:999px}
   .score-row{display:grid;grid-template-columns:1fr 80px 80px;gap:14px;padding:10px 0;border-bottom:1px solid var(--rule-soft);align-items:center}
   .score-row:last-child{border-bottom:none}
-  .score-row .src{font-size:18px;color:var(--ink)}
-  .score-row .src .sub{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-faint);letter-spacing:0.08em;text-transform:uppercase;margin-top:2px;display:block}
-  .score-row .cap{font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--ink-faint);text-align:right}
-  .score-row .add{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--saffron);text-align:right;font-weight:500}
+  .score-row .src{font-size:23px;color:var(--ink)}
+  .score-row .src .sub{font-family:'IBM Plex Mono',monospace;font-size:16px;color:var(--ink-faint);letter-spacing:0.08em;text-transform:uppercase;margin-top:2px;display:block}
+  .score-row .cap{font-family:'IBM Plex Mono',monospace;font-size:18px;color:var(--ink-faint);text-align:right}
+  .score-row .add{font-family:'IBM Plex Mono',monospace;font-size:26px;color:var(--saffron);text-align:right;font-weight:500}
 
-  .ai-extras{margin-top:28px;padding:20px 24px;border-top:1px solid var(--rule);font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.06em;color:var(--ink-dim)}
+  .ai-extras{margin-top:28px;padding:20px 24px;border-top:1px solid var(--rule);font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;color:var(--ink-dim)}
   .ai-extras span{color:var(--ink)}
 
   /* ============ SLIDE 8: COMMUNICATION ============ */
-  .comm-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;flex:1;margin-top:40px}
-  .lang-row{display:grid;grid-template-columns:80px 1fr;gap:24px;padding:20px 0;border-bottom:1px solid var(--rule-soft);align-items:center}
+  .comm-grid{display:grid;grid-template-columns:1fr 1fr;gap:52px;flex:1;margin-top:28px}
+  .lang-row{display:grid;grid-template-columns:80px 1fr;gap:24px;padding:13px 0;border-bottom:1px solid var(--rule-soft);align-items:center}
   .lang-row:last-child{border-bottom:none}
-  .lang-tag{width:64px;height:64px;border-radius:8px;background:var(--bg-2);border:1px solid var(--rule);display:grid;place-items:center;font-size:28px;font-weight:600}
-  .lang-row .text{font-size:38px;line-height:1.1;color:var(--ink);letter-spacing:-0.01em}
-  .lang-row .name{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);margin-top:6px}
+  .lang-tag{width:64px;height:64px;border-radius:8px;background:var(--bg-2);border:1px solid var(--rule);display:grid;place-items:center;font-size:31px;font-weight:600}
+  .lang-row .text{font-size:43px;line-height:1.1;color:var(--ink);letter-spacing:-0.01em}
+  .lang-row .name{font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);margin-top:6px}
 
   .dialer{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-top:24px}
   .dial{padding:24px 14px;border:1px solid var(--rule);border-radius:8px;background:var(--bg-2);text-align:center}
-  .dial .n{font-size:36px;font-weight:600;letter-spacing:-0.02em;color:var(--ink);font-family:'IBM Plex Mono',monospace}
-  .dial .l{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-dim);margin-top:8px}
+  .dial .n{font-size:40px;font-weight:600;letter-spacing:-0.02em;color:var(--ink);font-family:'IBM Plex Mono',monospace}
+  .dial .l{font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-dim);margin-top:8px}
 
   .chan-table{width:100%;border-collapse:collapse;margin-top:24px}
-  .chan-table th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;padding:14px 8px;border-bottom:1px solid var(--rule)}
-  .chan-table td{padding:18px 8px;font-size:18px;border-bottom:1px solid var(--rule-soft);vertical-align:top;color:var(--ink-dim)}
+  .chan-table th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);font-weight:500;padding:14px 8px;border-bottom:1px solid var(--rule)}
+  .chan-table td{padding:13px 8px;font-size:23px;border-bottom:1px solid var(--rule-soft);vertical-align:top;color:var(--ink-dim)}
   .chan-table td:first-child{color:var(--ink);font-weight:500;width:36%}
-  .chan-table td.code{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--saffron)}
+  .chan-table td.code{font-family:'IBM Plex Mono',monospace;font-size:20px;color:var(--saffron)}
 
   /* ============ SLIDE 9: TESTING ============ */
   .test-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin-top:26px}
@@ -440,31 +441,31 @@
   .test-stat:last-child{border-right:none}
   .test-stat .n{font-size:88px;font-weight:600;letter-spacing:-0.035em;color:var(--ink);line-height:1}
   .test-stat .n.acc{color:var(--saffron)}
-  .test-stat .l{font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-dim);margin-top:14px;line-height:1.4}
+  .test-stat .l{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-dim);margin-top:14px;line-height:1.4}
 
   .test-cov{display:grid;grid-template-columns:1.4fr 1fr;gap:56px;flex:1;margin-top:24px}
   .cov-list{column-count:2;column-gap:40px;list-style:none}
-  .cov-list li{padding:7px 0;font-size:17px;color:var(--ink);break-inside:avoid;display:flex;gap:14px;line-height:1.4}
+  .cov-list li{padding:7px 0;font-size:22px;color:var(--ink);break-inside:avoid;display:flex;gap:14px;line-height:1.4}
   .cov-list li .ck{color:var(--saffron);font-family:'IBM Plex Mono',monospace;flex-shrink:0;margin-top:2px}
 
   .deploy-list{display:flex;flex-direction:column;gap:11px}
   .dep{display:grid;grid-template-columns:48px 1fr;gap:18px;padding:15px 18px;border:1px solid var(--rule);border-radius:6px;background:var(--bg-2);align-items:flex-start}
-  .dep .icn{font-family:'IBM Plex Mono',monospace;font-size:24px;color:var(--saffron);font-weight:600;line-height:1}
-  .dep h4{font-size:20px;color:var(--ink);font-weight:500;letter-spacing:-0.005em}
-  .dep p{font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:0.04em;color:var(--ink-dim);margin-top:6px}
+  .dep .icn{font-family:'IBM Plex Mono',monospace;font-size:27px;color:var(--saffron);font-weight:600;line-height:1}
+  .dep h4{font-size:26px;color:var(--ink);font-weight:500;letter-spacing:-0.005em}
+  .dep p{font-family:'IBM Plex Mono',monospace;font-size:17px;letter-spacing:0.04em;color:var(--ink-dim);margin-top:6px}
 
   /* ============ SLIDE 10: ROADMAP / THANKS ============ */
   .road{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin-top:30px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
   .road-cell{padding:36px 24px;border-right:1px solid var(--rule);position:relative;min-height:280px;display:flex;flex-direction:column}
   .road-cell:last-child{border-right:none}
-  .road-cell .q{font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.18em;color:var(--saffron);text-transform:uppercase}
+  .road-cell .q{font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;color:var(--saffron);text-transform:uppercase}
   /* The phase number sits above the quarter and is deliberately quieter:
      the quarter is the commitment, the number is only the ordering. */
-  .road-cell .phase{font-family:'IBM Plex Mono',monospace;font-size:11px;
-    letter-spacing:0.2em;color:var(--ink-faint);text-transform:uppercase;
-    margin-bottom:6px}
-  .road-cell h4{font-size:26px;line-height:1.15;color:var(--ink);font-weight:500;margin-top:24px;letter-spacing:-0.01em}
-  .road-cell p{font-size:16px;line-height:1.45;color:var(--ink-dim);margin-top:14px}
+  .road-cell .phase{font-family:'IBM Plex Mono',monospace;font-size:18px;
+    letter-spacing:0.06em;color:var(--saffron);text-transform:uppercase;
+    margin-bottom:0}
+  .road-cell h4{font-size:29px;line-height:1.15;color:var(--ink);font-weight:500;margin-top:24px;letter-spacing:-0.01em}
+  .road-cell p{font-size:21px;line-height:1.45;color:var(--ink-dim);margin-top:14px}
   /* A node on the timeline, centred on the grid's top rule. Pinned to
      the cell's own top edge rather than measured down past the text, so
      adding or removing a line inside the cell cannot strand it. */
@@ -473,14 +474,17 @@
     box-shadow:0 0 0 4px var(--bg)
   }
 
-  .thanks{display:grid;grid-template-columns:1.2fr 1fr;gap:80px;margin-top:80px;align-items:end}
-  .thanks h2{font-size:140px;line-height:0.92;letter-spacing:-0.04em;font-weight:600;color:var(--ink)}
-  .thanks h2 .it{color:var(--saffron);font-style:italic;font-weight:500}
-  .thanks .sub{font-size:26px;color:var(--ink-dim);margin-top:24px}
+  /* Centred in the frame's flex column, because on its own
+     slide this is the content rather than a footer. */
+  .thanks{display:flex;align-items:center;justify-content:center;
+    margin:auto 0;text-align:center}
+  .thanks h2{font-size:190px;line-height:1.0;letter-spacing:-0.025em;font-weight:600;color:var(--ink)}
+  .thanks h2 .it{color:var(--saffron);font-weight:600}
+  .thanks .sub{font-size:38px;color:var(--ink-dim);margin-top:30px}
   .thanks-meta{display:grid;grid-template-columns:1fr 1fr;gap:18px}
   .tm{padding:22px;border:1px solid var(--rule);border-radius:6px;background:var(--bg-2)}
-  .tm .k{font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint)}
-  .tm .v{font-size:18px;color:var(--ink);margin-top:8px;font-weight:500;letter-spacing:-0.005em;font-family:'IBM Plex Mono',monospace;word-break:break-word}
+  .tm .k{font-family:'IBM Plex Mono',monospace;font-size:16px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint)}
+  .tm .v{font-size:23px;color:var(--ink);margin-top:8px;font-weight:500;letter-spacing:-0.005em;font-family:'IBM Plex Mono',monospace;word-break:break-word}
 
   /* mark/dash */
   .dash{color:var(--saffron);margin:0 14px}
@@ -500,16 +504,16 @@
      is the script speaking for itself; the roman name underneath is for
      the reader who does not recognise it. */
   .lang-more{margin-top:22px;padding-top:20px;border-top:1px solid var(--rule-soft)}
-  .lang-more .note{font-family:'IBM Plex Mono',monospace;font-size:12px;
-    letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);
+  .lang-more .note{font-family:'IBM Plex Mono',monospace;font-size:16px;
+    letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-faint);
     margin-bottom:16px}
   .chips{display:flex;gap:13px;flex-wrap:wrap}
   .chip{display:flex;flex-direction:column;align-items:center;gap:7px;width:76px}
   .chip .g{width:52px;height:52px;border-radius:8px;background:var(--bg-2);
     border:1px solid var(--rule);display:grid;place-items:center;
-    font-size:19px;font-weight:500;color:var(--ink);line-height:1;
+    font-size:25px;font-weight:500;color:var(--ink);line-height:1;
     overflow:hidden}
-  .chip .cn{font-family:'IBM Plex Mono',monospace;font-size:10px;
+  .chip .cn{font-family:'IBM Plex Mono',monospace;font-size:16px;
     letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-faint);
     text-align:center;line-height:1.2}
 
@@ -545,7 +549,7 @@
   .split-bar{display:flex;height:34px;border-radius:5px;overflow:hidden;
     border:1px solid var(--rule)}
   .split-bar .seg{display:flex;align-items:center;justify-content:center;
-    font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:500;
+    font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:500;
     transform-origin:left;transform:scaleX(0)}
   section[data-deck-active] .split-bar .seg{
     animation:drawX 1s cubic-bezier(.6,.05,.2,1) .25s forwards}
@@ -553,7 +557,7 @@
     box-shadow:inset 0 0 0 1px var(--saffron-soft)}
   .split-bar .fe{background:var(--teal-soft);color:var(--teal)}
   .split-key{display:flex;gap:34px;margin-top:14px;
-    font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--ink-faint);
+    font-family:'IBM Plex Mono',monospace;font-size:18px;color:var(--ink-faint);
     letter-spacing:0.06em}
   .split-key .sw{display:inline-block;width:10px;height:10px;border-radius:2px;
     margin-right:9px;vertical-align:-1px}
@@ -564,19 +568,22 @@
      a separate arrow element, so adding or removing a stop cannot leave a
      stray arrow pointing at nothing. */
   .rail{display:flex;flex:1;gap:0}
-  .rail .stop{flex:1;position:relative;padding-left:28px}
-  .rail .stop::before{content:"";position:absolute;left:0;right:8px;top:11px;
-    height:1px;background:var(--rule)}
-  .rail .stop:first-child::before{left:11px}
-  .rail .stop .n{position:absolute;left:0;top:0;width:22px;height:22px;
+  .rail .stop{flex:1;position:relative;padding-right:14px}
+  /* The connector starts AFTER this stop's chip and stops short of the
+     next one, so it joins the stops instead of running through their
+     labels -- which is what it did when it spanned the whole cell. */
+  .rail .stop::before{content:"";position:absolute;left:36px;right:8px;
+    top:14px;height:1px;background:var(--rule)}
+  .rail .stop:last-child::before{display:none}
+  .rail .stop .n{position:absolute;left:0;top:0;width:28px;height:28px;
     border-radius:50%;background:var(--bg-2);border:1px solid var(--saffron);
-    color:var(--saffron);font-family:'IBM Plex Mono',monospace;font-size:11px;
+    color:var(--saffron);font-family:'IBM Plex Mono',monospace;font-size:16px;
     display:grid;place-items:center;z-index:1}
-  .rail .stop:first-child .n{left:0}
-  .rail .stop .t{display:block;font-size:15px;color:var(--ink);
-    margin-top:1px;line-height:1.25;padding-right:14px}
+  /* Labels sit under the chip row, clear of the connector. */
+  .rail .stop .t{display:block;font-size:20px;color:var(--ink);
+    margin-top:38px;line-height:1.3;padding-right:12px}
   .rail .stop .m{display:block;font-family:'IBM Plex Mono',monospace;
-    font-size:12px;letter-spacing:0.08em;color:var(--ink-faint);margin-top:5px}
+    font-size:16px;letter-spacing:0.06em;color:var(--ink-faint);margin-top:6px}
 
   /* ============ PRINT / SAVE-AS-PDF ============
      Ctrl+P -> Save as PDF gives one 1920x1080 page per slide. deck-stage.js
@@ -659,9 +666,8 @@
     </div>
 
     <div class="left">
-      <div class="anim badge" style="animation-delay:.05s"><span class="live"></span><span>No paid APIs · Offline-first</span></div>
       <h1 class="anim" style="animation-delay:.15s">Neighbour<span class="accent">Aid</span>.</h1>
-      <div class="anim sub" style="animation-delay:.25s">A neighbourhood emergency network for India. Someone reports, the AI sorts it by urgency, and the nearest able neighbour gets paged — on a <span style="color:var(--ink)">zero-API-key</span> stack.</div>
+      <div class="anim sub" style="animation-delay:.25s">An emergency network for your neighbourhood. You report, the AI sets the urgency, nearby volunteers are alerted.</div>
 
       <div class="team stagger" style="animation-delay:.35s">
         <div class="proj-code">Project code <span>CUPE4-ENT-AIT-079</span></div>
@@ -792,44 +798,43 @@
   <section data-label="02 The Problem">
     <div class="chrome top">
       <div><span class="section-tag"><span class="num">01</span><span class="sep">/</span><span class="name">WHY THIS EXISTS</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">02 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
+      <div class="right"><span>NeighbourAid</span><span class="pgcount">02 / 09</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
     </div>
     <div class="frame">
       <div class="prob-head">
         <div>
           <h2 class="title anim">The problem.</h2>
-          <div class="lede anim" style="animation-delay:.15s">When seconds matter, help still travels by panicked WhatsApp forward — a different helpline for every emergency, and nothing that tells a real report from a fake one.</div>
+          <div class="lede anim" style="animation-delay:.15s">Emergency help still travels by WhatsApp forward, with no way to tell what is real.</div>
         </div>
       </div>
 
       <div class="prob-grid stagger">
         <div class="prob-cell">
-          <div class="num">— 01</div>
+          <div class="num">01</div>
           <h3>Fragmented helplines</h3>
-          <p>You dial 100, then 108, then 101 — and repeat the address every time.</p>
+          <p>Three numbers, and you repeat the address to each one.</p>
         </div>
         <div class="prob-cell">
-          <div class="num">— 02</div>
+          <div class="num">02</div>
           <h3>Unstructured chaos</h3>
-          <p>The one message that matters sinks into a society group with four hundred others.</p>
+          <p>The message that matters is buried in a group of hundreds.</p>
         </div>
         <div class="prob-cell">
-          <div class="num">— 03</div>
+          <div class="num">03</div>
           <h3>No geolocation</h3>
-          <p>The <em>neighbour two buildings away</em> would come. Nothing tells them.</p>
+          <p>No way to reach the <em>neighbour two buildings away</em> in time.</p>
         </div>
         <div class="prob-cell">
-          <div class="num">— 04</div>
+          <div class="num">04</div>
           <h3>Zero verification</h3>
-          <p>A fake report costs a responder the same hour a real one does. Nothing checks which is which.</p>
+          <p>Nothing separates a fake report from a real one.</p>
         </div>
       </div>
 
       <div class="prob-stats stagger">
-        <div class="prob-stat"><div class="big">5<span class="u">km</span></div><div class="lab">Dispatch radius on foot · 25 with vehicle + skill</div></div>
-        <div class="prob-stat"><div class="big">0.03<span class="u">ms</span></div><div class="lab">Triage latency · no network call</div></div>
-        <div class="prob-stat"><div class="big">594</div><div class="lab">Tests passing in CI</div></div>
-        <div class="prob-stat"><div class="big">0<span class="u">₹</span></div><div class="lab">Paid API keys required</div></div>
+        <div class="prob-stat"><div class="big">Skill-matched, not just nearest</div><div class="lab">A CPR-trained neighbour is paged ahead of a closer one who cannot help.</div></div>
+        <div class="prob-stat"><div class="big">Every alert is checked</div><div class="lab">Witnesses, live weather and the photo are cross-checked before it spreads.</div></div>
+        <div class="prob-stat"><div class="big">Works with no network</div><div class="lab">Reports queue on the phone and send themselves when signal returns.</div></div>
       </div>
     </div>
   </section>
@@ -838,41 +843,41 @@
   <section data-label="03 Solution">
     <div class="chrome top">
       <div><span class="section-tag"><span class="num">02</span><span class="sep">/</span><span class="name">WHAT IS NEIGHBOURAID</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">03 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
+      <div class="right"><span>NeighbourAid</span><span class="pgcount">03 / 09</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
     </div>
     <div class="frame">
-      <h2 class="title anim">Five ideas, finally combined.</h2>
-      <div class="lede anim" style="animation-delay:.15s">You post what you see — text, GPS, a photo, or just your voice. The AI labels the urgency server-side in under a millisecond, then WebSockets page the skill-matched volunteers nearest you. Every alert is cross-checked against witnesses, live weather and the photo itself.</div>
+      <h2 class="title anim">What NeighbourAid does.</h2>
+      <div class="lede anim" style="animation-delay:.15s">You report what you see. The AI sets the urgency, WebSockets alert nearby volunteers whose skills match, and every alert is cross-checked.</div>
 
       <div class="sol-grid stagger" style="margin-top:60px">
         <div class="sol-cell sol-hero">
-          <div class="idx">— 01 · CORE</div>
+          <div class="idx">01 · CORE</div>
           <h3>Hyperlocal Dispatch</h3>
-          <p>WebSockets page every volunteer within 5&nbsp;km. That reaches 12&nbsp;km if they have a vehicle, and 25&nbsp;km when the skill is rare — CPR, driver.</p>
+          <ul class="pts"><li>Alerts every volunteer within 5&nbsp;km</li><li>12&nbsp;km with a vehicle</li><li>25&nbsp;km for a rare skill like CPR</li></ul>
           <div class="meta">FastAPI · WebSocket · 2dsphere</div>
         </div>
         <div class="sol-cell">
-          <div class="idx">— 02</div>
+          <div class="idx">02</div>
           <h3>Instant AI Triage</h3>
-          <p>A keyword classifier reads the report in any of our languages and labels it CRITICAL, HIGH, MED or LOW. No weights, no network call.</p>
+          <ul class="pts"><li>Labels each report CRITICAL, HIGH, MED or LOW</li><li>Works in all 11 languages</li><li>No network call, no model weights</li></ul>
           <div class="meta">$0/request</div>
         </div>
         <div class="sol-cell">
-          <div class="idx">— 03</div>
+          <div class="idx">03</div>
           <h3>Multi-source Verify</h3>
-          <p>Four checks — witnesses, nearby reports, live weather, the photo — add up to one verified_score out of 100.</p>
+          <ul class="pts"><li>Witnesses nearby</li><li>Corroborating reports</li><li>Live weather and the photo</li><li>Adds up to a verified_score out of 100</li></ul>
           <div class="meta">Capped per source · clamped 100</div>
         </div>
         <div class="sol-cell">
-          <div class="idx">— 04</div>
+          <div class="idx">04</div>
           <h3>Built for India</h3>
-          <p>Eleven languages including <span class="deva">हिन्दी</span> and <span class="gurm">ਪੰਜਾਬੀ</span>, the 112/108/101 dialer, and WhatsApp for anyone without the app.</p>
+          <ul class="pts"><li>Eleven languages</li><li>112 / 108 / 101 dialer</li><li>WhatsApp for anyone without the app</li></ul>
           <div class="meta">11 speech locales</div>
         </div>
         <div class="sol-cell">
-          <div class="idx">— 05</div>
+          <div class="idx">05</div>
           <h3>Free &amp; Offline-tolerant</h3>
-          <p>IndexedDB queue — a report survives a dead network and flushes on reconnect. Zero paid deps.</p>
+          <ul class="pts"><li>Reports queue while the network is down</li><li>They send on reconnect</li><li>No paid dependencies</li></ul>
           <div class="meta">PWA · Service Worker</div>
         </div>
       </div>
@@ -883,7 +888,7 @@
   <section data-label="04 Features">
     <div class="chrome top">
       <div><span class="section-tag"><span class="num">03</span><span class="sep">/</span><span class="name">WHAT YOU GET</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">04 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
+      <div class="right"><span>NeighbourAid</span><span class="pgcount">04 / 09</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
     </div>
     <div class="frame">
       <h2 class="title anim">Feature highlights.</h2>
@@ -909,7 +914,7 @@
             <li>ETA dispatch · 5 km on foot, 12 km with a vehicle</li>
             <li>Trust score: resolved ÷ accepted (smoothed)</li>
             <li>Hands-free voice TTS for critical alerts</li>
-            <li>Quiet hours · CRITICAL still breaks through</li>
+            <li>Quiet hours · CRITICAL alerts still go through</li>
           </ul>
         </div>
         <div class="feat-col">
@@ -927,7 +932,7 @@
           <h3>Comms &amp; Reach</h3>
           <ul>
             <li>11-language UI + on-device translation</li>
-            <li>Web push (VAPID) — reaches a closed tab</li>
+            <li>Web push (VAPID) reaches a closed tab</li>
             <li>Share link / WhatsApp / QR fallback</li>
             <li>Inbound WhatsApp webhook (Twilio / n8n)</li>
             <li>Buddy ping → sms: / mailto: chips</li>
@@ -942,11 +947,11 @@
   <section data-label="05 Tech Stack">
     <div class="chrome top">
       <div><span class="section-tag"><span class="num">04</span><span class="sep">/</span><span class="name">UNDER THE HOOD</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">05 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
+      <div class="right"><span>NeighbourAid</span><span class="pgcount">05 / 09</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
     </div>
     <div class="frame">
       <h2 class="title anim">The stack.</h2>
-      <div class="lede anim" style="animation-delay:.15s">Async all the way down, containerised, and nothing on the path bills per request.</div>
+      <div class="lede anim" style="animation-delay:.15s">An async backend, containerised, with no paid API anywhere in the stack.</div>
 
       <div class="stack-wrap">
         <div class="anim-fade" style="animation-delay:.25s">
@@ -955,7 +960,7 @@
               <tr><th>Layer</th><th>Choice</th><th>Why we picked it</th></tr>
             </thead>
             <tbody>
-              <tr><td class="layer">Frontend</td><td class="choice">React 19 · Vite · Tailwind</td><td class="why">Fast HMR, ~218 KB gzipped first load</td></tr>
+              <tr><td class="layer">Frontend</td><td class="choice">React 19 · Vite · Tailwind</td><td class="why">Fast HMR and a small production bundle</td></tr>
               <tr><td class="layer">Maps</td><td class="choice">Leaflet · react-leaflet · OSM</td><td class="why">Free, no API key, India-ready</td></tr>
               <tr><td class="layer">Backend</td><td class="choice">FastAPI · Uvicorn / Gunicorn</td><td class="why">Async, WebSockets, auto OpenAPI</td></tr>
               <tr><td class="layer">Database</td><td class="choice">MongoDB · PyMongo async</td><td class="why">2dsphere geospatial $nearSphere</td></tr>
@@ -969,7 +974,7 @@
         </div>
 
         <div class="stack-side">
-          <h4>— Why it matters</h4>
+          <h4>Why it matters</h4>
           <div class="stack-tiles stagger">
             <div class="stack-tile"><div class="name">Python 3.11+</div><div class="note">Async-first backend</div></div>
             <div class="stack-tile"><div class="name">FastAPI</div><div class="note">Auto-docs at /docs</div></div>
@@ -987,16 +992,16 @@
   <section data-label="06 Architecture">
     <div class="chrome top">
       <div><span class="section-tag"><span class="num">05</span><span class="sep">/</span><span class="name">HOW IT FITS TOGETHER</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">06 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
+      <div class="right"><span>NeighbourAid</span><span class="pgcount">06 / 09</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
     </div>
     <div class="frame">
       <h2 class="title anim">System architecture.</h2>
-      <div class="lede anim" style="animation-delay:.15s">One FastAPI service in the middle. Free data sources feed it, WebSockets fan out from it.</div>
+      <div class="lede anim" style="animation-delay:.15s">One FastAPI service, free data sources, WebSocket alerts.</div>
 
       <div class="arch">
         <div class="arch-row stagger">
           <div class="arch-tier">
-            <div class="label">— Client tier</div>
+            <div class="label">Client tier</div>
             <h3>Browser / PWA</h3>
             <ul>
               <li><span class="k">UI</span><span>React 19 · Vite · Tailwind</span></li>
@@ -1007,7 +1012,7 @@
           </div>
 
           <div class="arch-tier center">
-            <div class="label">— Application tier</div>
+            <div class="label">Application tier</div>
             <h3>FastAPI Backend</h3>
             <ul>
               <li><span class="k">AI</span><span>Keyword + optional local LLM</span></li>
@@ -1020,7 +1025,7 @@
           </div>
 
           <div class="arch-tier">
-            <div class="label">— Data</div>
+            <div class="label">Data</div>
             <h3>MongoDB Atlas</h3>
             <ul>
               <li><span class="k">Idx</span><span>2dsphere geospatial</span></li>
@@ -1031,7 +1036,7 @@
           </div>
 
           <div class="arch-tier">
-            <div class="label">— External (free)</div>
+            <div class="label">External (free)</div>
             <h3>Open Data</h3>
             <ul>
               <li><span class="k">Geo</span><span>OSM Nominatim</span></li>
@@ -1043,10 +1048,10 @@
         </div>
 
         <div class="arch-flow anim-fade" style="animation-delay:.7s">
-          <span class="lab">— Typical alert flow</span>
+          <span class="lab">Typical alert flow</span>
           <div class="rail stagger">
             <div class="stop"><span class="n">01</span><span class="t">Reporter posts</span><span class="m">text · GPS · photo</span></div>
-            <div class="stop"><span class="n">02</span><span class="t">AI triages urgency</span><span class="m">0.03 ms</span></div>
+            <div class="stop"><span class="n">02</span><span class="t">AI triages urgency</span><span class="m">urgency label</span></div>
             <div class="stop"><span class="n">03</span><span class="t">Verification scoring</span><span class="m">0–100</span></div>
             <div class="stop"><span class="n">04</span><span class="t">WebSocket broadcast</span><span class="m">5–25 km</span></div>
             <div class="stop"><span class="n">05</span><span class="t">Volunteer accepts</span><span class="m">ETA sent</span></div>
@@ -1058,103 +1063,20 @@
   </section>
 
   <!-- ====================== SLIDE 7 — INTELLIGENCE ====================== -->
-  <section data-label="07 Intelligence">
-    <div class="chrome top">
-      <div><span class="section-tag"><span class="num">06</span><span class="sep">/</span><span class="name">THE INTELLIGENCE LAYER</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">07 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
-    </div>
-    <div class="frame">
-      <h2 class="title anim">AI triage + verification.</h2>
-      <div class="lede anim" style="animation-delay:.15s">Before an alert reaches a single volunteer, it gets an urgency label and a trust score out of 100.</div>
-
-      <div class="ai-grid">
-        <div class="ai-pane anim-fade" style="animation-delay:.3s">
-          <h3>— AI urgency triage</h3>
-          <div class="pane-sub">A multilingual keyword classifier gets 38/40 right on the bundled eval set, in 0.03 ms median, with no weights and no network. Where it matches nothing — 8 reports out of 41 — a local Gemma 3 1B takes a second look. That lifts it to 39/40 and catches every implied-danger miss. It costs 2.8 s, so it runs in background enrichment and never on the request path.</div>
-
-          <div class="urg-head">Urgency label<span>priority weight · ai.py</span></div>
-          <div class="urg-row">
-            <div class="lab">Critical</div>
-            <div class="bar"><div class="fill" style="width:100%;background:var(--crit)"></div></div>
-            <div class="pct">100</div>
-          </div>
-          <div class="urg-row">
-            <div class="lab">High</div>
-            <div class="bar"><div class="fill" style="width:70%;background:var(--saffron)"></div></div>
-            <div class="pct">70</div>
-          </div>
-          <div class="urg-row">
-            <div class="lab">Medium</div>
-            <div class="bar"><div class="fill" style="width:40%;background:var(--warn)"></div></div>
-            <div class="pct">40</div>
-          </div>
-          <div class="urg-row">
-            <div class="lab">Low</div>
-            <div class="bar"><div class="fill" style="width:20%;background:var(--ink-faint)"></div></div>
-            <div class="pct">20</div>
-          </div>
-
-          <div class="ai-extras">
-            <span>Vulnerability flag</span> · <span>time-sensitivity</span> · <span>language detect</span> · the classifier is the default path, not a fallback.
-          </div>
-        </div>
-
-        <div class="ai-pane anim-fade" style="animation-delay:.45s">
-          <h3>— Verified score (0–100)</h3>
-          <div class="pane-sub">Four independent checks, each capped, so no one source can carry an alert by itself.</div>
-
-          <div class="score-card">
-            <div class="score-big">
-              <svg class="gauge" viewBox="0 0 128 128" aria-hidden="true">
-                <circle class="track" cx="64" cy="64" r="54"/>
-                <circle class="dial" cx="64" cy="64" r="54"/>
-              </svg>
-              <div class="n">83</div><div class="d">/ 100</div>
-              <div class="label">Verified</div>
-            </div>
-            <div class="score-row">
-              <div class="src">Community witnesses<span class="sub">within 2 km · 8 each</span><span class="prop" title="24 of 40"><i style="width:60%"></i></span></div>
-              <div class="cap">cap 40</div>
-              <div class="add">+24</div>
-            </div>
-            <div class="score-row">
-              <div class="src">Corroborating reports<span class="sub">500 m · 15 each</span><span class="prop" title="15 of 40"><i style="width:38%"></i></span></div>
-              <div class="cap">cap 40</div>
-              <div class="add">+15</div>
-            </div>
-            <div class="score-row">
-              <div class="src">Live weather match<span class="sub">Open-Meteo cross-check</span><span class="prop" title="20 of 20"><i style="width:100%"></i></span></div>
-              <div class="cap">flat 20</div>
-              <div class="add">+20</div>
-            </div>
-            <div class="score-row">
-              <div class="src">Photo evidence<span class="sub">Pillow size / decode · 12 each</span><span class="prop" title="24 of 30"><i style="width:80%"></i></span></div>
-              <div class="cap">cap 30</div>
-              <div class="add">+24</div>
-            </div>
-          </div>
-
-          <div class="ai-extras">
-            ≥3 community flags soft-hide · 24 h auto-resolve · escalation MED→HIGH 10 m, HIGH→CRIT 4 m.
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- ====================== SLIDE 8 — REACH / COMMS ====================== -->
   <section data-label="08 Reach">
     <div class="chrome top">
-      <div><span class="section-tag"><span class="num">07</span><span class="sep">/</span><span class="name">COMMUNICATION &amp; REACH</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">08 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
+      <div><span class="section-tag"><span class="num">06</span><span class="sep">/</span><span class="name">COMMUNICATION &amp; REACH</span></span></div>
+      <div class="right"><span>NeighbourAid</span><span class="pgcount">07 / 09</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
     </div>
     <div class="frame">
-      <h2 class="title anim">Reach every Indian neighbour.</h2>
+      <h2 class="title anim">Languages and channels.</h2>
       <div class="lede anim" style="animation-delay:.15s">11-language UI <span class="dash">/</span> WhatsApp inbound <span class="dash">/</span> QR &amp; web share <span class="dash">/</span> emergency dialer.</div>
 
       <div class="comm-grid">
         <div class="anim-fade" style="animation-delay:.3s">
-          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron);margin-bottom:14px">— 11-language UI &amp; auto-translate</h3>
+          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--saffron);margin-bottom:14px">11-language UI &amp; auto-translate</h3>
           <div class="lang-row">
             <div class="lang-tag">EN</div>
             <div><div class="text">Help is on the way.</div><div class="name">English</div></div>
@@ -1169,7 +1091,7 @@
           </div>
 
           <div class="lang-more">
-            <div class="note">— and eight more, shipping today</div>
+            <div class="note">Eight more languages</div>
             <div class="chips stagger">
               <div class="chip"><span class="g beng">বাং</span><span class="cn">Bengali</span></div>
               <div class="chip"><span class="g deva">मरा</span><span class="cn">Marathi</span></div>
@@ -1185,7 +1107,7 @@
         </div>
 
         <div class="anim-fade" style="animation-delay:.45s">
-          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron);margin-bottom:14px">— Share &amp; integration channels</h3>
+          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--saffron);margin-bottom:14px">Share &amp; integration channels</h3>
           <table class="chan-table">
             <thead>
               <tr><th>Channel</th><th>Mechanism</th><th>When it shines</th></tr>
@@ -1199,7 +1121,7 @@
             </tbody>
           </table>
 
-          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron);margin:44px 0 14px">— One-tap India emergency dialer</h3>
+          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:18px;letter-spacing:0.06em;text-transform:uppercase;color:var(--saffron);margin:44px 0 14px">One-tap India emergency dialer</h3>
           <div class="dialer stagger">
             <div class="dial"><div class="n">112</div><div class="l">All-in-one</div></div>
             <div class="dial"><div class="n">100</div><div class="l">Police</div></div>
@@ -1213,99 +1135,40 @@
   </section>
 
   <!-- ====================== SLIDE 9 — TESTING ====================== -->
-  <section data-label="09 Production">
-    <div class="chrome top">
-      <div><span class="section-tag"><span class="num">08</span><span class="sep">/</span><span class="name">PRODUCTION-READY</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">09 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
-    </div>
-    <div class="frame">
-      <h2 class="title anim">Quality, testing, deploy.</h2>
-      <div class="lede anim" style="animation-delay:.15s">594 tests · CI on Python 3.12 + 3.13 · ruff, Vitest and a Docker build gate every push.</div>
-
-      <div class="test-stats stagger">
-        <div class="test-stat"><div class="n acc">594</div><div class="l">Total tests</div></div>
-        <div class="test-stat"><div class="n">504</div><div class="l">Backend (pytest)</div></div>
-        <div class="test-stat"><div class="n">90</div><div class="l">Frontend (Vitest)</div></div>
-        <div class="test-stat"><div class="n">2</div><div class="l">Python versions in CI</div></div>
-        <div class="test-stat"><div class="n">32</div><div class="l">Backend test modules</div></div>
-      </div>
-
-      <div class="split anim-fade" style="animation-delay:.3s">
-        <div class="split-bar">
-          <span class="seg be" style="width:84.8%">504</span>
-          <span class="seg fe" style="width:15.2%">90</span>
-        </div>
-        <div class="split-key">
-          <span><i class="sw be"></i>Backend · pytest · 32 modules</span>
-          <span><i class="sw fe"></i>Frontend · Vitest</span>
-        </div>
-      </div>
-
-      <div class="test-cov">
-        <div class="anim-fade" style="animation-delay:.4s">
-          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron);margin-bottom:24px">— What the tests cover</h3>
-          <ul class="cov-list">
-            <li><span class="ck">[✓]</span>Auth · register / login / role guards</li>
-            <li><span class="ck">[✓]</span>Alert CRUD · cancel / accept / eta / resolve</li>
-            <li><span class="ck">[✓]</span>Invalid-ID handling on every route (400, never 500)</li>
-            <li><span class="ck">[✓]</span>Verification scoring · per-source caps + clamp</li>
-            <li><span class="ck">[✓]</span>Photo evidence pipeline (real Pillow images)</li>
-            <li><span class="ck">[✓]</span>News authenticity scoring + topic detection</li>
-            <li><span class="ck">[✓]</span>Skill-aware WebSocket broadcast</li>
-            <li><span class="ck">[✓]</span>Trust-score smoothing · 2-sample prior</li>
-            <li><span class="ck">[✓]</span>Anonymous-report rate limiter</li>
-            <li><span class="ck">[✓]</span>Resource map · auth, persist, matching</li>
-            <li><span class="ck">[✓]</span>Inbound WhatsApp · token gating</li>
-            <li><span class="ck">[✓]</span>Dispatch ETA · radius by vehicle + skill</li>
-            <li><span class="ck">[✓]</span>Quiet hours · window maths + override</li>
-            <li><span class="ck">[✓]</span>Drill isolation · never counted</li>
-            <li><span class="ck">[✓]</span>Web push · VAPID + dead-sub pruning</li>
-            <li><span class="ck">[✓]</span>Frontend utils + components + hooks</li>
-          </ul>
-        </div>
-
-        <div class="anim-fade" style="animation-delay:.55s">
-          <h3 style="font-family:'IBM Plex Mono',monospace;font-size:14px;letter-spacing:0.16em;text-transform:uppercase;color:var(--saffron);margin-bottom:24px">— Ready to deploy</h3>
-          <div class="deploy-list stagger">
-            <div class="dep"><div class="icn">▲</div><div><h4>backend/Dockerfile · frontend/Dockerfile</h4><p>Two images, no host assumed</p></div></div>
-            <div class="dep"><div class="icn">▣</div><div><h4>heroku.yml · container deploy</h4><p>Committed and ready; the tier needs credit</p></div></div>
-            <div class="dep"><div class="icn">▶</div><div><h4>docs/07-deployment.md</h4><p>Step-by-step, host-agnostic</p></div></div>
-            <div class="dep"><div class="icn">↻</div><div><h4>GitHub Actions CI</h4><p>pytest + ruff + Vitest + Docker + audit</p></div></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
 
   <!-- ====================== SLIDE 10 — ROADMAP / THANKS ====================== -->
   <section data-label="10 Roadmap & Thanks">
     <div class="chrome top">
-      <div><span class="section-tag"><span class="num">09</span><span class="sep">/</span><span class="name">WHAT'S NEXT</span></span></div>
-      <div class="right"><span>NeighbourAid</span><span class="pgcount">10 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
+      <div><span class="section-tag"><span class="num">07</span><span class="sep">/</span><span class="name">WHAT'S NEXT</span></span></div>
+      <div class="right"><span>NeighbourAid</span><span class="pgcount">08 / 09</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
     </div>
     <div class="frame">
       <h2 class="title anim">Roadmap.</h2>
-      <div class="lede anim" style="animation-delay:.15s">Six phases, from official disaster feeds to multi-region scale — Q2 2026 through 2027.</div>
+      <div class="lede anim" style="animation-delay:.15s">Six phases, starting with official disaster feeds.</div>
 
       <div class="road stagger">
-        <div class="road-cell"><div class="phase">Phase 1</div><div class="q">Q2 · 2026</div><h4>NDRF / IMD feeds</h4><p>Auto-generate alerts from official disaster feeds, so a district warning reaches a neighbourhood without anyone retyping it.</p></div>
-        <div class="road-cell"><div class="phase">Phase 2</div><div class="q">Q3 · 2026</div><h4>Shared fan-out state</h4><p>WebSocket connections and rate limits are per-process, so the API runs on one worker. Moving both behind shared storage is what lets it scale out.</p></div>
-        <div class="road-cell"><div class="phase">Phase 3</div><div class="q">Q4 · 2026</div><h4>React Native app</h4><p>Android-first and low-connectivity optimised. The PWA installs today; a native shell gets background location and a reliable alarm.</p></div>
-        <div class="road-cell"><div class="phase">Phase 4</div><div class="q">Q1 · 2027</div><h4>Assamese · Urdu</h4><p>Urdu needs right-to-left layout, which nothing in the UI does yet. Eleven languages ship today.</p></div>
-        <div class="road-cell"><div class="phase">Phase 5</div><div class="q">Q2 · 2027</div><h4>Fine-tuned local model</h4><p>The keyword classifier is 38/40 on the bundled eval. A small model trained on Indian crisis text is how the last two get caught.</p></div>
-        <div class="road-cell"><div class="phase">Phase 6</div><div class="q">H2 · 2027</div><h4>Multi-region + E2E</h4><p>Kubernetes across regions, and Playwright covering the whole dispatch path end to end.</p></div>
+        <div class="road-cell"><div class="phase">Phase 1</div><h4>NDRF / IMD feeds</h4><p>District warnings from official feeds become alerts on their own.</p></div>
+        <div class="road-cell"><div class="phase">Phase 2</div><h4>Shared fan-out state</h4><p>Move WebSocket state and rate limits into shared storage so the API can run on more than one worker.</p></div>
+        <div class="road-cell"><div class="phase">Phase 3</div><h4>React Native app</h4><p>A native Android shell, for background location and an alarm that actually wakes you.</p></div>
+        <div class="road-cell"><div class="phase">Phase 4</div><h4>Assamese · Urdu</h4><p>Two more languages. Urdu also needs right-to-left layout.</p></div>
+        <div class="road-cell"><div class="phase">Phase 5</div><h4>Fine-tuned local model</h4><p>A small model trained on Indian crisis text, for what keywords miss.</p></div>
+        <div class="road-cell"><div class="phase">Phase 6</div><h4>Multi-region + E2E</h4><p>Kubernetes across regions, and end-to-end tests on the dispatch path.</p></div>
       </div>
 
+    </div>
+  </section>
+
+  <!-- ====================== SLIDE 9 — THANK YOU ====================== -->
+  <section data-label="09 Thank you">
+    <div class="chrome top">
+      <div><span class="section-tag"><span class="num">08</span><span class="sep">/</span><span class="name">THANK YOU</span></span></div>
+      <div class="right"><span>NeighbourAid</span><span class="pgcount">09 / 09</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University" /></div>
+    </div>
+    <div class="frame">
       <div class="thanks">
         <div>
           <h2 class="anim" style="animation-delay:.3s">Thank <span class="it">you</span>.</h2>
           <div class="anim sub" style="animation-delay:.4s">Built for safer Indian neighbourhoods.</div>
-        </div>
-        <div class="thanks-meta stagger" style="animation-delay:.4s">
-          <div class="tm"><div class="k">— GitHub</div><div class="v">parthkansal823/NeighbourAid</div></div>
-          <div class="tm"><div class="k">— Docs</div><div class="v">10-part /docs companion</div></div>
-          <div class="tm"><div class="k">— Deploy</div><div class="v">Dockerised · host TBD</div></div>
-          <div class="tm"><div class="k">— Reach out</div><div class="v">Open an issue / PR</div></div>
         </div>
       </div>
     </div>
