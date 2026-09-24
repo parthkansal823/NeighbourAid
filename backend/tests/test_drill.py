@@ -144,3 +144,91 @@ class TestNoCountingSiteIsMissed:
         match = re.search(r'\{"\$match": \{"accepted_by".*?\}\},', src, re.S)
         assert match, "leaderboard $match stage not found - did it move?"
         assert "NOT_A_DRILL" in match.group(0)
+
+
+class TestDrillsExpire:
+    """A drill that outlives the drill is just a fake alert in the feed.
+
+    `DRILL_TTL_MINUTES` was exported and applied nowhere for a while, which
+    is exactly the failure that leaves one there: nothing raises, the
+    constant simply has no effect and practice alerts never end.
+    """
+
+    @staticmethod
+    def _run_sweep():
+        """Call the sweeper with a stub db and hand back the filters it used."""
+        import asyncio
+        from app.routes.alerts import _auto_resolve_stale
+
+        calls = []
+
+        class _Alerts:
+            async def update_many(self, flt, update):
+                calls.append((flt, update))
+
+        class _Db:
+            alerts = _Alerts()
+
+        asyncio.run(_auto_resolve_stale(_Db()))
+        return calls
+
+    def test_a_drill_is_swept_on_its_own_clock(self):
+        from datetime import datetime, timedelta, timezone
+
+        from app.services.drill import DRILL_TTL_MINUTES
+
+        calls = self._run_sweep()
+        drill_calls = [f for f, _ in calls if f.get("is_drill") is True]
+        assert drill_calls, "no sweep targets drills at all"
+
+        cutoff = drill_calls[0]["created_at"]["$lt"]
+        window = datetime.now(timezone.utc) - cutoff
+        # Allow a second of slack for the clock read inside the sweeper.
+        assert abs(window - timedelta(minutes=DRILL_TTL_MINUTES)) < timedelta(seconds=5)
+
+    def test_an_accepted_drill_expires_too(self):
+        """A volunteer accepting a practice alert is the drill working, not
+        a reason to leave it open. Filtering on status "open" alone would
+        strand every drill that did its job."""
+        calls = self._run_sweep()
+        drill_flt = next(f for f, _ in calls if f.get("is_drill") is True)
+        statuses = drill_flt["status"]["$in"]
+        assert "accepted" in statuses and "open" in statuses
+
+    def test_the_sweep_marks_it_resolved_and_auto(self):
+        calls = self._run_sweep()
+        _, update = next((f, u) for f, u in calls if f.get("is_drill") is True)
+        assert update["$set"]["status"] == "resolved"
+        assert update["$set"]["auto_resolved"] is True
+
+    def test_drills_are_swept_before_the_24h_rule(self):
+        """The 24h sweep carries no drill exclusion, and does not need one
+        only because this one has already closed them. Reverse the order and
+        an accepted drill would sit in the feed for a day."""
+        calls = self._run_sweep()
+        kinds = ["drill" if f.get("is_drill") is True else "stale" for f, _ in calls]
+        assert kinds == ["drill", "stale"], kinds
+
+    def test_the_stale_rule_still_only_touches_unaccepted_alerts(self):
+        """Guard against the drill change widening the 24h rule by accident:
+        a real alert someone accepted must never be auto-resolved out from
+        under them."""
+        calls = self._run_sweep()
+        stale = next(f for f, _ in calls if f.get("is_drill") is None)
+        assert stale["accepted_by"] is None
+        assert stale["status"] == "open"
+
+    def test_a_dead_database_does_not_break_the_read(self):
+        """Cleanup is best-effort; /nearby must still answer."""
+        import asyncio
+
+        from app.routes.alerts import _auto_resolve_stale
+
+        class _Alerts:
+            async def update_many(self, flt, update):
+                raise RuntimeError("mongo is down")
+
+        class _Db:
+            alerts = _Alerts()
+
+        asyncio.run(_auto_resolve_stale(_Db()))  # must not raise

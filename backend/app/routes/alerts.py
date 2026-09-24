@@ -12,6 +12,7 @@ from ..core.security import decode_token_safe, get_current_user, require_role
 from ..db.client import get_db
 from ..models.alert import AlertCreate, AlertUpdateCreate, ETAUpdate
 from ..services.ai import URGENCY_WEIGHT, generate_headline, triage as ai_triage
+from ..services.drill import DRILL_TTL_MINUTES
 from ..services.dispatch import MAX_DISPATCH_RADIUS_KM, eta_minutes, radius_km_for
 from ..services.enrich import enrich_alert
 from ..services.matching import MATCH_RADIUS_M, nearby_resources
@@ -147,20 +148,40 @@ def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 async def _auto_resolve_stale(db) -> None:
-    """Mark any open-but-unaccepted alerts older than AUTO_RESOLVE_AFTER as
-    resolved so they stop cluttering the volunteer feed. Best-effort — if the
-    DB is unreachable we just skip it; the live read will retry next call."""
-    cutoff = datetime.now(timezone.utc) - AUTO_RESOLVE_AFTER
+    """Close out alerts that have outlived their usefulness.
+
+    Two clocks, both swept lazily on a /nearby read so this needs no cron:
+
+    * A drill expires after DRILL_TTL_MINUTES. Accepted ones too — a
+      volunteer accepting a practice alert is the drill working, not a
+      reason to keep it open. A drill that outlives the drill is just a
+      fake alert sitting in the feed, which is the one way the feature
+      can do harm.
+    * A real alert that nobody accepted expires after AUTO_RESOLVE_AFTER.
+
+    Drills go first, so the second sweep never has to exclude them: its
+    window is 24x longer, and nothing can still be a live drill by then.
+
+    Best-effort — if the DB is unreachable we skip it and the next read
+    retries."""
+    now = datetime.now(timezone.utc)
+    closed = {"status": "resolved", "resolved_at": now, "auto_resolved": True}
     try:
         await db.alerts.update_many(
-            {"status": "open", "accepted_by": None, "created_at": {"$lt": cutoff}},
             {
-                "$set": {
-                    "status": "resolved",
-                    "resolved_at": datetime.now(timezone.utc),
-                    "auto_resolved": True,
-                }
+                "status": {"$in": ["open", "accepted"]},
+                "is_drill": True,
+                "created_at": {"$lt": now - timedelta(minutes=DRILL_TTL_MINUTES)},
             },
+            {"$set": closed},
+        )
+        await db.alerts.update_many(
+            {
+                "status": "open",
+                "accepted_by": None,
+                "created_at": {"$lt": now - AUTO_RESOLVE_AFTER},
+            },
+            {"$set": closed},
         )
     except Exception:  # noqa: BLE001 — cleanup must never break the request
         pass

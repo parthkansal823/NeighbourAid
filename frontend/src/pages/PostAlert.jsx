@@ -216,7 +216,7 @@ export default function PostAlert() {
         !navigator.onLine
       if (isNetwork) {
         try {
-          await enqueueAlert(payload)
+          await enqueueAlert(payload, { anonymous: isAnonymous })
           const rows = await listPending()
           setPendingCount(rows.length)
           toast({

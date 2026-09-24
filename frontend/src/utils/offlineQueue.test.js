@@ -6,6 +6,8 @@ import {
   flushQueue,
   listPending,
   removePending,
+  requestBackgroundFlush,
+  SYNC_TAG,
 } from './offlineQueue'
 
 afterEach(async () => {
@@ -98,5 +100,70 @@ describe('offlineQueue', () => {
     expect(a).toStrictEqual(b)
     expect(a.sent).toBe(1)
     expect(await listPending()).toHaveLength(0)
+  })
+})
+
+describe('background sync', () => {
+  it('defaults a row to non-anonymous so the worker leaves it alone', async () => {
+    // The worker can't read a bearer token, so an untagged row must never
+    // be assumed safe to send through the anonymous endpoint.
+    await enqueueAlert({ description: 'signed in' })
+    const [row] = await listPending()
+    expect(row.anonymous).toBe(false)
+  })
+
+  it('records an anonymous row so the worker can deliver it', async () => {
+    await enqueueAlert({ description: 'no account' }, { anonymous: true })
+    const [row] = await listPending()
+    expect(row.anonymous).toBe(true)
+  })
+
+  it('asks the browser for a background flush once the row is stored', async () => {
+    const register = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', {
+      ...globalThis.navigator,
+      serviceWorker: { ready: Promise.resolve({ sync: { register } }) },
+    })
+
+    await enqueueAlert({ description: 'queued' }, { anonymous: true })
+    await vi.waitFor(() => expect(register).toHaveBeenCalledWith(SYNC_TAG))
+
+    vi.unstubAllGlobals()
+  })
+
+  it('still queues the alert where Background Sync is unsupported', async () => {
+    // Safari and Firefox expose no registration.sync at all. Reading
+    // `.register` off undefined would throw inside enqueue and lose the
+    // alert the reporter just wrote.
+    vi.stubGlobal('navigator', {
+      ...globalThis.navigator,
+      serviceWorker: { ready: Promise.resolve({}) },
+    })
+
+    await expect(
+      enqueueAlert({ description: 'safari' }, { anonymous: true })
+    ).resolves.toBeDefined()
+    expect(await listPending()).toHaveLength(1)
+
+    vi.unstubAllGlobals()
+  })
+
+  it('survives a serviceWorker.ready that rejects', async () => {
+    vi.stubGlobal('navigator', {
+      ...globalThis.navigator,
+      serviceWorker: { ready: Promise.reject(new Error('no SW')) },
+    })
+
+    // Called directly rather than through enqueueAlert: enqueue fires this
+    // without awaiting it, so the assertion could unstub the global before
+    // the rejection was caught and Node would report it as unhandled.
+    await expect(requestBackgroundFlush()).resolves.toBe(false)
+
+    await expect(
+      enqueueAlert({ description: 'rejected' }, { anonymous: true })
+    ).resolves.toBeDefined()
+    expect(await listPending()).toHaveLength(1)
+
+    vi.unstubAllGlobals()
   })
 })

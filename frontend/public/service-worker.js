@@ -143,3 +143,106 @@ self.addEventListener('notificationclick', (event) => {
     })()
   )
 })
+
+/* ---- Background Sync: deliver queued alerts with no tab open ----------
+ *
+ * Mirrors the IndexedDB layout in src/utils/offlineQueue.js. The worker
+ * cannot import from the bundle, so the names below are duplicated and
+ * the two must be changed together.
+ *
+ * Only rows flagged `anonymous` are sent. Everything else needs a bearer
+ * token out of localStorage, which a worker has no access to, so those
+ * rows are left for a tab to flush exactly as before.
+ */
+const QUEUE_DB = 'neighbouraid-offline'
+const QUEUE_STORE = 'pending-alerts'
+const SYNC_TAG = 'neighbouraid-alert-queue'
+const ANON_ENDPOINT = '/api/alerts/anonymous'
+
+function openQueue() {
+  return new Promise((resolve, reject) => {
+    // The page owns this schema, and the worker must not create it.
+    // `open()` with no version CREATES the database at version 1 when it
+    // is absent -- with no object store. The page then opens at version 1
+    // too, finds that version already current, never gets
+    // `onupgradeneeded`, and so never creates `pending-alerts`. The queue
+    // would be permanently and silently broken.
+    //
+    // Reachable whenever a sync registered in an earlier session fires
+    // after the user has cleared site data, before any page has loaded.
+    // So: if the upgrade handler runs at all, this worker just created an
+    // empty database that should not exist -- throw it away and report
+    // nothing to flush.
+    let created = false
+    const req = indexedDB.open(QUEUE_DB)
+    req.onupgradeneeded = () => {
+      created = true
+    }
+    req.onsuccess = () => {
+      if (created) {
+        req.result.close()
+        indexedDB.deleteDatabase(QUEUE_DB)
+        return resolve(null)
+      }
+      resolve(req.result)
+    }
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function queueRows(db) {
+  return new Promise((resolve, reject) => {
+    if (!db.objectStoreNames.contains(QUEUE_STORE)) return resolve([])
+    const req = db.transaction(QUEUE_STORE, 'readonly')
+      .objectStore(QUEUE_STORE)
+      .getAll()
+    req.onsuccess = () => resolve(req.result || [])
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function dropRow(db, id) {
+  return new Promise((resolve) => {
+    if (!db.objectStoreNames.contains(QUEUE_STORE)) return resolve()
+    const req = db.transaction(QUEUE_STORE, 'readwrite')
+      .objectStore(QUEUE_STORE)
+      .delete(id)
+    req.onsuccess = () => resolve()
+    req.onerror = () => resolve()
+  })
+}
+
+async function flushAnonymousQueue() {
+  // A visible tab has its own `online` listener and will flush this same
+  // store. Standing down is how the two avoid posting the same alert
+  // twice; the worker is here for the case where no tab is left.
+  const clients = await self.clients.matchAll({ type: 'window' })
+  if (clients.some((c) => c.visibilityState === 'visible')) return
+
+  const db = await openQueue()
+  if (!db) return
+  const rows = await queueRows(db)
+
+  for (const row of rows) {
+    if (row.anonymous !== true) continue
+    const res = await fetch(ANON_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(row.payload),
+    })
+    // 4xx means this payload will never be accepted -- a rate limit or a
+    // rejected body -- so the row goes rather than being retried forever.
+    // A 5xx or a thrown fetch keeps it, and throwing lets the browser
+    // retry the whole sync later with its own backoff.
+    if (res.ok || (res.status >= 400 && res.status < 500)) {
+      await dropRow(db, row.id)
+    } else {
+      throw new Error('alert delivery failed: ' + res.status)
+    }
+  }
+}
+
+self.addEventListener('sync', (event) => {
+  if (event.tag !== SYNC_TAG) return
+  event.waitUntil(flushAnonymousQueue())
+})

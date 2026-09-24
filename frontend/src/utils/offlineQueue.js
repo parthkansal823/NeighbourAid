@@ -15,6 +15,11 @@ const DB_NAME = 'neighbouraid-offline'
 const DB_VERSION = 1
 const STORE = 'pending-alerts'
 
+// The service worker registers for this tag so the browser can flush the
+// queue with no tab open. Kept in one place because the worker reads the
+// same constant by name -- if these ever drift, sync silently never fires.
+export const SYNC_TAG = 'neighbouraid-alert-queue'
+
 export const OFFLINE_QUEUE_EVENT = 'offline-queue:changed'
 
 // After this many failed delivery attempts a queued alert is dropped, so a
@@ -61,17 +66,55 @@ async function tx(mode) {
   return db.transaction(STORE, mode).objectStore(STORE)
 }
 
-export async function enqueueAlert(payload) {
+/**
+ * Ask the browser to flush this queue once it has connectivity, even if
+ * every tab is closed by then.
+ *
+ * Best-effort on purpose: Background Sync is Chromium-only, `registration
+ * .sync` is absent in Safari and Firefox, and `register()` rejects when
+ * the user has denied background activity for the site. None of that is
+ * worth surfacing -- the tab-based flush in App.jsx is still there and
+ * still works, so a failure here costs a reporter nothing beyond what
+ * they had before.
+ */
+export async function requestBackgroundFlush() {
+  try {
+    if (typeof navigator === 'undefined') return false
+    if (!('serviceWorker' in navigator)) return false
+    const reg = await navigator.serviceWorker.ready
+    if (!reg?.sync) return false
+    await reg.sync.register(SYNC_TAG)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Queue an alert for delivery.
+ *
+ * `anonymous` records whether this row can be delivered without a bearer
+ * token, which decides whether the service worker is allowed to send it:
+ * the worker cannot read localStorage, so a signed-in row has to wait for
+ * a tab. Defaulting it to false would strand the anonymous reporter the
+ * feature exists for, and defaulting it to true would have the worker
+ * post a signed-in report through the anonymous endpoint and strip its
+ * author -- so the caller states it.
+ */
+export async function enqueueAlert(payload, { anonymous } = {}) {
   const store = await tx('readwrite')
   return new Promise((resolve, reject) => {
     const req = store.add({
       payload,
+      anonymous: anonymous === true,
       created_at: Date.now(),
       attempts: 0,
     })
     req.onsuccess = () => {
       resolve(req.result)
       void publishQueueState({ type: 'enqueued' })
+      // After the row is safely stored, never before.
+      void requestBackgroundFlush()
     }
     req.onerror = () => reject(req.error)
   })
