@@ -11,8 +11,8 @@
  * reloads is why we push through the SW instead of `new Notification()`.
  */
 
-const CACHE = 'neighbouraid-v2'
-const CORE = ['/', '/index.html', '/favicon.svg', '/manifest.webmanifest']
+const CACHE = 'neighbouraid-brand-v3'
+const CORE = ['/', '/index.html', '/brand-logo.png', '/favicon-32.png', '/favicon-64.png', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/badge-72.png', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

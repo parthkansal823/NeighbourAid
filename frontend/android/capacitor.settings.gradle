@@ -13,3 +13,6 @@ project(':capacitor-share').projectDir = new File('../node_modules/@capacitor/sh
 
 include ':neighbouraid-app-updater'
 project(':neighbouraid-app-updater').projectDir = new File('../native/app-updater/android')
+
+include ':neighbouraid-speech-input'
+project(':neighbouraid-speech-input').projectDir = new File('../native/speech-input/android')

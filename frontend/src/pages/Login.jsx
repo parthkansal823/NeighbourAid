@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 import { AlertTriangle } from '../components/icons'
+import BrandLogo from '../components/BrandLogo'
 import { apiError } from '../utils/error'
 
 export default function Login() {
@@ -39,6 +40,7 @@ export default function Login() {
       />
       <div className="relative surface-card p-6 sm:p-8 w-full max-w-md reveal-up">
         <div className="mb-6 sm:mb-8">
+          <BrandLogo size={64} className="mb-4" alt="NeighbourAid" />
           <h1 className="text-2xl font-bold text-white mb-2">{t('login_title')}</h1>
           <p className="text-gray-400 text-sm">{t('login_subtitle')}</p>
         </div>

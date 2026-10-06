@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Visibility for the system speech dialog, not a background recorder.
+         Its own speech provider handles microphone access and consent. -->
+    <queries>
+        <intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent>
+    </queries>
+</manifest>

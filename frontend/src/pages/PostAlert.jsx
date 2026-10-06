@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import { useVoice } from '../hooks/useVoice'
+import { voiceCopy, voiceErrorMessage } from '../utils/voiceCopy'
 import LiveCamera from '../components/LiveCamera'
 import { useI18n, speechLocaleFor } from '../utils/i18n'
 import { approxKb, compressImage } from '../utils/photo'
@@ -85,6 +86,7 @@ export default function PostAlert() {
   // Hard-coding this to a 3-way check meant Tamil, Telugu, Bengali,
   // Marathi and Gujarati speakers were transcribed as English.
   const voiceLang = speechLocaleFor(lang)
+  const voiceText = voiceCopy(lang)
   const voice = useVoice({
     lang: voiceLang,
     onResult: (text, isFinal) => {
@@ -192,6 +194,7 @@ export default function PostAlert() {
       setError(t('post_min_chars'))
       return
     }
+    if (form.description.length > 2000) { setError(voiceText.tooLong); return }
     // The form seeds `location` with a placeholder so the map/inputs have
     // something to render. Submitting that placeholder would dispatch
     // volunteers to a spot the reporter has never been — the single worst
@@ -336,14 +339,16 @@ export default function PostAlert() {
                 stress. The old text-xs / py-1 chip was well under the ~44px
                 minimum touch target and easy to miss twice before hitting.
               */}
-              {voice.supported && (
                 <button
                   type="button"
                   onClick={voice.listening ? voice.stop : voice.start}
+                  disabled={!voice.supported || voice.status === 'stopping' || (voice.native && voice.listening)}
+                  aria-pressed={voice.listening}
+                  aria-describedby="voice-help"
                   className={`min-h-11 px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
                     voice.listening
                       ? 'border-red-500 bg-red-500/20 text-red-300 animate-pulse'
-                      : 'border-gray-600 text-gray-200 hover:border-orange-500 hover:text-orange-300 hover:bg-orange-500/5'
+                      : 'border-gray-600 text-gray-200 hover:border-orange-500 hover:text-orange-300 hover:bg-orange-500/5 disabled:opacity-50 disabled:cursor-not-allowed'
                   }`}
                   title={voice.listening ? t('post_voice_tip_stop') : t('post_voice_tip_start')}
                 >
@@ -352,9 +357,8 @@ export default function PostAlert() {
                   ) : (
                     <Mic className="h-5 w-5 inline-block mr-1.5 -mt-0.5" aria-hidden />
                   )}
-                  {voice.listening ? t('post_voice_recording') : t('post_voice_speak')}
+                  {voice.status === 'starting' ? voiceText.starting : voice.status === 'stopping' ? voiceText.stopping : voice.listening ? t('post_voice_recording') : t('post_voice_speak')}
                 </button>
-              )}
             </div>
 
             {/*
@@ -371,31 +375,38 @@ export default function PostAlert() {
               offering a mic under a promise of anonymity without saying so
               would undercut the guarantee the rest of the app makes.
 
-              Shown only while the mic is actually available — an unusable
-              warning about an absent feature is noise.
+              An unavailable mic gets a recovery hint rather than disappearing.
             */}
+            <p id="voice-help" className="text-xs leading-relaxed text-gray-400 mb-2">
+              {voice.supported ? voiceText.review : voiceErrorMessage(voice.unavailableReason, lang)}
+            </p>
             {voice.supported && (
               <p
                 className={`text-[11px] leading-snug mb-1.5 ${
                   isAnonymous ? 'text-amber-300/90' : 'text-gray-500'
                 }`}
               >
-                {isAnonymous ? t('post_voice_privacy_anon') : t('post_voice_privacy')}
+                {voice.native ? voiceText.privacy : t('post_voice_privacy')}
+                {isAnonymous && <> {t('post_voice_privacy_anon')}</>}
               </p>
             )}
             <textarea
               id="post-description"
               required
               rows={4}
+              maxLength={2000}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 resize-none text-base placeholder:text-gray-600"
               placeholder={t('post_description_placeholder')}
             />
+            {voice.interim && <p role="status" className="mt-2 rounded-lg border border-line p-2 text-sm text-gray-300">
+              <span className="block text-xs text-gray-400">{voiceText.preview}</span>{voice.interim}
+            </p>}
             {voice.error && (
-              <p className="text-xs text-red-400 mt-1 inline-flex items-center gap-1">
+              <p role="alert" className="text-xs text-red-400 mt-1 inline-flex items-center gap-1">
                 <MicOff className="h-3.5 w-3.5" aria-hidden />
-                {voice.error}
+                {voiceErrorMessage(voice.error, lang)}
               </p>
             )}
           </div>

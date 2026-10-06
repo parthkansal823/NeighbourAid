@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 import { AlertTriangle, MapPin } from '../components/icons'
+import BrandLogo from '../components/BrandLogo'
 import { apiError } from '../utils/error'
 import { SkillsPicker, VehicleToggle } from '../components/ProfileFields'
 
@@ -97,6 +98,7 @@ export default function Register() {
         className="pointer-events-none absolute -bottom-24 left-1/4 h-56 w-72 rounded-full bg-emerald-500/10 blur-3xl"
       />
       <div className="relative surface-card p-6 sm:p-8 w-full max-w-md reveal-up">
+        <BrandLogo size={64} className="mb-4" alt="NeighbourAid" />
         <h1 className="text-2xl font-bold text-white mb-2">{t('register_title')}</h1>
         <p className="text-gray-400 text-sm mb-6 sm:mb-8">{t('register_subtitle')}</p>
 

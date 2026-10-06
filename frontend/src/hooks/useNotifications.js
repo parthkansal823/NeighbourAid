@@ -81,8 +81,8 @@ export function useNotifications() {
       const options = {
         body,
         tag,
-        icon: '/favicon.svg',
-        badge: '/favicon.svg',
+        icon: '/icon-192.png',
+        badge: '/badge-72.png',
         silent: false,
         renotify: true,
         requireInteraction,

@@ -1,0 +1,10 @@
+{
+  "name": "@neighbouraid/speech-input",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "keywords": ["capacitor", "android"],
+  "peerDependencies": { "@capacitor/core": ">=8.0.0" },
+  "capacitor": { "android": { "src": "android" } }
+}

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { NeighbourAidSpeech } from '@neighbouraid/speech-input'
 import { useLatest } from './useLatest'
 
 /**
- * Web Speech API wrapper. Lets a reporter dictate the crisis description
- * with a mic button — useful in India where low-literacy users are a real
- * audience. Zero cost, zero API key.
+ * Dictation uses the Android system dialog in an APK and Web Speech on web.
+ * Reviewable text only: no auto-submit and no app-owned audio recording.
  *
  * NOT on-device, despite running in the browser. Chrome streams the audio to
  * Google's speech service for recognition; Safari uses Apple's. Only the
@@ -18,58 +19,108 @@ import { useLatest } from './useLatest'
  * fail, it returns confident nonsense.
  */
 export function useVoice({ lang = 'en-IN', onResult } = {}) {
+  const native = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+  const plugin = native && Capacitor.isPluginAvailable('NeighbourAidSpeech')
   const Recognition =
     typeof window !== 'undefined' &&
     (window.SpeechRecognition || window.webkitSpeechRecognition)
-  const supported = !!Recognition
-
-  const [listening, setListening] = useState(false)
+  const [available, setAvailable] = useState(null)
+  const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
-  const recRef = useRef(null)
+  const [interim, setInterim] = useState('')
+  const sessionRef = useRef(null)
   const onResultRef = useLatest(onResult)
+  const secure = typeof window !== 'undefined' && window.isSecureContext !== false
+  const supported = native ? plugin && available !== false : typeof Recognition === 'function' && secure
+  const unavailableReason = native ? plugin ? 'speech-service-unavailable' : 'native-upgrade' : secure ? 'unsupported' : 'insecure'
+
+  useEffect(() => {
+    let live = true
+    if (plugin) NeighbourAidSpeech.isAvailable().then(result => {
+      if (live) setAvailable(result.available === true)
+    }).catch(() => { if (live) setAvailable(false) })
+    return () => { live = false }
+  }, [plugin])
+
+  // Late callbacks cannot edit a closed form or a newly selected language.
+  useEffect(() => {
+    setStatus('idle'); setInterim(''); setError('')
+    return () => {
+      const session = sessionRef.current
+      if (session) { session.active = false; session.rec?.abort?.() }
+      sessionRef.current = null
+    }
+  }, [lang])
 
   const start = useCallback(() => {
-    if (!supported) {
-      setError('Voice input is not supported in this browser')
+    if (sessionRef.current?.active) return
+    if (!supported) { setError(unavailableReason); return }
+    setError(''); setInterim(''); setStatus('starting')
+    const session = { active: true, stopped: false, final: false, errored: false, rec: null }
+    sessionRef.current = session
+    const live = () => session.active && sessionRef.current === session
+    const finish = () => { if (live()) { session.active = false; setStatus('idle') } }
+    if (native) {
+      setStatus('listening')
+      void NeighbourAidSpeech.recognize({ language: lang }).then(result => {
+        if (!live() || result.cancelled) return
+        const text = typeof result.text === 'string' ? result.text.trim() : ''
+        if (text && text.length <= 2000) onResultRef.current?.(text, true)
+        else setError('no-speech')
+      }).catch(err => { if (live()) setError(err.code || 'failed') }).finally(finish)
       return
     }
-    setError('')
-    const rec = new Recognition()
-    rec.lang = lang
-    rec.interimResults = true
-    rec.continuous = false
-    rec.onresult = (e) => {
-      let finalText = ''
-      let interim = ''
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript
-        if (e.results[i].isFinal) finalText += t
-        else interim += t
-      }
-      onResultRef.current?.(finalText || interim, e.results[0]?.isFinal ?? false)
-    }
-    rec.onerror = (e) => {
-      setError(e.error || 'voice error')
-      setListening(false)
-    }
-    rec.onend = () => setListening(false)
-    recRef.current = rec
     try {
+      const rec = new Recognition()
+      session.rec = rec
+      rec.lang = lang
+      rec.interimResults = true
+      rec.continuous = false
+      rec.maxAlternatives = 1
+      const emitted = new Set()
+      rec.onstart = () => { if (live()) setStatus('listening') }
+      rec.onresult = event => {
+        if (!live()) return
+        const final = [], preview = []
+        for (let index = 0; index < event.results.length; index++) {
+          const result = event.results[index]
+          const text = result[0]?.transcript?.trim()
+          if (!text) continue
+          if (result.isFinal) {
+            if (!emitted.has(index)) { emitted.add(index); final.push(text) }
+          } else preview.push(text)
+        }
+        setInterim(preview.join(' '))
+        if (final.length) { session.final = true; onResultRef.current?.(final.join(' '), true) }
+      }
+      rec.onerror = event => {
+        if (!live()) return
+        session.errored = true
+        if (!(session.stopped && event.error === 'aborted')) setError(event.error || 'failed')
+        finish()
+        rec.abort?.()
+      }
+      rec.onend = () => {
+        if (!live()) return
+        if (!session.final && !session.stopped && !session.errored) setError('no-speech')
+        finish()
+      }
       rec.start()
-      setListening(true)
-    } catch {
-      setError('Failed to start microphone')
+    } catch (err) {
+      setError(err.name === 'NotAllowedError' || err.name === 'SecurityError' ? 'not-allowed' : 'failed')
+      finish()
     }
-    // onResultRef is a useRef container — its identity is stable for the
-    // life of the hook, so listing it satisfies the linter without
-    // re-creating the callback on every keystroke.
-  }, [supported, lang, Recognition, onResultRef])
+  }, [supported, unavailableReason, native, lang, Recognition, onResultRef])
 
   const stop = useCallback(() => {
-    recRef.current?.stop()
+    const session = sessionRef.current
+    if (!session?.active) return
+    session.stopped = true
+    if (!session.rec) { session.active = false; setStatus('idle'); return }
+    setStatus('stopping')
+    try { session.rec.stop() }
+    catch { session.active = false; setStatus('idle') }
   }, [])
 
-  useEffect(() => () => recRef.current?.abort?.(), [])
-
-  return { supported, listening, error, start, stop }
+  return { supported, native, status, listening: status !== 'idle', interim, error, unavailableReason, start, stop }
 }

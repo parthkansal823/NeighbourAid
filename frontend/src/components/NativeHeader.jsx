@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 import { LanguageMenu } from './Navbar'
-import { LifeBuoy, Menu, X } from './icons'
+import { Menu, X } from './icons'
+import BrandLogo from './BrandLogo'
 import NativeUpdateSettings from './NativeUpdateSettings'
 
 /** Compact Android header. The website keeps its existing Navbar. */
@@ -47,7 +48,7 @@ export default function NativeHeader({ onOpenEmergency }) {
     <header ref={ref} className="app-header sticky top-0 z-[1100] border-b border-line bg-surface">
       <div className="flex min-h-16 items-center justify-between gap-1 px-3">
         <Link to="/" className="tap flex min-w-0 items-center gap-1.5 font-bold tracking-tight text-white" onClick={() => setOpen(false)}>
-          <LifeBuoy className="h-5 w-5 shrink-0 text-orange-400" aria-hidden />
+          <BrandLogo size={36} />
           <span>NeighbourAid</span>
         </Link>
         <div className="flex shrink-0 items-center gap-1">

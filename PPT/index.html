@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NeighbourAid | Project pitch</title>
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -31,6 +32,9 @@
   html,body { overflow:hidden; background:var(--letterbox); color:var(--ink); font-family:'Inter Tight','Segoe UI',sans-serif; }
   section { background:var(--bg); color:var(--ink); overflow:hidden; }
   .chrome { position:absolute; top:42px; left:100px; right:52px; font-size:25px; color:var(--ink-dim); }
+  .deck-brand { display:inline-flex; align-items:center; gap:18px; }
+  .brand-logo { display:block; width:64px; height:64px; object-fit:contain; border-radius:14px; }
+  .cover .brand-logo { width:100px; height:100px; border-radius:20px; }
   .cu-logo { position:absolute; top:-18px; right:0; height:176px; width:auto; object-fit:contain; background:#fff; padding:9px 13px; border-radius:8px; }
   .cu-logo-lg { height:150px; padding:10px 16px; }
   .page-number { position:absolute; right:185px; top:0; font-size:25px; }
@@ -122,7 +126,7 @@
 <body>
 <deck-stage width="1920" height="1080">
   <section class="cover" data-label="NeighbourAid">
-    <header class="chrome">Project Expo 4.0<img class="cu-logo cu-logo-lg" src="cu-big.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="NeighbourAid" width="100" height="100">Project Expo 4.0</span><img class="cu-logo cu-logo-lg" src="cu-big.png" alt="Chandigarh University"></header>
     <div class="cover-copy reveal">
       <h1>NeighbourAid</h1>
       <p class="intro">A community app for nearby emergency help and everyday services.</p>
@@ -216,7 +220,7 @@
       </div><p class="map-note">Illustrative locations, not active service coverage</p></div>
   </section>
   <section data-label="The problem">
-    <header class="chrome">NeighbourAid<span class="page-number">2 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">2 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">The problem</h2>
       <p class="intro reveal reveal-later">A neighbour needs help. A group message may miss the person closest to them.</p>
       <div class="columns">
@@ -227,7 +231,7 @@
     </main>
   </section>
   <section data-label="The idea">
-    <header class="chrome">NeighbourAid<span class="page-number">3 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">3 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">The idea</h2>
       <p class="intro reveal reveal-later">One report with a location, a clear urgency label and a visible response status.</p>
       <div class="sequence">
@@ -240,7 +244,7 @@
     </main>
   </section>
   <section data-label="Emergency help">
-    <header class="chrome">NeighbourAid<span class="page-number">4 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">4 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">Emergency help</h2>
       <p class="intro reveal reveal-later">The details a responder needs, kept together.</p>
       <ul class="plain-list">
@@ -253,7 +257,7 @@
     </main>
   </section>
   <section data-label="Everyday help">
-    <header class="chrome">NeighbourAid<span class="page-number">5 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">5 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">Everyday help</h2>
       <p class="intro reveal reveal-later">A separate help board for paid work, away from the emergency feed.</p>
       <div class="columns">
@@ -265,7 +269,7 @@
     </main>
   </section>
   <section data-label="The role of AI">
-    <header class="chrome">NeighbourAid<span class="page-number">6 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">6 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">The role of AI</h2>
       <p class="intro reveal reveal-later">AI helps organise a report. A person still decides how to respond.</p>
       <ul class="plain-list">
@@ -278,7 +282,7 @@
     </main>
   </section>
   <section data-label="Using it on a phone">
-    <header class="chrome">NeighbourAid<span class="page-number">7 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">7 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">Using it on a phone</h2>
       <p class="intro reveal reveal-later">The same service through a website or an Android app.</p>
       <div class="columns">
@@ -290,7 +294,7 @@
     </main>
   </section>
   <section data-label="How the system works">
-    <header class="chrome">NeighbourAid<span class="page-number">8 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">8 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">How the system works</h2>
       <p class="intro reveal reveal-later">The website stays available. Live features need the laptop server online.</p>
       <div class="topology">
@@ -305,7 +309,7 @@
     </main>
   </section>
   <section data-label="A small pilot">
-    <header class="chrome">NeighbourAid<span class="page-number">9 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">9 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">A small pilot</h2>
       <p class="intro reveal reveal-later">We propose testing with one campus or neighbourhood before wider use.</p>
       <ul class="plain-list">
@@ -318,7 +322,7 @@
     </main>
   </section>
   <section data-label="Roadmap">
-    <header class="chrome">NeighbourAid<span class="page-number">10 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
+    <header class="chrome"><span class="deck-brand"><img class="brand-logo" src="neighbouraid-logo.png" alt="" width="64" height="64">NeighbourAid</span><span class="page-number">10 / 10</span><img class="cu-logo" src="cu-small.png" alt="Chandigarh University"></header>
     <main class="frame"><h2 class="reveal">Roadmap</h2>
       <p class="intro reveal reveal-later">A phase plan from Q2 2026 to 2027, with user testing guiding the next steps.</p>
       <div class="timeline">

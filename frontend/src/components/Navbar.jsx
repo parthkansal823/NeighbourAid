@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Globe, LifeBuoy, Siren } from './icons'
+import { Globe, Siren } from './icons'
+import BrandLogo from './BrandLogo'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
@@ -148,10 +149,7 @@ export default function Navbar() {
           onClick={closeMenu}
           className="flex items-center gap-2 text-lg font-bold tracking-tight sm:text-xl"
         >
-          <LifeBuoy
-            aria-hidden
-            className="h-6 w-6 text-orange-400"
-          />
+          <BrandLogo />
           <span className="text-gradient-brand">NeighbourAid</span>
         </Link>
 
