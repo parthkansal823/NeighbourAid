@@ -184,7 +184,6 @@ jobs:
   # These temporary CI containers do not deploy or start the laptop server.
   # -----------------------------------------------------------------------
   docker-build:
-    name: Backend Docker + MongoDB test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [backend-test, frontend-lint]

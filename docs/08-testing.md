@@ -166,8 +166,8 @@ The workflow is at `.github/workflows/ci.yml`. Four jobs:
    --audit-level=high`. Findings appear in the step log without
    failing the build.
 4. **`docker-build`** — gated on `backend-test + frontend-lint`.
-   Displayed as **Backend Docker + MongoDB test**. Builds only the backend image
-   with GHA cache, then tests authenticated MongoDB/API readiness, edge access
+   Builds only the backend image with GHA cache, then tests authenticated
+   MongoDB/API readiness, edge access
    control and data persistence after a restart. No public tunnel, frontend
    container build, registry push or laptop deployment happens in this job.
 

@@ -27,8 +27,9 @@ function releaseAllowed(event, ref) {
   assert.notEqual(index, -1)
   let expression = lines[index].slice('    if: '.length)
   if (expression === '>-' || expression === '>') {
-    expression = lines.slice(index + 1).findIndex(line => !line.startsWith('      '))
-    expression = lines.slice(index + 1, index + 1 + expression).join(' ').trim()
+    const length = lines.slice(index + 1).findIndex(line => !line.startsWith('      '))
+    assert.ok(length > 0, 'Release condition must be a nonempty folded scalar')
+    expression = lines.slice(index + 1, index + 1 + length).join(' ').trim()
   }
   return new Function('github', 'startsWith', `return (${expression})`)(
     { event_name: event, ref }, (value, prefix) => value.startsWith(prefix),
@@ -60,7 +61,7 @@ test('CI builds only the deployed backend container and keeps MongoDB integratio
 })
 
 test('Android workflow calls the tested signing check and watches its changes', () => {
-  assert.ok(android.includes('run: bash .github/scripts/check-android-signing.sh'))
+  assert.ok(jobBlock(android, 'signed-apk-release').includes('run: bash .github/scripts/check-android-signing.sh'))
   assert.equal(android.split('- ".github/scripts/check-android-signing.sh"').length - 1, 2)
 })
 
