@@ -1,0 +1,197 @@
+name: Android package
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Public endpoint compiled into the Capacitor bundle. The phone talks to
+  # the Worker, never directly to a changing tunnel or an API key.
+  VITE_MOBILE_EDGE_ORIGIN: ${{ vars.NEIGHBOURAID_WORKER_URL || 'https://neighbouraid.kansalp-parth.workers.dev' }}
+  VERSION_CODE: ${{ github.run_number }}
+  VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('build-{0}', github.run_number) }}
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Capacitor compiles both the shell and its runtime with Java 21.
+          java-version: "21"
+          cache: gradle
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build and sync Capacitor Android assets
+        run: cd frontend && npm run mobile:sync
+
+      - name: Check frontend before distributing an APK
+        run: cd frontend && npm run lint && npm test && npm run test:tools && npm run check:private
+
+      - name: Make Gradle wrapper executable
+        # Git on Windows commonly stores gradlew without its Unix execute
+        # bit. GitHub's Ubuntu runner then exits 126 before Gradle starts.
+        working-directory: frontend/android
+        run: chmod +x gradlew
+
+      - name: Assemble installable debug APK
+        working-directory: frontend/android
+        run: ./gradlew app:assembleDebug --no-daemon
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: neighbouraid-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  signed-apk-release:
+    # Relevant main pushes and version tags publish signed APK releases.
+    # Four signing secrets are required; without them the debug job above
+    # still gives contributors a temporary test APK as an Actions artifact.
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: debug-apk
+    concurrency:
+      group: neighbouraid-signed-release
+      cancel-in-progress: false
+    permissions:
+      # Required only for this release job, to create/update the
+      # GitHub Release where friends can download the signed APK.
+      contents: write
+    env:
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      ANDROID_RELEASE_CHANNEL: release
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('android-{0}', github.run_number) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Check release signing configuration
+        id: signing
+        run: |
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ] && [ -n "$ANDROID_KEYSTORE_PASSWORD" ] && [ -n "$ANDROID_KEY_ALIAS" ] && [ -n "$ANDROID_KEY_PASSWORD" ]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+              echo '::error::Version-tag releases need all four Android signing secrets.'
+              exit 1
+            fi
+            echo '::warning::Signed release skipped: add the four Android signing secrets. The debug APK artifact is still available.'
+          fi
+
+      - name: Restore signing key without printing it
+        if: steps.signing.outputs.configured == 'true'
+        run: node frontend/scripts/restore-signing.mjs
+
+      - name: Install frontend dependencies
+        if: steps.signing.outputs.configured == 'true'
+        run: cd frontend && npm ci
+
+      - name: Build and sync Capacitor Android assets
+        if: steps.signing.outputs.configured == 'true'
+        run: cd frontend && npm run mobile:sync
+
+      - name: Make Gradle wrapper executable
+        if: steps.signing.outputs.configured == 'true'
+        working-directory: frontend/android
+        run: chmod +x gradlew
+
+      - name: Build signed APK
+        if: steps.signing.outputs.configured == 'true'
+        working-directory: frontend/android
+        run: ./gradlew app:assembleRelease --no-daemon
+
+      - name: Verify signed APK
+        if: steps.signing.outputs.configured == 'true'
+        working-directory: frontend/android
+        run: |
+          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          "$APKSIGNER" verify --verbose app/build/outputs/apk/release/app-release.apk
+          cd app/build/outputs/apk/release
+          sha256sum app-release.apk > app-release.apk.sha256
+
+      - name: Upload signed APK artifact
+        if: steps.signing.outputs.configured == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: neighbouraid-${{ env.RELEASE_TAG }}-apk
+          path: |
+            frontend/android/app/build/outputs/apk/release/app-release.apk
+            frontend/android/app/build/outputs/apk/release/app-release.apk.sha256
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish downloadable GitHub Release assets
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ env.RELEASE_TAG }}
+        run: |
+          node frontend/scripts/release-notes.mjs "$RUNNER_TEMP/neighbouraid-release.md"
+          # Keep incomplete/cancelled uploads out of /releases/latest.
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "NeighbourAid $VERSION_NAME" \
+              --draft --notes-file "$RUNNER_TEMP/neighbouraid-release.md"
+          gh release upload "$TAG" \
+            frontend/android/app/build/outputs/apk/release/app-release.apk \
+            frontend/android/app/build/outputs/apk/release/app-release.apk.sha256 \
+            --repo "$GITHUB_REPOSITORY" --clobber
+          # A slower older tag build must not replace a newer latest APK.
+          latest_body="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.body' 2>/dev/null || true)"
+          current_code="$(RELEASE_BODY="$latest_body" node --input-type=module -e "import {releaseVersionCode} from './frontend/scripts/release-notes.mjs';console.log(releaseVersionCode(process.env.RELEASE_BODY))")"
+          if [ "$VERSION_CODE" -ge "$current_code" ]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest \
+              --notes-file "$RUNNER_TEMP/neighbouraid-release.md"
+          else
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest=false \
+              --notes-file "$RUNNER_TEMP/neighbouraid-release.md"
+          fi

@@ -1,0 +1,76 @@
+# Backend + automatic HTTPS, for a single small VM.
+#
+# Sized for the cheapest droplet a GitHub Student Pack credit buys (1 GB /
+# 1 vCPU). The API was measured at 64 MB, so the box is mostly headroom.
+#
+# The frontend is NOT here. It builds to static files and belongs on
+# Cloudflare, which serves it from an edge node near the user for free — a
+# single VM in Bangalore would serve those same files more slowly and eat the
+# credit. See DEPLOY.md.
+#
+# TLS is not optional. The browser blocks ws:// from an https:// page, so
+# without a certificate the volunteer feed silently receives nothing (see
+# frontend/src/hooks/useWebSocket.js, which picks wss:// from the page
+# protocol). Caddy obtains and renews a Let's Encrypt certificate on its own.
+
+services:
+  api:
+    build:
+      context: ../../backend
+    # Never published to the host. Caddy is the only way in, so the API
+    # cannot be reached over plain HTTP by IP, bypassing TLS.
+    expose:
+      - "8000"
+    environment:
+      # Atlas by default. Point at the local mongo service below instead if
+      # you would rather keep data on the VM — see the commented block.
+      MONGO_URL: ${MONGO_URL:?set MONGO_URL in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      ENVIRONMENT: production
+      FRONTEND_ORIGINS: ${FRONTEND_ORIGINS:-}
+    restart: unless-stopped
+    healthcheck:
+      # /health deliberately checks nothing, so a database blip cannot make
+      # Docker restart a perfectly healthy container.
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=4)\""]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 20s
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificates must survive a restart — Let's Encrypt rate-limits
+      # issuance, and a container that re-requests on every deploy will be
+      # locked out for a week.
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      TLS_EMAIL: ${TLS_EMAIL:?set TLS_EMAIL in .env}
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Uncomment to keep the database on this VM instead of Atlas, and set
+  # MONGO_URL=mongodb://mongo:27017/neighbouraid in .env.
+  #
+  # Atlas is the better default even here: it is free, it is backed up, and
+  # it survives you rebuilding the droplet. A local mongo with no backup is
+  # one `docker compose down -v` away from losing every alert.
+  #
+  # mongo:
+  #   image: mongo:7
+  #   volumes:
+  #     - mongo_data:/data/db
+  #   restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+  # mongo_data:

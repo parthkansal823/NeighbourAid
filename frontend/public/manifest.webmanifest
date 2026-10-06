@@ -1,0 +1,52 @@
+{
+  "name": "NeighbourAid — Hyperlocal Crisis Network",
+  "short_name": "NeighbourAid",
+  "description": "Real-time community crisis response for India.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0f19",
+  "theme_color": "#f97316",
+  "lang": "en-IN",
+  "categories": ["utilities", "social", "safety"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Report crisis",
+      "short_name": "Report",
+      "url": "/post-alert",
+      "description": "Post a new crisis alert"
+    },
+    {
+      "name": "Live map",
+      "short_name": "Map",
+      "url": "/map",
+      "description": "See active alerts near you"
+    },
+    {
+      "name": "Safety check-in",
+      "short_name": "Safety",
+      "url": "/safety",
+      "description": "Mark yourself safe"
+    }
+  ]
+}

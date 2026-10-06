@@ -1,0 +1,613 @@
+"""Multilingual crisis vocabulary for the heuristic triage fallback.
+
+Split out of ai.py because it is data, not logic, and because it is the part
+a non-programmer can usefully review — a Tamil speaker should be able to
+correct the Tamil list without reading any Python around it.
+
+WHY THIS EXISTS AT ALL
+
+This is the triage engine — the only one. Every alert in the app is ranked by
+what is in this file, so a gap here is not a degraded fallback, it is a
+mis-ranked emergency.
+
+It used to hold English and romanised-Hindi terms only. The app ships a UI in
+eleven languages, so a report typed in the language the user had just selected
+matched nothing and fell through to MEDIUM. "व्यक्ति बेहोश है, सांस नहीं आ रही"
+— unconscious, not breathing — ranked below a power cut.
+
+ORGANISED BY CONCEPT, NOT BY LANGUAGE
+
+Grouping by meaning keeps the translations honest: it is obvious at a glance
+that every language has a word for "drowning", and obvious when one is
+missing. Grouping by language instead lets whole concepts quietly disappear
+from one list.
+
+MATCHING NOTES
+
+  * Terms are matched as plain substrings against lowercased text. Indic
+    scripts are caseless, so .lower() is a no-op there and costs nothing.
+  * Prefer word STEMS over inflected forms. Indic languages agglutinate
+    heavily — "डूब" catches डूबना/डूब गया/डूब रहा, where "डूब गया" catches
+    only one. The trade is occasional over-matching, which is the right way
+    to be wrong here: a false CRITICAL wastes a volunteer's trip, a false
+    MEDIUM can cost someone their life.
+  * Keep entries at two characters or more. Single Indic characters appear
+    inside unrelated words constantly.
+"""
+
+from __future__ import annotations
+
+import re
+
+# --------------------------------------------------------------------------
+# CRITICAL — immediate threat to life. Err toward including a term here.
+# --------------------------------------------------------------------------
+
+CRITICAL_TERMS: tuple[str, ...] = (
+    # --- English ---
+    "unconscious", "not breathing", "cant breathe", "can't breathe",
+    "cardiac", "heart attack", "bleeding heavily", "stabbed", "gunshot",
+    "shot", "drowning", "drowned", "choking", "seizure", "convulsion",
+    "stroke", "dying", "dead", "suicidal", "suicide", "electrocuted",
+    "severe burns", "no pulse",
+    # --- Hindi / Urdu, romanised ---
+    "behosh", "behoshi", "saans nahi", "sans nahi", "dil ka daura",
+    "khoon bah", "khoon beh", "doob", "dooba", "marne wala", "mar raha",
+    "khudkushi", "atmahatya", "chaku mara", "goli lagi", "current laga",
+    # --- Hindi / Marathi (Devanagari) ---
+    "बेहोश", "बेशुद्ध", "सांस नहीं", "साँस नहीं", "श्वास येत नाही",
+    "दिल का दौरा", "हृदयविकाराचा झटका", "हार्ट अटैक", "खून बह", "रक्तस्त्राव",
+    "डूब", "बुडत", "बुडाल", "दम घुट", "मर रहा", "मरत आहे", "मृत",
+    "आत्महत्या", "गोली", "चाकू", "करंट", "दौरा पड़",
+    # --- Bengali ---
+    "অজ্ঞান", "শ্বাস নিচ্ছে না", "শ্বাস বন্ধ", "নিঃশ্বাস", "হৃদরোগ",
+    "হার্ট অ্যাটাক", "রক্তক্ষরণ", "রক্ত পড়", "ডুবে", "ডুবছে",
+    "মারা যাচ্ছে", "মৃত", "আত্মহত্যা", "গুলি", "ছুরি", "খিঁচুনি",
+    # --- Tamil ---
+    "மயக்கம்", "மயக்கமட", "மூச்சு விடவில்லை", "மூச்சு நிற்க", "மூச்சுத் திணற",
+    "மாரடைப்பு", "இரத்தப்போக்கு", "ரத்தம் வழி", "மூழ்கு", "மூழ்கி",
+    "இறந்த", "இறக்கும்", "தற்கொலை", "துப்பாக்கி", "கத்தி", "வலிப்பு",
+    # --- Telugu ---
+    "స్పృహ కోల్పోయ", "స్పృహ లేదు", "ఊపిరి ఆడటం లేదు", "శ్వాస ఆగి",
+    "గుండెపోటు", "రక్తస్రావం", "రక్తం కారు", "మునిగి", "మునిగిపోయ",
+    "చనిపోతున్న", "మృతి", "ఆత్మహత్య", "తుపాకీ", "కత్తి", "మూర్ఛ",
+    # --- Gujarati ---
+    "બેભાન", "શ્વાસ નથી", "શ્વાસ બંધ", "હૃદયરોગનો હુમલો", "હાર્ટ એટેક",
+    "લોહી વહે", "રક્તસ્રાવ", "ડૂબ", "ડૂબી", "મરી રહ્યો", "મૃત",
+    "આત્મહત્યા", "ગોળી", "છરી", "આંચકી",
+    # --- Punjabi (Gurmukhi) ---
+    "ਬੇਹੋਸ਼", "ਸਾਹ ਨਹੀਂ", "ਸਾਹ ਬੰਦ", "ਦਿਲ ਦਾ ਦੌਰਾ", "ਖੂਨ ਵਗ",
+    "ਡੁੱਬ", "ਡੁੱਬਿਆ", "ਮਰ ਰਿਹਾ", "ਮ੍ਰਿਤ", "ਆਤਮਹੱਤਿਆ", "ਗੋਲੀ", "ਚਾਕੂ",
+    # --- Kannada ---
+    "ಪ್ರಜ್ಞೆ ತಪ್ಪಿ", "ಪ್ರಜ್ಞೆ ಇಲ್ಲ", "ಉಸಿರಾಡುತ್ತಿಲ್ಲ", "ಉಸಿರು ನಿಂತ",
+    "ಹೃದಯಾಘಾತ", "ರಕ್ತಸ್ರಾವ", "ರಕ್ತ ಸೋರು", "ಮುಳುಗು", "ಮುಳುಗಿ",
+    "ಸಾಯುತ್ತಿ", "ಮೃತ", "ಆತ್ಮಹತ್ಯೆ", "ಗುಂಡು", "ಚಾಕು", "ಸೆಳೆತ",
+    "ವಿದ್ಯುತ್ ಆಘಾತ",
+    # --- Malayalam ---
+    "ബോധമില്ല", "ബോധം പോയി", "ശ്വാസം എടുക്കുന്നില്ല", "ശ്വാസം നിന്ന",
+    "ഹൃദയാഘാതം", "രക്തസ്രാവം", "രക്തം ഒഴുക", "മുങ്ങി", "മുങ്ങു",
+    "മരിക്കു", "മരിച്ച", "ആത്മഹത്യ", "വെടി", "കത്തി", "അപസ്മാരം",
+    "വൈദ്യുതാഘാതം",
+    # --- Odia ---
+    "ଅଚେତ", "ଜ୍ଞାନ ହରା", "ନିଶ୍ୱାସ ନେଉନାହିଁ", "ନିଶ୍ୱାସ ବନ୍ଦ",
+    "ହୃଦଘାତ", "ରକ୍ତସ୍ରାବ", "ରକ୍ତ ବହୁ", "ବୁଡ଼ି", "ବୁଡ଼ୁ",
+    "ମରୁଛି", "ମୃତ", "ଆତ୍ମହତ୍ୟା", "ଗୁଳି", "ଛୁରୀ", "ଆକ୍ଷେପ",
+    "ବିଦ୍ୟୁତ୍ ଆଘାତ",
+)
+
+# --------------------------------------------------------------------------
+# CRITICAL patterns — danger that is described but never named
+# --------------------------------------------------------------------------
+#
+# Plain keywords are blind to the most frightening reports, because the
+# frightening ones often contain no frightening word. Measured on the eval
+# set in tests/eval_dataset.py, keyword matching scored 0/7 on this class:
+#
+#   "He has been in the closed garage with the car running and won't answer"
+#   "Baba ko subah se hilna dulna band hai, bol nahi rahe"
+#   "बच्चा नाले में गिर गया और अब दिख नहीं रहा"
+#
+# Nothing there says unconscious, drowning or poisoning. What they share is a
+# structure: a PERSON plus a NEGATED VITAL FUNCTION — not answering, not
+# moving, not speaking, no longer visible. Someone who has stopped doing one
+# of those things is in a life-threatening state whatever words the reporter
+# reached for.
+#
+# Regex rather than substrings because negation and verb are usually
+# separated ("bol NAHI rahe", "जवाब नहीं दे रही") and word order varies.
+#
+# Kept deliberately narrow. A false CRITICAL costs a volunteer a wasted trip;
+# a false MEDIUM here is the case that started this — a drowning child ranked
+# below a power cut.
+CRITICAL_PATTERNS: tuple[str, ...] = (
+    # --- English ---
+    r"\b(?:wo?n'?t|not|never|cannot|can'?t|doesn'?t|is\s+not)\s+(?:\w+\s+){0,2}"
+    r"(?:answer\w*|respond\w*|wake\w*|mov\w+|speak\w*|breath\w*)\b",
+    r"\bno\s+(?:response|movement|pulse|breathing)\b",
+    r"\bunresponsive\b",
+    r"\b(?:whole|entire|full)\s+(?:bottle|strip|packet)\s+of\s+\w*\s*(?:tablets|pills|medicine)",
+    r"\b(?:gone|went)\s+under\b",
+    r"\bhas\s+not\s+come\s+(?:back\s+)?up\b",
+
+    # --- Hindi / Urdu romanised ---
+    r"\b(?:jawab|jawaab|bol|hil|uth|dikh|saans|sans|hosh)\w*\s+nah[ií]\b",
+    r"\bnah[ií]\s+(?:bol|hil|uth|dikh)\w*",
+    r"\b(?:saari|puri|poori)\s+(?:goliyan|goli|dawai)\b",
+
+    # --- Devanagari (Hindi + Marathi) ---
+    r"(?:जवाब|बोल|हिल|उठ|दिख|होश|हलत|बोलत|दिसत|प्रतिसाद)\S*\s*नह[ीं]+",
+    r"नहीं\s*(?:बोल|हिल|उठ|दिख)",
+    r"(?:पूरी|सारी)\s*(?:बोतल|गोलियां|गोलियाँ|दवाई)",
+
+    # --- Bengali ---
+    r"(?:সাড়া|নড়|কথা\s*বল|দেখা\s*যা)\S*\s*(?:দিচ্ছে|ছে)?\s*না",
+
+    # --- Tamil ---
+    r"(?:பதில்|அசைவ|பேச|தெரிய)\S*\s*(?:இல்லை|வில்லை)",
+
+    # --- Telugu ---
+    r"(?:స్పందించ|కదల|మాట్లాడ|కనిపించ)\S*\s*(?:డం)?\s*లేదు",
+
+    # --- Gujarati ---
+    r"(?:જવાબ|હલ|બોલ|દેખા)\S*\s*નથી",
+
+    # --- Punjabi ---
+    r"(?:ਜਵਾਬ|ਹਿੱਲ|ਬੋਲ|ਦਿਖ)\S*\s*ਨਹੀਂ",
+)
+
+CRITICAL_PATTERN_RES: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pat, re.IGNORECASE) for pat in CRITICAL_PATTERNS
+)
+
+
+# --------------------------------------------------------------------------
+# HIGH — serious, needs a fast response, not necessarily life-threatening
+# this minute.
+# --------------------------------------------------------------------------
+
+HIGH_TERMS: tuple[str, ...] = (
+    # --- English ---
+    "fire", "flood", "trapped", "collapse", "earthquake", "fracture",
+    "accident", "injury", "injured", "urgent", "help immediately",
+    "ambulance", "rescue", "elderly alone", "pregnant in pain", "landslide",
+    "gas leak", "gas leaking", "cylinder leak", "cylinder is leaking",
+    "smell of gas", "gas smell", "building fell",
+    # --- Hindi / Urdu, romanised ---
+    "aag", "baadh", "phansa", "phanse", "bhukamp", "durghatna", "ghayal",
+    "zaroori", "jaroori", "madad", "bachao", "ambulance chahiye",
+    "imarat gir",
+    # --- Hindi / Marathi (Devanagari) ---
+    # "पूर" alone (Marathi: flood) is NOT safe here: it is a substring of the
+    # everyday Hindi word "पूरे" (entire), so "पूरे सेक्टर में बिजली नहीं"
+    # — a power cut — was being ranked HIGH as a flood. Stems are the right
+    # default for these languages, but they need checking against the OTHER
+    # languages' common words, not just their own.
+    "आग", "आगीत", "बाढ़", "महापूर", "पूर आ", "पुराच", "पूरग्रस्त",
+    "फंस", "अडक", "भूकंप", "दुर्घटना", "अपघात",
+    "घायल", "जखमी", "ज़रूरी", "जरूरी", "तातडी", "मदद", "मदत", "बचाओ", "वाचवा",
+    "एम्बुलेंस", "रुग्णवाहिका", "इमारत गिर", "कोसळ", "भूस्खलन", "गैस लीक",
+    "गर्भवती", "फ्रैक्चर", "हड्डी टूट",
+    # --- Bengali ---
+    "আগুন", "বন্যা", "আটকে", "ধস", "ভূমিকম্প", "দুর্ঘটনা", "আহত",
+    "জরুরি", "সাহায্য", "উদ্ধার", "অ্যাম্বুলেন্স", "বাড়ি ভেঙে",
+    "গ্যাস লিক", "গর্ভবতী", "হাড় ভেঙে",
+    # --- Tamil ---
+    "தீ விபத்து", "தீப்பிடி", "வெள்ளம்", "சிக்கி", "இடிந்து", "நிலநடுக்கம்",
+    "விபத்து", "காயம்", "காயமட", "அவசர", "உதவி", "மீட்பு", "ஆம்புலன்ஸ்",
+    "நிலச்சரிவு", "எரிவாயு", "கர்ப்பிணி", "எலும்பு முறி",
+    # --- Telugu ---
+    "మంటలు", "అగ్ని ప్రమాదం", "వరద", "చిక్కుకు", "కూలి", "భూకంపం",
+    "ప్రమాదం", "గాయ", "అత్యవసర", "సహాయం", "రక్షించ", "అంబులెన్స్",
+    "కొండచరియ", "గ్యాస్ లీక్", "గర్భిణి", "ఎముక విరిగి",
+    # --- Gujarati ---
+    "આગ", "પૂર", "ફસા", "ધરાશાયી", "ધરતીકંપ", "અકસ્માત", "ઘાયલ",
+    "તાત્કાલિક", "મદદ", "બચાવ", "એમ્બ્યુલન્સ", "ભૂસ્ખલન", "ગેસ લીક",
+    "ગર્ભવતી", "હાડકું તૂટ",
+    # --- Punjabi (Gurmukhi) ---
+    "ਅੱਗ", "ਹੜ੍ਹ", "ਫਸ", "ਢਹਿ", "ਭੂਚਾਲ", "ਹਾਦਸਾ", "ਜ਼ਖਮੀ", "ਜ਼ਰੂਰੀ",
+    "ਮਦਦ", "ਬਚਾਓ", "ਐਂਬੂਲੈਂਸ", "ਗੈਸ ਲੀਕ", "ਗਰਭਵਤੀ", "ਹੱਡੀ ਟੁੱਟ",
+    # --- Kannada ---
+    "ಬೆಂಕಿ", "ಪ್ರವಾಹ", "ಸಿಲುಕಿ", "ಭೂಕಂಪ", "ಅಪಘಾತ", "ಗಾಯ",
+    "ತುರ್ತು", "ಸಹಾಯ", "ರಕ್ಷಿಸಿ", "ಆಂಬ್ಯುಲೆನ್ಸ್", "ಕಟ್ಟಡ ಕುಸಿ",
+    "ಭೂಕುಸಿತ", "ಗ್ಯಾಸ್ ಸೋರಿಕೆ", "ಗರ್ಭಿಣಿ", "ಮೂಳೆ ಮುರಿ",
+    # --- Malayalam ---
+    "തീപിടിത്തം", "വെള്ളപ്പൊക്കം", "കുടുങ്ങി", "ഭൂകമ്പം", "അപകടം",
+    "പരിക്ക്", "അടിയന്തര", "സഹായം", "രക്ഷിക്ക", "ആംബുലൻസ്",
+    "കെട്ടിടം തകർ", "മണ്ണിടിച്ചിൽ", "ഗ്യാസ് ചോർ", "ഗർഭിണി", "എല്ല് ഒടി",
+    # --- Odia ---
+    "ନିଆଁ", "ବନ୍ୟା", "ଫସି", "ଭୂକମ୍ପ", "ଦୁର୍ଘଟଣା", "ଆଘାତ",
+    "ଜରୁରୀ", "ସାହାଯ୍ୟ", "ବଞ୍ଚାଅ", "ଆମ୍ବୁଲାନ୍ସ", "ଘର ଭାଙ୍ଗି",
+    "ଭୂସ୍ଖଳନ", "ଗ୍ୟାସ ଲିକ୍", "ଗର୍ଭବତୀ", "ହାଡ଼ ଭାଙ୍ଗି",
+)
+
+# --------------------------------------------------------------------------
+# LOW — real, but nobody is in danger. Keep this list conservative: a term
+# here can pull an urgent report DOWN, so anything ambiguous belongs above.
+# --------------------------------------------------------------------------
+
+LOW_TERMS: tuple[str, ...] = (
+    # --- English ---
+    "stray", "minor issue", "question", "tomorrow", "next week", "later",
+    "information", "general inquiry", "not urgent",
+    # --- Hindi, romanised ---
+    "awara kutta", "mamuli", "jankari", "sawal", "koi jaldi nahi",
+    # --- Hindi / Marathi (Devanagari) ---
+    "आवारा", "भटक", "मामूली", "किरकोळ", "जानकारी", "माहिती", "सवाल", "प्रश्न",
+    "कल", "उद्या", "बाद में", "नंतर", "जल्दी नहीं",
+    # --- Bengali ---
+    "বেওয়ারিশ", "সামান্য", "তথ্য", "প্রশ্ন", "আগামীকাল", "পরে",
+    # --- Tamil ---
+    "தெரு நாய்", "சிறிய", "தகவல்", "கேள்வி", "நாளை", "பிறகு",
+    # --- Telugu ---
+    "వీధి కుక్క", "చిన్న", "సమాచారం", "ప్రశ్న", "రేపు", "తర్వాత",
+    # --- Gujarati ---
+    "રખડતા", "નાની", "માહિતી", "પ્રશ્ન", "આવતીકાલે", "પછી",
+    # --- Punjabi ---
+    "ਅਵਾਰਾ", "ਮਾਮੂਲੀ", "ਜਾਣਕਾਰੀ", "ਸਵਾਲ", "ਕੱਲ੍ਹ", "ਬਾਅਦ",
+    # --- Kannada ---
+    "ಬೀದಿ ನಾಯಿ", "ಸಣ್ಣ", "ಮಾಹಿತಿ", "ಪ್ರಶ್ನೆ", "ನಾಳೆ", "ನಂತರ",
+    # --- Malayalam ---
+    "തെരുവ് നായ", "ചെറിയ", "വിവരം", "ചോദ്യം", "നാളെ", "പിന്നീട്",
+    # --- Odia ---
+    "ରାସ୍ତା କୁକୁର", "ଛୋଟ", "ସୂଚନା", "ପ୍ରଶ୍ନ", "ଆସନ୍ତାକାଲି", "ପରେ",
+)
+
+
+# --------------------------------------------------------------------------
+# INFO REQUEST — somebody asking a question, with no incident behind it.
+#
+# "I just want to know which hospital is nearest to sector 22" names a
+# hospital and a place but reports nothing wrong. LOW_TERMS cannot catch it:
+# the giveaway is the SHAPE of the sentence ("just want to know which … is
+# nearest"), not any single word, and the individual words here — hospital,
+# nearest — are ones we must not treat as de-escalating anywhere else.
+#
+# These run after the CRITICAL checks in _heuristic_urgency, never before,
+# so "where is the nearest hospital, my father is unconscious" is still
+# CRITICAL. Question-shaped wording never outranks a stated emergency.
+# --------------------------------------------------------------------------
+
+INFO_REQUEST_PATTERNS: tuple[str, ...] = (
+    # --- English ---
+    # "just want to know…", "just wanted to ask…"
+    r"\bjust\s+want(?:ed)?\s+to\s+(?:know|ask|check|find\s+out)\b",
+    # "which/where is the nearest/closest X"
+    r"\b(?:which|where)\b[^.?!]{0,40}\b(?:nearest|closest)\b",
+    # "can you tell me…", "could you tell me…"
+    r"\b(?:can|could)\s+you\s+tell\s+me\b",
+    # "how do I get/apply/register…" — procedural, not an incident
+    r"\bhow\s+do\s+i\s+(?:get|apply|register|contact|reach)\b",
+    # --- Hindi / Urdu, romanised ---
+    r"\b(?:sirf|bas)\s+(?:janna|poochhna|puchhna)\b",
+    r"\bkahan\s+(?:hai|milega)\b",
+    # --- Hindi / Marathi (Devanagari) ---
+    r"(?:सिर्फ|बस)\s*(?:जानना|पूछना)",
+    r"(?:कहाँ|कहां|कुठे)\s*(?:है|आहे|मिलेगा)",
+    # --- Bengali ---
+    r"(?:কোথায়)\s*(?:আছে|পাব)",
+    # --- Tamil ---
+    r"(?:எங்கே)\s*(?:இருக்கிறது|உள்ளது)",
+    # --- Telugu ---
+    r"(?:ఎక్కడ)\s*(?:ఉంది|దొరుకుతుంది)",
+    # --- Gujarati ---
+    r"(?:ક્યાં)\s*(?:છે|મળશે)",
+    # --- Punjabi ---
+    r"(?:ਕਿੱਥੇ)\s*(?:ਹੈ|ਮਿਲੇਗਾ)",
+)
+
+INFO_REQUEST_RES: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pat, re.IGNORECASE) for pat in INFO_REQUEST_PATTERNS
+)
+
+# --------------------------------------------------------------------------
+# Vulnerability signals — who is affected, which raises priority
+# independently of the urgency label.
+# --------------------------------------------------------------------------
+
+# --------------------------------------------------------------------------
+# INCIDENT CONCEPTS — what the report is ABOUT, in every language we ship.
+#
+# These exist for cross-language duplicate detection, not for triage.
+# `similarity()` compares character 4-grams, which works well inside one
+# language and scores exactly 0.000 across scripts: "Fire near Gate 3" and
+# "गेट 3 के पास आग लगी है" describe one fire and share not a single 4-gram.
+#
+# That is not a cosmetic gap. `filter_corroborating` narrows candidates with
+# this score, so in a city where one incident gets reported in Hindi, English
+# and Punjabi, the three reports never corroborate each other: verified_score
+# stays flat and volunteers see three unrelated alerts instead of one
+# confirmed emergency. Corroboration was the feature most weakened by it.
+#
+# Grouped by concept rather than by urgency (which is how CRITICAL_TERMS and
+# friends are organised) because the question here is "are these the same
+# event", not "how bad is it". Same shape as VULNERABLE above.
+#
+# Keep entries SPECIFIC. A concept that matches loosely — a bare "water", a
+# bare "road" — pulls unrelated reports together, and a false corroboration
+# inflates a score that volunteers use to decide what to believe.
+# --------------------------------------------------------------------------
+
+CONCEPTS: dict[str, tuple[str, ...]] = {
+    "fire": (
+        "fire", "burning", "flames", "smoke", "blaze",
+        "aag", "jal rah", "dhuan", "dhuaan",
+        "आग", "जल रह", "धुआं", "धूर", "ज्वाला",
+        "আগুন", "ধোঁয়া", "জ্বলছে",
+        "தீ", "புகை", "எரிகிற",
+        "మంట", "పొగ", "కాలుతో",
+        "આગ", "ધુમાડો", "સળગ",
+        "ਅੱਗ", "ਧੂੰਆਂ", "ਸੜ ਰਹ",
+        "ಬೆಂಕಿ", "ಹೊಗೆ", "ಸುಡು",
+        "തീ", "പുക", "കത്തു",
+        "ନିଆଁ", "ଧୂଆଁ", "ଜଳୁ",
+    ),
+    "flood": (
+        "flood", "water logging", "waterlogged", "submerged", "rising water",
+        "baadh", "paani bhar", "jalbharav",
+        "बाढ़", "जलभराव", "पानी भर", "पूर",
+        "বন্যা", "জলাবদ্ধ", "পানি জমে",
+        "வெள்ளம்", "நீர் தேக்க",
+        "వరద", "నీరు నిలిచ",
+        "પૂર", "પાણી ભરા",
+        "ਹੜ੍ਹ", "ਪਾਣੀ ਭਰ",
+        "ಪ್ರವಾಹ", "ನೀರು ತುಂಬಿ", "ಮುಳುಗಡೆ",
+        "വെള്ളപ്പൊക്കം", "വെള്ളം കയറി", "മുങ്ങിയ",
+        "ବନ୍ୟା", "ପାଣି ଭରି", "ବୁଡ଼ିଗଲା",
+    ),
+    "collapse": (
+        "collapse", "collapsed", "building fell", "wall fell", "caved in",
+        "debris", "rubble", "crack",
+        "girna", "gir gaya", "dhah", "malba", "daraar",
+        "ढह", "गिर गय", "मलबा", "दरार", "कोसळ",
+        "ধসে", "ভেঙে", "ফাটল",
+        "இடிந்த", "விரிசல்",
+        "కూలిప", "పగుళ్ళు",
+        "ધસી", "તિરાડ",
+        "ਢਹਿ", "ਤਰੇੜ",
+        "ಕುಸಿತ", "ಕಟ್ಟಡ ಕುಸಿ", "ಬಿದ್ದಿದೆ",
+        "തകർച്ച", "കെട്ടിടം തകർ", "വീണു",
+        "ଭାଙ୍ଗି ପଡ଼ି", "ଘର ଭାଙ୍ଗି", "ଧସି",
+    ),
+    "trapped": (
+        "trapped", "stuck", "cannot get out", "locked in", "buried under",
+        "phansa", "phanse", "fansa", "atka",
+        "फंस", "अटक", "अडक",
+        "আটকে", "চাপা পড়",
+        "சிக்கி", "மாட்டிக்",
+        "చిక్కుక", "ఇరుక్కు",
+        "ફસાઈ", "ફસી",
+        "ਫਸ", "ਫਸਿਆ",
+        "ಸಿಲುಕಿ", "ಒಳಗೆ ಸಿಕ್ಕಿ", "ಹೊರಬರಲಾಗ",
+        "കുടുങ്ങി", "അകത്ത് കുടുങ്ങി", "പുറത്തിറങ്ങാൻ",
+        "ଫସି", "ଭିତରେ ଫସି", "ବାହାରି ପାରୁ",
+    ),
+    "medical": (
+        "unconscious", "not breathing", "collapsed", "bleeding", "injured",
+        "injury", "heart attack", "fracture", "seizure",
+        "behosh", "saans nahi", "khoon", "ghayal", "chot",
+        "बेहोश", "सांस नहीं", "खून", "घायल", "चोट", "बेशुद्ध",
+        "অজ্ঞান", "শ্বাস নিচ্ছে না", "রক্ত", "আহত",
+        "மயக்க", "மூச்சு", "ரத்த", "காயம்",
+        "స్పృహ", "శ్వాస", "రక్త", "గాయ",
+        "બેભાન", "શ્વાસ", "લોહી", "ઈજા",
+        "ਬੇਹੋਸ਼", "ਸਾਹ", "ਖੂਨ", "ਜ਼ਖਮੀ",
+        "ಆಸ್ಪತ್ರೆ", "ಗಾಯ", "ರಕ್ತ", "ನೋವು",
+        "ആശുപത്രി", "പരിക്ക്", "രക്തം", "വേദന",
+        "ଡାକ୍ତରଖାନା", "ଆଘାତ", "ରକ୍ତ", "ଯନ୍ତ୍ରଣା",
+    ),
+    "gas_leak": (
+        "gas leak", "gas leaking", "cylinder leak", "smell of gas", "gas smell",
+        "gas ki badbu", "silender leak",
+        "गैस रिस", "गैस की बदबू", "सिलेंडर",
+        "গ্যাস লিক", "গ্যাসের গন্ধ",
+        "எரிவாயு கசிவ",
+        "గ్యాస్ లీక",
+        "ગેસ લીક",
+        "ਗੈਸ ਲੀਕ",
+        "ಗ್ಯಾಸ್ ಸೋರಿಕೆ", "ಸಿಲಿಂಡರ್ ಸೋರು", "ಅನಿಲ ವಾಸನೆ",
+        "ഗ്യാസ് ചോർ", "സിലിണ്ടർ ചോർ", "ഗ്യാസ് മണം",
+        "ଗ୍ୟାସ ଲିକ୍", "ସିଲିଣ୍ଡର ଲିକ୍", "ଗ୍ୟାସ ଗନ୍ଧ",
+    ),
+    "drowning": (
+        "drowning", "drowned", "went under water", "swept away",
+        "doob", "dub gaya", "bah gaya",
+        "डूब", "बह गय", "बुड",
+        "ডুবে", "ভেসে গে",
+        "மூழ்கி", "அடித்துச் செல்",
+        "మునిగి", "కొట్టుకుపో",
+        "ડૂબી", "તણા",
+        "ਡੁੱਬ", "ਵਹਿ ਗਿਆ",
+        "ಮುಳುಗು", "ನೀರಿನಲ್ಲಿ ಮುಳುಗಿ", "ಈಜಲಾಗ",
+        "മുങ്ങു", "വെള്ളത്തിൽ മുങ്ങി", "നീന്താൻ",
+        "ବୁଡ଼ୁ", "ପାଣିରେ ବୁଡ଼ି", "ପହଁରି ପାରୁ",
+    ),
+    "power": (
+        "power cut", "no electricity", "power outage", "transformer",
+        "bijli nahi", "bijli gul", "light nahi",
+        "बिजली नहीं", "बिजली गुल", "वीज",
+        "বিদ্যুৎ নেই", "লোডশেডিং",
+        "மின்சாரம் இல்ல", "மின்வெட்ட",
+        "కరెంట్ లేదు", "విద్యుత్ అంతరాయ",
+        "વીજળી નથી", "લાઈટ નથી",
+        "ਬਿਜਲੀ ਨਹੀਂ", "ਬਿਜਲੀ ਗੁੱਲ",
+        "ವಿದ್ಯುತ್ ಇಲ್ಲ", "ಕರೆಂಟ್ ಇಲ್ಲ", "ವಿದ್ಯುತ್ ಕಡಿತ",
+        "വൈദ്യുതി ഇല്ല", "കറന്റ് ഇല്ല", "വൈദ്യുതി തടസ്സ",
+        "ବିଦ୍ୟୁତ୍ ନାହିଁ", "କରେଣ୍ଟ ନାହିଁ", "ବିଦ୍ୟୁତ୍ କଟା",
+    ),
+    "accident": (
+        "accident", "crash", "collision", "hit by", "ran over", "overturned",
+        "durghatna", "takkar", "accident ho",
+        "दुर्घटना", "टक्कर", "अपघात", "पलट",
+        "দুর্ঘটনা", "ধাক্কা",
+        "விபத்து", "மோதி",
+        "ప్రమాద", "ఢీకొట్ట",
+        "અકસ્માત", "અથડા",
+        "ਹਾਦਸਾ", "ਟੱਕਰ",
+        "ಅಪಘಾತ", "ಡಿಕ್ಕಿ", "ವಾಹನ ಅಪಘಾತ",
+        "അപകടം", "കൂട്ടിയിടി", "വാഹനാപകടം",
+        "ଦୁର୍ଘଟଣା", "ଧକ୍କା", "ଗାଡ଼ି ଦୁର୍ଘଟଣା",
+    ),
+    "animal": (
+        "animal", "dog", "stray dog", "cat", "cow", "buffalo", "monkey",
+        "snake", "bird", "puppy", "kitten", "cattle",
+        "kutta", "billi", "gaay", "bandar", "saanp", "janwar",
+        "कुत्ता", "बिल्ली", "गाय", "बंदर", "साँप", "सांप", "जानवर", "प्राणी",
+        "কুকুর", "বিড়াল", "গরু", "সাপ", "পশু",
+        "நாய்", "பூனை", "பசு", "பாம்பு", "விலங்கு",
+        "కుక్క", "పిల్లి", "ఆవు", "పాము", "జంతువు",
+        "કૂતરો", "બિલાડી", "ગાય", "સાપ", "પ્રાણી",
+        "ਕੁੱਤਾ", "ਬਿੱਲੀ", "ਗਾਂ", "ਸੱਪ", "ਜਾਨਵਰ",
+        "ನಾಯಿ", "ಹಾವು", "ಪ್ರಾಣಿ", "ಜಾನುವಾರು",
+        "നായ", "പാമ്പ്", "മൃഗം", "കന്നുകാലി",
+        "କୁକୁର", "ସାପ", "ପଶୁ", "ଗାଈ",
+    ),
+    "missing_person": (
+        "missing", "lost child", "cannot find", "went missing", "disappeared",
+        "gum ho", "kho gaya", "lapata",
+        "गुम", "खो गय", "लापता", "हरवल",
+        "নিখোঁজ", "হারিয়ে",
+        "காணவில்ல", "தொலைந்த",
+        "కనిపించడం లేదు", "తప్పిపో",
+        "ગુમ", "ખોવાઈ",
+        "ਗੁੰਮ", "ਲਾਪਤਾ",
+        "ಕಾಣೆಯಾಗಿ", "ಕಳೆದುಹೋಗಿ", "ಪತ್ತೆಯಾಗುತ್ತಿಲ್ಲ",
+        "കാണാതായി", "നഷ്ടപ്പെട്ട", "കണ്ടെത്താൻ",
+        "ନିଖୋଜ", "ହଜିଯାଇ", "ଖୋଜି ପାଉ",
+    ),
+}
+
+VULNERABLE: dict[str, tuple[str, ...]] = {
+    "child": (
+        "child", "baby", "infant", "kid", "toddler", "newborn",
+        "bachcha", "bacha", "bacche", "shishu",
+        "बच्चा", "बच्चे", "बालक", "मूल", "लहान मूल", "शिशु",
+        "শিশু", "বাচ্চা", "ছেলেটি",
+        "குழந்தை", "சிறுவன்", "சிறுமி",
+        "పిల్ల", "చిన్నారి", "బాలుడు",
+        "બાળક", "બાળકી", "શિશુ",
+        "ਬੱਚਾ", "ਬੱਚੀ", "ਬੱਚੇ",
+        "ಮಗು", "ಮಕ್ಕಳು", "ಶಿಶು",
+        "കുട്ടി", "കുഞ്ഞ്", "ശിശു",
+        "ପିଲା", "ଶିଶୁ", "ଛୁଆ",
+    ),
+    "elderly": (
+        "elderly", "old man", "old woman", "senior citizen", "aged",
+        "buzurg", "budha", "budhi", "bujurg",
+        "बुजुर्ग", "बूढ़ा", "बूढ़ी", "वृद्ध", "म्हातार",
+        "বৃদ্ধ", "বয়স্ক", "বুড়ো",
+        "முதியவர்", "வயதான", "மூத்த குடிமக",
+        "వృద్ధ", "ముసలి", "పెద్దవయసు",
+        "વૃદ્ધ", "બુઝુર્ગ", "ઘરડા",
+        "ਬਜ਼ੁਰਗ", "ਬੁੱਢਾ", "ਬਜੁਰਗ",
+        "ವೃದ್ಧ", "ಹಿರಿಯ", "ಮುದುಕ",
+        "വൃദ്ധ", "പ്രായമായ", "മുതിർന്ന",
+        "ବୃଦ୍ଧ", "ବୟସ୍କ", "ବୁଢ଼ା",
+    ),
+    "pregnant": (
+        "pregnant", "expecting mother", "in labour", "in labor",
+        "garbhvati", "garbhwati",
+        "गर्भवती", "गर्भिणी", "प्रसव",
+        "গর্ভবতী", "প্রসব",
+        "கர்ப்பிணி", "பிரசவ",
+        "గర్భిణి", "ప్రసవ",
+        "ગર્ભવતી", "પ્રસૂતિ",
+        "ਗਰਭਵਤੀ", "ਜਣੇਪਾ",
+        "ಗರ್ಭಿಣಿ", "ಗರ್ಭಾವಸ್ಥೆ",
+        "ഗർഭിണി", "ഗർഭാവസ്ഥ",
+        "ଗର୍ଭବତୀ", "ଗର୍ଭାବସ୍ଥା",
+    ),
+    "disabled": (
+        "disabled", "handicapped", "wheelchair", "blind", "deaf", "paralysed",
+        "divyang", "viklang",
+        "दिव्यांग", "विकलांग", "अपंग", "व्हीलचेअर", "अंधा", "बहरा",
+        "প্রতিবন্ধী", "হুইলচেয়ার", "অন্ধ",
+        "மாற்றுத்திறனாளி", "சக்கர நாற்காலி", "பார்வையற்ற",
+        "వికలాంగ", "దివ్యాంగ", "అంధ",
+        "વિકલાંગ", "દિવ્યાંગ", "અંધ",
+        "ਅਪਾਹਜ", "ਦਿਵਿਆਂਗ", "ਅੰਨ੍ਹਾ",
+        "ಅಂಗವಿಕಲ", "ವಿಕಲಚೇತನ", "ನಡೆಯಲಾಗ",
+        "ഭിന്നശേഷി", "വികലാംഗ", "നടക്കാൻ",
+        "ଅକ୍ଷମ", "ବିକଳାଙ୍ଗ", "ଚାଲି ପାରୁ",
+    ),
+}
+
+# --------------------------------------------------------------------------
+# Time sensitivity — how long the reporter can wait. Independent of urgency:
+# "my elderly neighbour needs her medicines by tonight" is not CRITICAL, but
+# it is not something to look at next week either.
+# --------------------------------------------------------------------------
+
+IMMEDIATE_TERMS: tuple[str, ...] = (
+    "immediately", "right now", "right away", "this minute", "at once",
+    "hurry", "asap", "emergency",
+    "abhi", "turant", "jaldi", "foran", "ekdum",
+    "अभी", "तुरंत", "तात्काळ", "ताबडतोब", "जल्दी", "लगेच", "आत्ताच",
+    "এখনই", "অবিলম্বে", "তাড়াতাড়ি", "জরুরি ভিত্তিতে",
+    "உடனே", "இப்போதே", "உடனடியாக", "சீக்கிரம்",
+    "వెంటనే", "ఇప్పుడే", "తక్షణమే", "త్వరగా",
+    "તાત્કાલિક", "હમણાં", "તરત", "જલ્દી",
+    "ਹੁਣੇ", "ਤੁਰੰਤ", "ਛੇਤੀ", "ਫੌਰਨ",
+)
+
+LATER_TERMS: tuple[str, ...] = (
+    "tomorrow", "next week", "later", "no rush", "whenever", "sometime",
+    "kal", "agle", "baad mein",
+    "कल", "अगले", "बाद में", "उद्या", "नंतर", "पुढच्या",
+    "আগামীকাল", "পরে", "পরের সপ্তাহে",
+    "நாளை", "பிறகு", "அடுத்த வாரம்",
+    "రేపు", "తర్వాత", "వచ్చే వారం",
+    "કાલે", "આવતીકાલે", "પછી", "આવતા અઠવાડિયે",
+    "ਕੱਲ੍ਹ", "ਬਾਅਦ", "ਅਗਲੇ ਹਫ਼ਤੇ",
+)
+
+# --------------------------------------------------------------------------
+# Language detection
+# --------------------------------------------------------------------------
+
+# Each Indic script has its own Unicode block, so script alone identifies
+# most of these languages outright.
+_SCRIPT_RANGES: tuple[tuple[str, str], ...] = (
+    ("bn", r"[ঀ-৿]"),   # Bengali
+    ("pa", r"[਀-੿]"),   # Gurmukhi
+    ("gu", r"[઀-૿]"),   # Gujarati
+    ("ta", r"[஀-௿]"),   # Tamil
+    ("te", r"[ఀ-౿]"),   # Telugu
+    ("kn", r"[ಀ-೿]"),   # Kannada
+    ("ml", r"[ഀ-ൿ]"),   # Malayalam
+    ("or", r"[଀-୿]"),   # Odia. U+0B00-0B7F, immediately below Tamil
+                        # at U+0B80 -- adjacent blocks, never overlapping.
+)
+_SCRIPT_RES: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
+    (code, re.compile(pattern)) for code, pattern in _SCRIPT_RANGES
+)
+
+# Hindi and Marathi share the Devanagari block, so script cannot separate
+# them — these are the highest-frequency function words unique to each.
+_DEVANAGARI_RE = re.compile(r"[ऀ-ॿ]")
+_MARATHI_MARKERS = ("आहे", "नाही", "मला", "काय", "झाल", "करत", "येत")
+
+# Romanised Hindi written in Latin script. Deliberately common function
+# words rather than crisis vocabulary — those already appear in the term
+# lists above, and matching them here would say nothing about language.
+_HINGLISH_MARKERS = (
+    "hai ", "nahi", "kya ", "madad", "yahan", "mera ", "meri ", "bhai",
+    "gaya", "raha", "karo", "jaldi",
+)
+
+
+def detect_language(text: str) -> str:
+    """Best-effort language tag for the alert card.
+
+    Rough by design — it decides which flag a volunteer sees, not anything
+    that affects routing, so a wrong guess is cosmetic. Script beats markers
+    because script is unambiguous where it applies.
+    """
+    for code, pattern in _SCRIPT_RES:
+        if pattern.search(text):
+            return code
+    if _DEVANAGARI_RE.search(text):
+        return "mr" if any(m in text for m in _MARATHI_MARKERS) else "hi"
+    low = f" {text.lower()} "
+    if any(m in low for m in _HINGLISH_MARKERS):
+        return "hi-Latn"
+    return "en"

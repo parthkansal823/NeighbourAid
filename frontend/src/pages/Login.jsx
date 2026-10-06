@@ -1,0 +1,115 @@
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { useI18n } from '../utils/i18n'
+import { AlertTriangle } from '../components/icons'
+import { apiError } from '../utils/error'
+
+export default function Login() {
+  const { login } = useAuth()
+  const { t } = useI18n()
+  const navigate = useNavigate()
+  const [form, setForm] = useState({ email: '', password: '' })
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+    try {
+      const data = await login(form.email, form.password)
+      navigate(data.role === 'volunteer' ? '/volunteer' : '/')
+    } catch (err) {
+      setError(apiError(err, t('login_failed')))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-8 overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-xl rounded-full bg-orange-500/10 blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-24 right-1/4 h-56 w-72 rounded-full bg-blue-500/10 blur-3xl"
+      />
+      <div className="relative surface-card p-6 sm:p-8 w-full max-w-md reveal-up">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl font-bold text-white mb-2">{t('login_title')}</h1>
+          <p className="text-gray-400 text-sm">{t('login_subtitle')}</p>
+        </div>
+
+        {error && (
+          <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={submit} className="space-y-5">
+          <div>
+            {/*
+              htmlFor/id pairing, not decoration. These labels used to sit
+              beside their input as plain text with nothing tying them
+              together, so a screen reader announced every field in the app as
+              an unlabelled edit box — you could hear "blank, edit text" twice
+              and have no way to know which one was the password. Tapping the
+              label also did nothing. Both are fixed by the association alone.
+            */}
+            <label htmlFor="login-email" className="block text-sm text-gray-400 mb-1.5">{t('login_email')}</label>
+            <input
+              id="login-email"
+              type="email"
+              required
+              autoComplete="email"
+              inputMode="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 text-base placeholder:text-gray-600"
+              placeholder="you@example.com"
+            />
+          </div>
+          <div>
+            <label htmlFor="login-password" className="block text-sm text-gray-400 mb-1.5">{t('login_password')}</label>
+            <input
+              id="login-password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 text-base placeholder:text-gray-600"
+              placeholder="••••••••"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="group relative w-full tap bg-accent hover:bg-orange-400 active:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-gray-950 font-semibold py-3 rounded-xl transition-colors duration-200 press-in overflow-hidden"
+          >
+            <span className="relative inline-flex items-center justify-center gap-2">
+              {loading && (
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                  <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              )}
+              {loading ? t('login_submitting') : t('login_submit')}
+            </span>
+          </button>
+        </form>
+
+        <p className="text-center text-gray-500 text-sm mt-6">
+          {t('login_no_account')}{' '}
+          <Link to="/register" className="text-orange-400 hover:text-orange-300 underline-offset-2 hover:underline transition-colors">
+            {t('login_register_here')}
+          </Link>
+        </p>
+      </div>
+    </div>
+  )
+}

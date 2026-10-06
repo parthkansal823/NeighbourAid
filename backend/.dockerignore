@@ -1,0 +1,19 @@
+# Exclude the host venv — it's Windows-specific and would bloat the image
+# and break imports inside the slim Linux container.
+venv
+.venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+.env
+.env.*
+.DS_Store
+.git
+.gitignore
+.dockerignore
+Dockerfile

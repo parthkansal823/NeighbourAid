@@ -1,0 +1,65 @@
+# Render Blueprint — backend only. Frontend goes to Cloudflare, database to
+# MongoDB Atlas. See DEPLOY.md.
+#
+# WHY RENDER, GIVEN EVERYTHING RULED OUT
+#
+#   Hugging Face Docker  - paid on this account
+#   Hugging Face ZeroGPU - wrong runtime shape: it allocates a GPU per
+#                          decorated call and expects a Gradio demo, while
+#                          this is a long-lived process holding volunteer
+#                          WebSockets open. That mismatch is what produced
+#                          the port-7860 double-bind.
+#   Oracle / Fly / Railway - require a card
+#
+# Render free needs no card, supports WebSockets, and the app was measured at
+# 82 MB of the 512 MB limit with the AI removed — 16% headroom used. The old
+# objection ("AI won't run on it") applied to a 1.6 GB model that no longer
+# exists; triage is now a local keyword classifier costing no memory at all.
+#
+# The free plan cannot autoscale, which is a feature here:
+# app/services/websocket.py keeps connected volunteers in a plain in-process
+# dict, so a second instance would hold an invisible half of the pool and an
+# alert would reach only whoever shared a box with the reporter. The plan that
+# cannot scale cannot break this. Lifting that ceiling means Redis pub/sub
+# first.
+#
+# Free instances sleep after 15 minutes idle and take ~50 s to wake — fatal
+# for an app whose first request after a quiet spell is somebody pressing SOS.
+# Step 4 of DEPLOY.md points UptimeRobot at /health/ready every 5 minutes so
+# the timer never reaches 15. 750 free instance-hours covers a month's ~730,
+# but only for ONE free service; a second pushes you over and both suspend.
+services:
+  - type: web
+    name: neighbouraid-api
+    runtime: docker
+    plan: free
+    # Closest Render region to Indian users; they have no Mumbai presence.
+    # Pin Atlas to Mumbai anyway — several database round trips happen per
+    # request, so that hop matters more than this one.
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Liveness, not readiness. /health checks nothing on purpose, so a
+    # transient Atlas blip can never make Render recycle a healthy container.
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # ENVIRONMENT already defaults to "production" in code, so this is
+      # belt-and-braces rather than load-bearing.
+      - key: ENVIRONMENT
+        value: production
+
+      # Generated and stored by Render — never transits a clipboard or shell
+      # history. Comfortably above the 32-byte HS256 floor config.py enforces
+      # at startup.
+      - key: JWT_SECRET
+        generateValue: true
+
+      # sync:false = "prompt me on deploy, don't put it in git."
+      - key: MONGO_URL
+        sync: false
+
+      # Only needed for a custom frontend domain. The CORS regex in main.py
+      # already covers *.workers.dev and *.pages.dev.
+      - key: FRONTEND_ORIGINS
+        sync: false

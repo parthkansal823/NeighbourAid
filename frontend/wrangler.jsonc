@@ -1,0 +1,68 @@
+{
+  // Cloudflare Workers config for the NeighbourAid SPA.
+  //
+  // We're using the new "Workers Static Assets" flow rather than classic
+  // Pages. Cloudflare is consolidating both products under Workers; the
+  // resulting deployment is functionally a Pages site with a different
+  // dashboard.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "neighbouraid",
+  // Lock the runtime API surface to a known-good date. Bump this only
+  // after testing against newer Worker runtime semantics.
+  "compatibility_date": "2024-12-01",
+
+  // Edge proxy for the API. See worker/index.js for why this exists:
+  // the backend runs on a laptop behind a Cloudflare Tunnel whose hostname
+  // changes, and keeping that hostname server-side is both the only way to
+  // avoid a redeploy per restart and the only way to keep it off the client.
+  //
+  // This replaces an earlier note here claiming a Worker entry point "forces
+  // Workers-paid features". It does not: the free plan includes a daily
+  // request allowance, and because `run_worker_first` is left off, static
+  // assets are served straight from the edge without invoking the Worker at
+  // all. Only /api, /ws and /health are metered.
+  "main": "worker/index.js",
+
+  "assets": {
+    // Vite outputs to dist/ relative to this file (which lives in frontend/).
+    "directory": "./dist",
+
+    // The Worker serves assets through this binding for everything that is
+    // not a proxied path.
+    "binding": "ASSETS",
+
+    // SPA fallback: Cloudflare serves /index.html for any unmatched path so
+    // React Router can handle client-side routes (/alert/:id, /profile)
+    // without 404ing at the edge. That matters most for shared alert links,
+    // which get forwarded around during an incident by people who never
+    // opened the home page.
+    //
+    // This replaces the `_redirects` file classic Pages used. Keeping both
+    // is not additive — Cloudflare rejects the deploy outright:
+    //   Invalid _redirects configuration: Line 11: Infinite loop detected
+    // because `/*  /index.html  200` re-enters the same rule once this
+    // setting has already rewritten the path. public/_redirects was deleted
+    // for that reason; do not reintroduce it.
+    "not_found_handling": "single-page-application"
+  },
+
+  // Holds API_ORIGIN: the tunnel hostname the Worker forwards to. Lives in
+  // KV rather than in `vars` so that pointing the edge at a new tunnel is a
+  // single `wrangler kv key put` with no deploy — which matters when the
+  // hostname changes every time the tunnel restarts.
+  //
+  // Create it once, then paste the id below:
+  //   npx wrangler kv namespace create CONFIG
+  "kv_namespaces": [
+    {
+      "binding": "CONFIG",
+      "id": "a4b7b24526224bc081e0b36e38c56a62"
+    }
+  ],
+
+  // Site URL: https://neighbouraid.<your-account>.workers.dev
+  // (or your custom domain if you wire one up later)
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "neighbouraid-demo",
+  "compatibility_date": "2026-10-05",
+
+  // Standalone asset-only Worker: no tunnel origin, KV, API proxy, or
+  // credentials. It only serves the fictional walkthrough built to dist-demo.
+  "assets": {
+    "directory": "./dist-demo",
+    "not_found_handling": "single-page-application"
+  },
+
+  "observability": {
+    "enabled": true,
+    "traces": {
+      "enabled": true
+    }
+  }
+}

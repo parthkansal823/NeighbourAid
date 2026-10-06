@@ -1,0 +1,107 @@
+name: neighbouraid-laptop
+
+services:
+  mongo:
+    image: mongo:8.0
+    command: ["mongod", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
+    env_file: [./mongo.private.env]
+    # The image's data directories are owned by this unprivileged user.
+    user: mongodb
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      - /home/mongodb:size=8m,mode=1777
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+      - ./mongo/init.js:/docker-entrypoint-initdb.d/10-neighbouraid.js:ro
+      - ./mongo/healthcheck.js:/opt/neighbouraid/healthcheck.js:ro
+      - ./mongo/backup.sh:/opt/neighbouraid/backup.sh:ro
+    networks: [database]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--norc", "/opt/neighbouraid/healthcheck.js"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    build:
+      context: ../../backend
+    env_file:
+      # Only optional integrations need this file. Generated app.private.env below
+      # overrides its database/JWT values for the self-contained Docker stack.
+      - path: ../../backend/.env
+        required: false
+      # Created locally by `npm run server:setup`; never committed.
+      - ./edge.env
+      - ./app.private.env
+    environment:
+      ENVIRONMENT: production
+      PORT: "8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks: [database, edge]
+    # No API or database port is published to
+    # localhost or the LAN: cloudflared is the only ingress.
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 256
+    restart: "no"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    command: ["tunnel", "--no-autoupdate", "--url", "http://api:8000"]
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [edge]
+    user: "65532:65532"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 64
+    restart: "no"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  # MongoDB cannot reach the Internet, the tunnel, or the host LAN.
+  database:
+    internal: true
+  edge:
+
+volumes:
+  # Normal stop/start preserves both volumes. Never use `down --volumes`
+  # or volume prune on this stack unless you intend to erase the database.
+  mongo_data:
+  mongo_config:

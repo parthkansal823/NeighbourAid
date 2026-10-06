@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0f19" />
+    <meta
+      name="description"
+      content="NeighbourAid — hyperlocal crisis and help network for India. Real-time volunteer dispatch, AI urgency triage, and multi-source verification."
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="NeighbourAid" />
+
+    <meta property="og:title" content="NeighbourAid — Hyperlocal Crisis Network" />
+    <meta
+      property="og:description"
+      content="Post crises, notify nearby volunteers in real time, verified by AI + community witnesses."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_IN" />
+
+    <title>NeighbourAid — Hyperlocal Crisis Network</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Register the service worker in production only — in dev Vite's HMR
+      // conflicts with aggressive caching.
+      if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/service-worker.js')
+            .catch((err) => console.warn('SW register failed:', err))
+        })
+      }
+    </script>
+  </body>
+</html>

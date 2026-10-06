@@ -1,0 +1,67 @@
+name: Deploy Cloudflare Worker
+
+# A deployment follows a green CI run, not merely a push to main. The
+# workflow_run payload supplies the exact revision CI accepted.
+on:
+  workflow_run:
+    workflows: ["NeighbourAid CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cloudflare-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # The token is a secret; the account id is intentionally a GitHub Actions
+  # variable because it is an identifier, not a credential.
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  deploy:
+    # Manual runs are allowed. Automatic runs deploy only if all CI jobs in
+    # NeighbourAid CI completed successfully.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+      url: https://neighbouraid.kansalp-parth.workers.dev
+
+    steps:
+      - name: Checkout the CI-tested revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Explain missing deployment credentials
+        if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
+        run: >-
+          echo "::warning::Cloudflare deployment skipped. Add the
+          CLOUDFLARE_API_TOKEN repository secret and CLOUDFLARE_ACCOUNT_ID
+          repository variable to enable it. CI remains fully active."
+
+      - name: Deploy Worker and static assets
+        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+        env:
+          # The browser site uses relative URLs; the Worker supplies the
+          # backend connection from its server-side KV binding.
+          VITE_EDGE_PROXY: "1"
+        run: cd frontend && npm run deploy

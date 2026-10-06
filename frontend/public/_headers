@@ -1,0 +1,24 @@
+# Cloudflare Pages / Netlify edge-side response headers.
+# Mirrors the security headers we set in nginx for self-hosting, so the
+# Cloudflare-served SPA gets the same hardening for free without any
+# Worker code.
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=15552000; includeSubDomains
+  Permissions-Policy: camera=(self), microphone=(self), geolocation=(self), payment=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com https://api.qrserver.com; font-src 'self' data:; connect-src 'self' https: wss:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+
+# Hashed Vite bundles are immutable — cache aggressively at the edge
+# AND in the user's browser
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Service worker MUST NOT be cached aggressively or users get stuck on
+# a stale build forever
+/service-worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Expires: 0

@@ -1,0 +1,131 @@
+# --- Environment & secrets ---
+*.jks
+*.keystore
+keystore.properties
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+backend/coverage.xml
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+backend/venv/
+backend/.venv/
+# Scratch environments used to reproduce CI with a second Python version.
+# They are generated locally and never contain project source.
+backend/.ci-*/
+venv/
+.venv/
+env/
+ENV/
+
+# --- Node / frontend ---
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build output (shipped via CI, not the repo)
+frontend/dist/
+frontend/dist-demo/
+frontend/.vite/
+
+# --- HuggingFace cache ---
+.cache/huggingface/
+hf_cache/
+
+# --- IDE / editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Docker / CI scratch ---
+docker-compose.override.yml
+*.log
+
+# --- Local model weights ---
+#
+# Downloaded, not authored: multi-gigabyte binaries that git stores badly and
+# cannot diff. A single 7B checkpoint is ~4.7 GB, which is larger than every
+# other file in this repo combined and above GitHub's 100 MB per-file hard
+# limit — a push would be rejected after uploading the lot.
+#
+# models/README.md documents which weights to fetch and pins the exact repo
+# and filename, so the directory is reproducible from a clone without the
+# bytes living in history.
+# Contents, not the directory itself: git does not descend into an ignored
+# directory, so `models/` + `!models/README.md` would leave the README
+# unreachable and untracked.
+models/*
+!models/README.md
+
+# Weight formats, wherever they land — a stray checkpoint outside models/
+# should not slip in either.
+*.gguf
+*.onnx
+*.safetensors
+*.bin
+*.pt
+*.pth
+
+# Real values, filled in per deploy; the .example is the tracked template.
+frontend/.env.production
+
+# Unlike .env.production, the Android build's Worker address is a deliberately
+# public, stable endpoint. It contains neither a tunnel hostname nor a secret,
+# so keeping it in version control makes a reproducible mobile build possible.
+!frontend/.env.mobile
+# The values inside these templates are deliberately public placeholders.
+# Keep them versioned so a fresh clone can configure each build target.
+!frontend/.env.mobile.example
+!frontend/.env.production.example
+
+# Claude Code: the shared project config (.claude/settings.json, .mcp.json)
+# is committed on purpose. Personal overrides are not -- settings.local.json
+# is where a machine-specific secret would land, such as the Atlas
+# connection string the mongodb MCP server needs.
+.claude/settings.local.json
+.claude/worktrees/
+
+# Wrangler's local state: the simulated KV store and dev cache that
+# `wrangler dev` writes. Machine-local, and it contains whatever tunnel
+# hostname was last pointed at during development.
+frontend/.wrangler/
+
+# Generated edge authentication shared by the Worker and laptop containers.
+deploy/laptop/edge.env
+deploy/laptop/app.env
+deploy/laptop/mongo.env
+deploy/laptop/runtime-secrets.json
+deploy/laptop/app.private.env
+deploy/laptop/mongo.private.env
+deploy/laptop/runtime-secrets.private.json
+deploy/laptop/rotation.private.json
+deploy/laptop/runtime-secrets.private.json.pending
+backups/

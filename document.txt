@@ -1,0 +1,413 @@
+Here's the updated full documentation text:
+
+---
+
+# NEIGHBOURAID
+## Hyperlocal Crisis & Help Network
+### Project Documentation — Semester 6 | Full Stack Development
+
+**Submitted by:** Parth Kansal
+**GitHub:** parthkansal823/FSD-2
+**Academic Year:** 2025–26
+
+---
+
+## 1. Executive Summary
+
+NeighbourAid is a full-stack web application that enables people within a locality to post urgent help requests — such as medical emergencies, flood incidents, power outages, or missing persons — and instantly notifies nearby registered volunteers. An AI layer (running locally via Hugging Face models, no external API) classifies the severity of each alert and routes it to the most relevant helpers.
+
+The backend is built in Python (FastAPI), containerized with Docker, and uses GitHub Actions for CI/CD. No paid APIs are used — the entire stack is open source.
+
+| Attribute | Details |
+|---|---|
+| Project Name | NeighbourAid |
+| Type | Full Stack Web Application |
+| Tech Stack | React.js + FastAPI + MongoDB + Docker |
+| AI Integration | Hugging Face Transformers (local inference, no API key) |
+| CI/CD | GitHub Actions |
+| Target Users | General public (reporters) + Volunteers |
+| Target Geography | India (initially Chandigarh region) |
+
+---
+
+## 2. Problem Statement
+
+During crises — whether a medical emergency, a natural disaster, or a missing person — the first few minutes are the most critical. In urban and semi-urban India, people frequently rely on informal WhatsApp groups or word-of-mouth to seek help. These channels are slow, unstructured, and geographically unreliable.
+
+### 2.1 Key Pain Points
+- No structured platform to post a crisis and instantly reach nearby volunteers
+- Existing platforms (iVolunteer, OpenContribute) are appointment-based, not real-time
+- Emergency services (100, 108) are overloaded and often unreachable in time
+- No AI-based triage exists to prioritize life-threatening vs. non-urgent requests
+- Geo-based volunteer matching is completely absent from current tools
+
+### 2.2 Opportunity
+A lightweight, open-source web platform combining real-time crisis posting, geolocation-based volunteer matching, and on-device AI urgency classification can meaningfully reduce emergency response times at the community level — at zero API cost.
+
+---
+
+## 3. Project Objectives
+- Build a responsive full-stack application using React.js (frontend) and FastAPI/Python (backend)
+- Allow users to post crisis requests with GPS location, category, and description
+- Notify nearby volunteers in real-time using WebSockets
+- Run a Hugging Face text classification model locally to triage urgency — no API key required
+- Display an interactive map showing active crisis pins in the user's vicinity
+- Allow volunteers to accept requests and mark them as resolved
+- Implement secure JWT authentication with role-based access (Reporter vs. Volunteer)
+- Containerize the entire application using Docker and Docker Compose
+- Automate testing and deployment using GitHub Actions CI/CD pipeline
+
+---
+
+## 4. Technology Stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Frontend | React.js + Tailwind CSS | Responsive UI, component-based |
+| Backend | Python + FastAPI | REST API + WebSocket server |
+| Database | MongoDB + Motor (async) | Storing users, alerts, geo-data |
+| Real-time | FastAPI WebSockets | Live volunteer notifications |
+| AI Model | Hugging Face Transformers | Local urgency classification (zero-shot or fine-tuned) |
+| Model Used | facebook/bart-large-mnli | Zero-shot text classification, runs locally |
+| Maps | Leaflet.js + OpenStreetMap | Geo-visualization of crisis pins |
+| Auth | JWT + passlib (bcrypt) | Secure role-based authentication |
+| Containerization | Docker + Docker Compose | Isolated, reproducible environments |
+| CI/CD | GitHub Actions | Automated lint, test, build, deploy |
+| Deployment | Render / Railway (Docker) | Free-tier container hosting |
+
+---
+
+## 5. System Architecture
+
+### 5.1 High-Level Architecture
+
+```
+[React Client]  ←──HTTP/WS──→  [FastAPI Server (Python)]  ←──→  [MongoDB]
+                                          ↓
+                              [HuggingFace Model (local)]
+                              facebook/bart-large-mnli
+                              (runs inside Docker container)
+```
+
+### 5.2 Docker Compose Services
+
+```
+services:
+  frontend     → React app (port 3000)
+  backend      → FastAPI app (port 8000)
+  mongo        → MongoDB (port 27017)
+```
+
+All three services run in the same Docker Compose network. No external AI API calls are made — the Hugging Face model is downloaded once at image build time and runs entirely inside the backend container.
+
+### 5.3 Data Flow — Crisis Alert Lifecycle
+1. User fills the crisis form; browser GPS auto-fills coordinates
+2. Frontend sends POST /api/alerts to FastAPI backend
+3. Backend passes the description to the local Hugging Face pipeline
+4. Model returns urgency label: CRITICAL / HIGH / MEDIUM / LOW
+5. Alert is saved to MongoDB with urgency label and GeoJSON coordinates
+6. WebSocket broadcasts the alert to all connected volunteers within 5 km radius
+7. Volunteer accepts the alert; reporter gets a real-time status update
+8. Volunteer marks resolved; alert is archived
+
+---
+
+## 6. AI Urgency Classification (Hugging Face, No API)
+
+### 6.1 Model Details
+
+| Attribute | Value |
+|---|---|
+| Model | facebook/bart-large-mnli |
+| Task | Zero-shot text classification |
+| Library | transformers (Hugging Face) |
+| Runs on | CPU inside Docker container |
+| API Key Required | None |
+| Internet at Runtime | Not required (model cached in image) |
+
+### 6.2 Python Implementation
+
+```python
+from transformers import pipeline
+
+classifier = pipeline("zero-shot-classification",
+                      model="facebook/bart-large-mnli")
+
+candidate_labels = ["critical emergency", "high urgency",
+                    "medium urgency", "low urgency"]
+
+def classify_urgency(description: str) -> str:
+    result = classifier(description, candidate_labels)
+    top_label = result["labels"][0]
+    mapping = {
+        "critical emergency": "CRITICAL",
+        "high urgency": "HIGH",
+        "medium urgency": "MEDIUM",
+        "low urgency": "LOW"
+    }
+    return mapping.get(top_label, "MEDIUM")
+```
+
+### 6.3 Urgency Levels
+
+| Level | Map Pin | Example |
+|---|---|---|
+| CRITICAL | Red | Person unconscious, suspected cardiac arrest |
+| HIGH | Orange | Flood water entering home, elderly person alone |
+| MEDIUM | Yellow | Power outage across entire block |
+| LOW | Green | Stray dog injured, needs vet contact |
+
+---
+
+## 7. Database Schema
+
+### 7.1 User Collection
+
+| Field | Type | Description |
+|---|---|---|
+| _id | ObjectId | Auto-generated MongoDB ID |
+| name | String | Full name |
+| email | String (unique) | Login email |
+| password_hash | String | bcrypt-hashed password |
+| role | Enum: reporter / volunteer | Access level |
+| location | GeoJSON Point | Home coordinates |
+| created_at | DateTime | Registration timestamp |
+
+### 7.2 Alert Collection
+
+| Field | Type | Description |
+|---|---|---|
+| _id | ObjectId | Auto-generated ID |
+| reporter_id | ObjectId (ref: User) | Who posted the alert |
+| category | Enum | medical / flood / fire / missing / power / other |
+| description | String | Free-text crisis description |
+| urgency | Enum | CRITICAL / HIGH / MEDIUM / LOW |
+| urgency_reason | String | Top label score from model |
+| location | GeoJSON Point | Lat/lng of crisis |
+| status | Enum | open / accepted / resolved |
+| accepted_by | ObjectId (ref: User) | Volunteer (nullable) |
+| created_at | DateTime | Post timestamp |
+| resolved_at | DateTime | Resolution timestamp (nullable) |
+
+---
+
+## 8. API Endpoints (FastAPI)
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | /api/auth/register | Public | Register reporter or volunteer |
+| POST | /api/auth/login | Public | Login, receive JWT token |
+| GET | /api/alerts/nearby | Volunteer | Alerts within radius (lat, lng, km) |
+| POST | /api/alerts | Reporter | Create alert, triggers HF triage |
+| GET | /api/alerts/{id} | Any | Get alert details |
+| PATCH | /api/alerts/{id}/accept | Volunteer | Accept open alert |
+| PATCH | /api/alerts/{id}/resolve | Volunteer | Resolve accepted alert |
+| GET | /api/users/me | Any | Current user profile |
+| WS | /ws/volunteer | Volunteer | WebSocket for live alert feed |
+
+---
+
+## 9. Project Folder Structure
+
+```
+neighbouraid/
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── context/
+│   │   └── utils/
+│   ├── Dockerfile
+│   └── package.json
+│
+├── backend/
+│   ├── app/
+│   │   ├── main.py           # FastAPI entry point
+│   │   ├── routes/           # auth, alerts, users
+│   │   ├── models/           # Pydantic schemas
+│   │   ├── db/               # MongoDB Motor client
+│   │   ├── services/
+│   │   │   ├── ai.py         # HuggingFace pipeline
+│   │   │   └── websocket.py  # WS connection manager
+│   │   └── core/             # JWT, config, security
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── docker-compose.yml
+├── .github/
+│   └── workflows/
+│       ├── ci.yml            # Lint + test on every push
+│       └── deploy.yml        # Build + deploy on merge to main
+├── .env.example
+└── README.md
+```
+
+---
+
+## 10. Docker Setup
+
+### 10.1 Backend Dockerfile
+
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Pre-download HuggingFace model at build time
+RUN python -c "from transformers import pipeline; \
+    pipeline('zero-shot-classification', \
+    model='facebook/bart-large-mnli')"
+
+COPY ./app .
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### 10.2 docker-compose.yml
+
+```yaml
+version: "3.9"
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/neighbouraid
+      - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:
+```
+
+---
+
+## 11. GitHub Actions CI/CD
+
+### 11.1 CI Pipeline — ci.yml (runs on every push)
+
+```yaml
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install -r backend/requirements.txt
+      - run: pytest backend/tests/
+
+  frontend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+      - run: cd frontend && npm install && npm run lint
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker compose build
+```
+
+### 11.2 Deploy Pipeline — deploy.yml (runs on merge to main)
+
+```yaml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and push Docker images
+        run: |
+          docker compose build
+          docker compose push
+      - name: Deploy to Render
+        run: curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+```
+
+---
+
+## 12. Implementation Plan
+
+| Phase | Tasks | Duration |
+|---|---|---|
+| Phase 1 — Setup | Repo setup, Docker Compose skeleton, MongoDB Atlas, JWT auth | Week 1 |
+| Phase 2 — AI Module | Integrate HuggingFace pipeline locally, test classification | Week 2 |
+| Phase 3 — Backend APIs | Alert CRUD, geospatial queries, WebSocket manager | Week 3 |
+| Phase 4 — Frontend | React pages: Home, Post Alert, Map Dashboard, Volunteer Feed | Week 4 |
+| Phase 5 — Integration | Connect frontend + backend, live map, end-to-end tests | Week 5 |
+| Phase 6 — CI/CD + Deploy | GitHub Actions pipelines, Docker image publish, live deployment | Week 6 |
+
+---
+
+## 13. Unique Differentiators
+
+| Capability | NeighbourAid | IamHere | OpenContribute | iVolunteer |
+|---|---|---|---|---|
+| Real-time crisis posting | ✅ | ❌ | ❌ | ❌ |
+| AI urgency triage (local, free) | ✅ | ❌ | ❌ | ❌ |
+| Geo-based volunteer dispatch | ✅ | Partial | ❌ | ❌ |
+| Instant WebSocket notification | ✅ | ❌ | ❌ | ❌ |
+| Dockerized deployment | ✅ | ❌ | ❌ | ❌ |
+| GitHub Actions CI/CD | ✅ | ❌ | ❌ | ❌ |
+| Zero paid API dependency | ✅ | ❌ | ❌ | ❌ |
+
+---
+
+## 14. Future Scope
+- React Native mobile app for Android-first, low-connectivity access
+- Fine-tune the Hugging Face model on Indian crisis text data for better accuracy
+- Integration with NDRF (National Disaster Response Force) official alert feed
+- Multi-language support — Hindi, Punjabi, Tamil
+- Voice-based alert posting for users with limited literacy
+- Volunteer reputation score based on resolved alert history
+- SMS fallback via open-source GSM gateway for users without smartphones
+- Kubernetes migration for production-scale horizontal scaling
+
+---
+
+## 15. References
+- Hugging Face Transformers — https://huggingface.co/docs/transformers
+- facebook/bart-large-mnli model — https://huggingface.co/facebook/bart-large-mnli
+- FastAPI Documentation — https://fastapi.tiangolo.com
+- Motor (Async MongoDB) — https://motor.readthedocs.io
+- Docker Compose Docs — https://docs.docker.com/compose
+- GitHub Actions Docs — https://docs.github.com/en/actions
+- Leaflet.js — https://leafletjs.com/reference
+- OpenContribute India — https://www.opencontribute.com

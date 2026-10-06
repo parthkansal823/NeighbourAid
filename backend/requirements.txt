@@ -1,0 +1,49 @@
+# Minimum versions are floors chosen to clear known CVEs (pip-audit clean as
+# of this pin). Keep them at `>=` so security patches land without a bump.
+fastapi>=0.121.0
+uvicorn[standard]>=0.38.0
+# Motor is gone: MongoDB deprecated it in May 2025 (EOL May 2026) in favour
+# of PyMongo's built-in async driver, which 4.9 introduced. app/db/client.py
+# uses AsyncMongoClient directly.
+pymongo>=4.17.0
+# PyJWT replaces python-jose: the pinned jose 3.3.0 had 5 CVEs and drags in
+# `ecdsa`, whose timing-attack advisory has no fixed release.
+pyjwt>=2.10.1
+cryptography>=48.0.1
+bcrypt>=4.2.0
+python-multipart>=0.0.27
+# app/services/photo.py degrades to a crude byte-length check without this,
+# so every dimension/corruption check it documents silently never runs.
+pillow>=11.3.0
+pydantic[email]>=2.12.0
+pydantic-settings>=2.14.2
+pytest>=8.3.0
+httpx>=0.28.0
+pytest-asyncio>=0.24.0
+gunicorn>=23.0.0
+feedparser>=6.0.11
+
+# Web push (app/services/push.py). These two, not `pywebpush`: pywebpush is
+# the reference implementation but hard-depends on BOTH aiohttp and requests
+# — thirteen packages and two more HTTP clients, in a project that already
+# ships httpx. These are the libraries pywebpush itself uses for the parts
+# that matter, and each adds only `cryptography`, already pinned above.
+#   py-vapid  — the RFC 8292 auth JWT (Vapid02; Vapid01 is the expired draft)
+#   http-ece  — RFC 8291 aes128gcm payload encryption
+# Nothing cryptographic is hand-rolled; only the POST is ours.
+py-vapid>=1.9.0
+http-ece>=1.2.0
+
+# Quiet hours (app/services/availability.py) compare local time with
+# `zoneinfo`, which reads the IANA database from the operating system.
+# Linux and macOS ship one; Windows does not, so every ZoneInfo() call
+# raises there and the availability check falls open — the feature silently
+# does nothing on a Windows box while passing CI on Linux. Pure data, no
+# code, and harmless where a system database already exists.
+tzdata>=2025.2
+
+# Transitive pins that pip-audit flagged; listed explicitly so a fresh
+# install can't resolve back to a vulnerable version.
+urllib3>=2.7.0
+idna>=3.15
+starlette>=1.3.1

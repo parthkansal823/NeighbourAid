@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash 'd:\\Projects\\Projects_With_Niyati\\NEIGHBOURAID\\.codex\\hooks\\format-python.sh'",
+            "timeout": 45,
+            "statusMessage": "ruff"
+          },
+          {
+            "type": "command",
+            "command": "bash 'd:\\Projects\\Projects_With_Niyati\\NEIGHBOURAID\\.codex\\hooks\\lint-frontend.sh'",
+            "timeout": 90,
+            "statusMessage": "eslint"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash 'd:\\Projects\\Projects_With_Niyati\\NEIGHBOURAID\\.codex\\hooks\\session-start.sh'",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

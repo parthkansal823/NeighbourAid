@@ -1,0 +1,345 @@
+import json
+import logging
+import os
+from contextlib import asynccontextmanager
+
+from bson import ObjectId
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from .core.config import settings
+from .core.edge_guard import EdgeSecretMiddleware
+from .core.security import decode_token_safe
+from .core.security_headers import SecurityHeadersMiddleware
+from .db.client import connect, disconnect, get_db
+from .routes import (
+    alerts,
+    auth,
+    geo,
+    help,
+    inbound,
+    news,
+    push,
+    resources,
+    safety,
+    stats,
+    users,
+)
+from .services.websocket import manager
+
+log = logging.getLogger("neighbouraid")
+logging.basicConfig(level=logging.INFO)
+
+
+def _warn_if_multi_worker() -> None:
+    """Refuse to fail silently when the app is run with more than one worker.
+
+    Two pieces of state are in-process, and both break quietly rather than
+    loudly when a second worker exists:
+
+      * `services/websocket.py` keeps connected volunteers in a plain dict.
+        A broadcast from worker A never reaches a volunteer whose socket
+        landed on worker B, so a share of volunteers simply stop receiving
+        alerts. Nothing errors. Nobody finds out until someone asks why they
+        were not paged.
+      * `services/ratelimit.py` keeps its buckets in a dict too, so N workers
+        means N times the intended limit — the abuse guards get proportionally
+        weaker exactly as the deployment gets bigger.
+
+    `heroku.yml` pins `--workers 1` for this reason, but that pin lives in one
+    deploy file and the next person to scale up will not read it. Saying so at
+    startup is the cheapest way to make the constraint travel with the code.
+
+    A warning rather than a refusal: an operator may genuinely want multiple
+    workers and be willing to lose WebSocket fan-out (the REST API is
+    stateless and scales fine). Making that a deliberate choice is the goal;
+    making it a silent one is the bug.
+    """
+    count = os.getenv("WEB_CONCURRENCY") or os.getenv("UVICORN_WORKERS")
+    try:
+        workers = int(count) if count else 1
+    except ValueError:
+        workers = 1
+    if workers > 1:
+        log.warning(
+            "Running with %s workers. WebSocket broadcasts and rate limits are "
+            "per-process, so volunteers connected to one worker will miss "
+            "alerts broadcast from another, and rate limits are effectively "
+            "%sx looser. Use one worker, or put the fan-out and the limiter "
+            "behind shared storage first.",
+            workers,
+            workers,
+        )
+
+
+def _log_optional_integrations() -> None:
+    """Say at startup which optional pieces are on and which are off.
+
+    Every one of these is designed to degrade silently — that is the whole
+    point of them being optional, and it is right for the request path. It
+    is wrong for the operator. Deploying this today, the only way to learn
+    that `INBOUND_TOKEN` was never set is to send a WhatsApp message and
+    have it vanish, or to notice a 503 in a log nobody is reading.
+
+    So the trade-off is made once, here: silent at runtime, explicit at
+    boot. One INFO line an operator sees on every restart, listing what is
+    actually wired, beats four features that each fail quietly in their own
+    way somewhere else.
+
+    Not a warning — an unset value is a legitimate configuration, and this
+    app is meant to run with all four off.
+    """
+    wired = {
+        "whatsapp-inbound": bool(settings.INBOUND_TOKEN.strip()),
+        "outbound-webhook": bool(settings.ALERT_WEBHOOK_URL.strip()),
+        "web-push": bool(
+            settings.VAPID_PUBLIC_KEY.strip() and settings.VAPID_PRIVATE_KEY.strip()
+        ),
+        "llm-text": bool(settings.LLM_MODEL_PATH.strip()),
+        "llm-vision": bool(
+            settings.LLM_VISION_MODEL_PATH.strip()
+            and settings.LLM_VISION_MMPROJ_PATH.strip()
+        ),
+    }
+    if os.getenv("NA_DISABLE_AI_MODEL") == "1":
+        # The kill switch overrides the paths, so reporting the paths alone
+        # would tell the operator the opposite of what is running.
+        wired["llm-text"] = wired["llm-vision"] = False
+
+    on = sorted(name for name, ok in wired.items() if ok)
+    off = sorted(name for name, ok in wired.items() if not ok)
+    # ASCII only: this goes through whatever handler the host installs, and a
+    # Windows console handler on a cp1252 code page raises on an em dash
+    # rather than degrading — a crash at boot over a punctuation mark.
+    log.info(
+        "Optional integrations - on: %s | off: %s",
+        ", ".join(on) or "none",
+        ", ".join(off) or "none",
+    )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _warn_if_multi_worker()
+    _log_optional_integrations()
+    await connect()
+    yield
+    await disconnect()
+
+
+app = FastAPI(title="NeighbourAid API", version="1.0.0", lifespan=lifespan)
+
+# Security headers run BEFORE CORS so they apply even to CORS-rejected
+# preflight responses. (Starlette evaluates middleware in reverse-add
+# order — last-added is outermost.)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Allow the configured frontend origins. Extra hosts can be appended via
+# FRONTEND_ORIGINS (comma-separated). The regex allow-list covers the free
+# hosts this project actually gets deployed to. Auth is
+# JWT-in-Authorization-header — not cookies — so credentials=true is safe and
+# the Authorization header is not exempt from same-origin policy.
+#
+# `.workers.dev` matters as much as `.pages.dev`: Cloudflare now serves
+# static sites from Workers too, and a frontend deployed that way is a
+# different origin. Without it every API call fails preflight, which shows up
+# in the browser as a CORS error rather than anything pointing at this list.
+_default_origins = ["http://localhost:3000", "http://localhost:5173"]
+_extra = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "").split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_default_origins + _extra,
+    allow_origin_regex=(
+        r"https://.*\.vercel\.app|"
+        r"https://.*\.onrender\.com|"
+        r"https://.*\.hf\.space|"
+        r"https://.*\.netlify\.app|"
+        r"https://.*\.pages\.dev|"
+        r"https://.*\.workers\.dev"
+    ),
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Inbound-Token"],
+    expose_headers=[],
+    max_age=600,
+)
+
+# Added last, so it runs first: Starlette wraps each new middleware around
+# the previous ones. A request that did not come through the edge should be
+# refused before any of the work below it happens.
+#
+# No-op unless EDGE_SECRET is set, so local runs and CI are unchanged. See
+# core/edge_guard.py for what it is defending against.
+app.add_middleware(EdgeSecretMiddleware)
+
+app.include_router(auth.router)
+app.include_router(alerts.router)
+app.include_router(users.router)
+app.include_router(stats.router)
+app.include_router(safety.router)
+app.include_router(news.router)
+app.include_router(resources.router)
+app.include_router(inbound.router)
+app.include_router(geo.router)
+app.include_router(help.router)
+app.include_router(push.router)
+
+
+def _safe_errors(errors):
+    """Pydantic errors may include non-JSON-serializable objects (ValueError
+    instances under `ctx`). Keep only the client-useful keys so the response
+    is always JSON-safe."""
+    safe = []
+    for e in errors:
+        safe.append(
+            {
+                "type": e.get("type"),
+                "loc": [str(x) for x in e.get("loc", ())],
+                "msg": e.get("msg"),
+            }
+        )
+    return safe
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Flatten Pydantic validation errors into a concise single string so the
+    frontend can render `detail` directly. Raw, JSON-safe errors stay under
+    `errors` for anyone who wants them."""
+    messages = []
+    for err in exc.errors():
+        loc = ".".join(str(x) for x in err.get("loc", ()) if x not in ("body",))
+        msg = err.get("msg", "invalid value")
+        messages.append(f"{loc}: {msg}" if loc else msg)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "; ".join(messages) or "Invalid request",
+            "errors": _safe_errors(exc.errors()),
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Last-resort: never leak stack traces to clients. Logs full trace."""
+    log.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error — please try again"},
+    )
+
+
+@app.get("/")
+async def root():
+    return {"service": "NeighbourAid API", "status": "ok", "docs": "/docs"}
+
+
+@app.get("/health")
+async def health():
+    """Liveness. Deliberately checks nothing.
+
+    Two things poll this: the platform's health check, and the uptime
+    monitor that stops a free-tier host idling out. Both ask the same
+    question — "is this process up?" — and neither should be able to take
+    the service down. If this touched Mongo, a transient Atlas blip would
+    return 503, the platform would recycle a perfectly healthy container,
+    and a database wobble would become an outage.
+
+    Use /health/ready for "can it actually serve traffic?".
+    """
+    return {"status": "ok"}
+
+
+@app.get("/health/ready")
+async def readiness():
+    """Readiness — verifies the dependencies a request actually needs, and
+    keeps them warm as a side effect.
+
+    This is the endpoint to point UptimeRobot (or any uptime monitor) at.
+    Polling it every 5 minutes does two useful things at once:
+
+      * keeps the host from idling out and cold-starting on the next SOS
+      * keeps the Mongo connection pool open, so the first real query does
+        not pay to re-establish a connection to Atlas
+
+    Returns 503 naming the failing component, so the alert email tells you
+    where to look instead of only that something broke.
+    """
+    try:
+        db = get_db()
+        # `ping` is the cheapest round trip that proves the driver is
+        # connected and authenticated — no collection scan, no index use.
+        await db.command("ping")
+    except Exception as exc:  # noqa: BLE001 — the reason is the payload
+        log.warning("readiness check failed: %s", exc)
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "database": "unreachable"},
+        )
+    return {"status": "ok", "database": "ok"}
+
+
+@app.websocket("/ws/volunteer")
+async def volunteer_ws(websocket: WebSocket, token: str):
+    payload = decode_token_safe(token)
+    # A malformed `sub` would raise InvalidId on the ObjectId() below, after
+    # the socket is already accepted — reject it up front like a bad token.
+    if not payload or not ObjectId.is_valid(payload.get("sub") or ""):
+        await websocket.close(code=4001)
+        return
+    if payload.get("role") != "volunteer":
+        await websocket.close(code=4003)
+        return
+
+    await websocket.accept()
+    vol_id = payload["sub"]
+    db = get_db()
+    profile = await db.users.find_one(
+        {"_id": ObjectId(vol_id)},
+        {"skills": 1, "has_vehicle": 1},
+    )
+    skills = list((profile or {}).get("skills") or [])
+    has_vehicle = bool((profile or {}).get("has_vehicle", False))
+
+    try:
+        # First message must carry the volunteer's coordinates: {"coordinates": [lng, lat]}
+        raw = await websocket.receive_text()
+        try:
+            loc = json.loads(raw)
+            coords = loc["coordinates"]
+            if not (isinstance(coords, list) and len(coords) == 2):
+                raise ValueError("bad coordinates")
+            lng, lat = float(coords[0]), float(coords[1])
+            if not (-180 <= lng <= 180 and -90 <= lat <= 90):
+                raise ValueError("out-of-range coordinates")
+        except (ValueError, KeyError, TypeError):
+            await websocket.close(code=4002)
+            return
+
+        manager.register(vol_id, websocket, [lng, lat], skills=skills, has_vehicle=has_vehicle)
+        while True:
+            raw = await websocket.receive_text()
+            try:
+                loc = json.loads(raw)
+                coords = loc["coordinates"]
+                if not (isinstance(coords, list) and len(coords) == 2):
+                    continue
+                lng, lat = float(coords[0]), float(coords[1])
+                if not (-180 <= lng <= 180 and -90 <= lat <= 90):
+                    continue
+            except (ValueError, KeyError, TypeError):
+                continue
+            manager.register(
+                vol_id,
+                websocket,
+                [lng, lat],
+                skills=skills,
+                has_vehicle=has_vehicle,
+            )
+    except WebSocketDisconnect:
+        pass
+    finally:
+        manager.disconnect(vol_id)

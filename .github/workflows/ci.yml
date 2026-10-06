@@ -1,0 +1,234 @@
+name: NeighbourAid CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Opt-in early to the Node 24 runtime for JavaScript-based actions. GitHub
+# is deprecating Node 20 across the runner — without this flag every
+# checkout / setup-node / setup-python / upload-artifact step prints a
+# deprecation warning. The flag becomes a no-op once Node 24 is the default
+# (June 2026), so it's safe to leave in place.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Backend: ruff lint + pytest with coverage on 3.11 and 3.12
+  # Matrix gives us early warning when a new Python version breaks
+  # something without needing a prod rollback.
+  # -----------------------------------------------------------------------
+  backend-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install ruff pytest-cov
+
+      - name: Ruff lint
+        run: |
+          cd backend
+          # E9,F63,F7,F82 = syntax / undefined-name / import errors (show-stoppers).
+          # Keeping the default ruleset to "don't block the build on style" —
+          # the project isn't codebase-wide ruff-clean yet.
+          ruff check app --select=E9,F63,F7,F82 --output-format=github
+
+      - name: Run backend tests with coverage
+        run: |
+          cd backend
+          pytest tests/ -v --tb=short --cov=app --cov-report=xml --cov-report=term
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          retention-days: 14
+
+  # -----------------------------------------------------------------------
+  # Frontend: ESLint, production build, artifact upload. Node 20 LTS is
+  # the project baseline (Node 18 went EOL April 2025); the job is fast
+  # enough that we don't need a matrix.
+  # -----------------------------------------------------------------------
+  frontend-lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Lint frontend
+        run: cd frontend && npm run lint
+
+      - name: Run frontend unit tests
+        run: cd frontend && npm test
+
+      - name: Test server setup tools
+        run: cd frontend && npm run test:tools
+
+      - name: Reject committed runtime or signing secrets
+        run: cd frontend && npm run check:private
+
+      - name: Build direct-API frontend
+        # vite.config.js hard-fails a production build when VITE_API_URL or
+        # VITE_WS_URL is unset, so that a frontend pointing at nothing can
+        # never ship. CI still has to satisfy that guard, and these are
+        # deliberately unreachable placeholders: this job only proves the
+        # bundle compiles. The direct mode remains supported for an API that
+        # has its own public origin. The Worker mode used by this project is
+        # built separately below. The WS value must keep the wss:// scheme or
+        # the config's second guard rejects it.
+        env:
+          VITE_API_URL: "https://ci-placeholder.invalid"
+          VITE_WS_URL: "wss://ci-placeholder.invalid"
+        run: cd frontend && npm run build
+
+      - name: Build Worker edge-proxy frontend
+        # This is the production browser target: relative API and WebSocket
+        # routes are handled by frontend/worker/index.js. Build it after the
+        # compatibility target so the uploaded artifact matches production.
+        env:
+          VITE_EDGE_PROXY: "1"
+        run: cd frontend && npm run build
+
+      - name: Build standalone fictional demo
+        # The demo is a separate static deployment with a local mock API.
+        # Building it here catches an entry-point regression without needing
+        # Cloudflare credentials or a backend server in CI.
+        run: cd frontend && npm run demo:build
+
+      - name: Upload edge build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-edge-dist
+          path: frontend/dist
+          retention-days: 7
+
+  # -----------------------------------------------------------------------
+  # Non-blocking security audits. These warn but never fail the build —
+  # transitive CVEs in a demo repo shouldn't block a merge. Real projects
+  # should drop `continue-on-error` and fix the underlying deps.
+  # -----------------------------------------------------------------------
+  security-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Python dependency audit
+        # Don't fail the step on real CVEs — the job-level continue-on-error
+        # only stops blocking dependents; the step itself would still go red
+        # in the GitHub UI without `|| true`. We surface findings as a
+        # printed report and let humans triage.
+        run: |
+          cd backend
+          pip-audit -r requirements.txt --skip-editable || true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm audit (high + critical)
+        run: |
+          cd frontend
+          npm audit --audit-level=high || true
+
+  # -----------------------------------------------------------------------
+  # Docker image build — just validates the Dockerfiles still build.
+  # Gated on lint+tests so we don't waste 5 min on broken code.
+  # -----------------------------------------------------------------------
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [backend-test, frontend-lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate self-contained laptop stack
+        run: |
+          cd frontend
+          npm run server:init
+          docker compose --file ../deploy/laptop/docker-compose.yml config --quiet
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          load: true
+          tags: neighbouraid-laptop-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test MongoDB and API together
+        run: |
+          docker compose --file deploy/laptop/docker-compose.yml up --detach --no-build --wait --wait-timeout 180 api
+          cd frontend
+          npm run server:test -- --restart
+
+      - name: Stop integration containers without deleting volumes
+        if: always()
+        run: docker compose --file deploy/laptop/docker-compose.yml down
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: false
+          # Same throwaway values as the frontend-lint build step, for the
+          # same reason: vite.config.js refuses to build without them. They
+          # have to be build-args rather than `env:` because the build runs
+          # inside the image, where a step-level env var does not reach.
+          build-args: |
+            VITE_API_URL=https://ci-placeholder.invalid
+            VITE_WS_URL=wss://ci-placeholder.invalid
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
