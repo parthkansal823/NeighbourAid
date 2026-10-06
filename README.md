@@ -38,6 +38,9 @@ support—have their own board.
 
 ## Start the real app with Docker
 
+The backend runs only on your laptop, reached through a Cloudflare tunnel.
+There is no cloud backend deployment; only the web frontend is hosted remotely.
+
 Install Node.js 22+ and Docker Desktop using Linux containers. Keep the Docker
 engine running. The Compose plugin must be 2.24+.
 
@@ -196,15 +199,16 @@ cd backend
 .\venv\Scripts\python.exe -m pytest tests/ -q
 ```
 
-CI tests Python 3.12/3.13, frontend lint/tests and build modes, the backend Docker image,
-and an authenticated MongoDB/API integration probe. Dependency audits report
+CI tests Python 3.12/3.13, frontend lint/tests, setup tools and build modes.
+Dependency audits report
 findings but are currently non-blocking. The Android workflow separately
 builds the APK; physical-phone testing remains necessary before distribution.
 
-The Docker CI job checks the API and MongoDB in temporary GitHub-runner containers,
-including persistence after a restart. It does not start a public tunnel, publish
-images or deploy the laptop server. The frontend deploys to Cloudflare, so its
-optional Nginx Docker image is not built in CI.
+CI does not build Docker images, start backend/database containers or deploy a
+backend. Run `npm run server:test` locally with the laptop stack online for
+MongoDB/API integration checks. Add `-- --restart` only when you can temporarily
+stop the API/database to test persistence. Cloudflare frontend deployment and
+Android APK releases remain separate workflows.
 
 ## Layout and limits
 
@@ -214,7 +218,6 @@ frontend/src/      Shared React UI, i18n and browser/native utilities
 frontend/android/  Generated Capacitor shell
 frontend/worker/   Cloudflare edge proxy
 deploy/laptop/     Private-network MongoDB, API and tunnel stack
-deploy/vm/         Separate optional Caddy/VM setup (expects external MongoDB)
 docs/              Longer technical documentation
 ```
 

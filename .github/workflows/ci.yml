@@ -177,49 +177,5 @@ jobs:
           cd frontend
           npm audit --audit-level=high || true
 
-  # -----------------------------------------------------------------------
-  # Exercise the deployed backend image with authenticated MongoDB, including
-  # readiness, edge access control and persistence across a restart.
-  # The frontend is deployed to Cloudflare, not an Nginx container.
-  # These temporary CI containers do not deploy or start the laptop server.
-  # -----------------------------------------------------------------------
-  docker-build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [backend-test, frontend-lint]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          # Server setup/probe scripts use Node builtins; no npm ci is needed.
-          node-version: "22"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Validate self-contained laptop stack
-        run: |
-          cd frontend
-          npm run server:init
-          docker compose --file ../deploy/laptop/docker-compose.yml config --quiet
-
-      - name: Build backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: false
-          load: true
-          tags: neighbouraid-laptop-api:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Test MongoDB and API together
-        run: |
-          docker compose --file deploy/laptop/docker-compose.yml up --detach --no-build --wait --wait-timeout 180 api
-          cd frontend
-          npm run server:test -- --restart
-
-      - name: Stop integration containers without deleting volumes
-        if: always()
-        run: docker compose --file deploy/laptop/docker-compose.yml down
+  # The backend/database/tunnel are started locally by server:connect, not CI.
+  # Backend unit tests remain above; run server:test locally for integration checks.

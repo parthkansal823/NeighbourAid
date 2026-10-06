@@ -153,7 +153,7 @@ global.fetch = vi.fn(async () => ({
 
 ## 8.3 CI
 
-The workflow is at `.github/workflows/ci.yml`. Four jobs:
+The workflow is at `.github/workflows/ci.yml`. Three jobs:
 
 1. **`backend-test`** — matrix on Python 3.12 + 3.13. Installs deps,
    runs ruff (`E9,F63,F7,F82` only — show-stoppers), pytest with
@@ -165,11 +165,12 @@ The workflow is at `.github/workflows/ci.yml`. Four jobs:
    `|| true` on each step). Runs `pip-audit` and `npm audit
    --audit-level=high`. Findings appear in the step log without
    failing the build.
-4. **`docker-build`** — gated on `backend-test + frontend-lint`.
-   Builds only the backend image with GHA cache, then tests authenticated
-   MongoDB/API readiness, edge access
-   control and data persistence after a restart. No public tunnel, frontend
-   container build, registry push or laptop deployment happens in this job.
+
+CI does not build Docker images, start containers or deploy a backend. The API,
+MongoDB and tunnel run only on the laptop. With that stack online, run
+`npm run server:test` from `frontend/` for auth/readiness checks; optionally use
+`-- --restart` when a brief API/database interruption is acceptable to verify
+persistence. These local integration tests are not part of CI.
 
 `concurrency` is set so push spam cancels in-flight runs of the
 same ref. `permissions: contents: read` keeps the runner least-priv.
@@ -180,8 +181,8 @@ secrets are configured. PRs and manual runs on other branches cannot publish.
 `frontend/scripts/workflows.test.mjs` checks the actual release condition and
 runs `.github/scripts/check-android-signing.sh` with fake credentials. Explicit
 releases fail on missing secret names; ordinary main pushes warn and retain
-their debug artifact. Tests also guard against reintroducing the unused frontend
-Docker build or removing the MongoDB integration probe.
+their debug artifact. Tests also guard the local-only backend policy: no Docker
+CI job or remote hosting configs, while the laptop API/database/tunnel remain.
 
 ---
 

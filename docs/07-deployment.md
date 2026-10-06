@@ -1,5 +1,8 @@
 # Deployment
 
+The backend is local-only: Docker on your laptop, reached through a tunnel.
+No external backend host or VM deployment is part of this setup.
+
 The current step-by-step guide is **[DEPLOY.md](../DEPLOY.md)**. It covers:
 
 - Cloudflare Worker/static frontend and the separate fictional demo.

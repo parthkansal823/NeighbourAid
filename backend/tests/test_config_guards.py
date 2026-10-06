@@ -54,8 +54,7 @@ def test_environment_defaults_to_production():
     from app.core.config import Settings
 
     # Build a fresh Settings ignoring both the ambient environment and the
-    # repo's .env files, which is exactly the situation on a bare deploy:
-    # push-gradio-space.sh strips .env out of the Space tree.
+    # repo's .env files, as when a container starts without private configuration.
     bare = Settings.model_construct()
     assert Settings.model_fields["ENVIRONMENT"].default == "production"
     assert bare.ENVIRONMENT == "production"
@@ -76,8 +75,8 @@ class TestMultiWorkerWarning:
     """The app keeps WebSocket connections and rate-limit buckets in plain
     process-local dicts. With a second worker both break quietly: a share of
     volunteers stop receiving broadcasts, and the abuse limits get N times
-    looser. `heroku.yml` pins `--workers 1`, but that pin lives in one deploy
-    file the next person to scale up will not read."""
+    looser. The laptop container uses a single worker; warn if an environment
+    override asks for more rather than silently splitting its live state."""
 
     def test_silent_on_a_single_worker(self, caplog):
         import app.main as main

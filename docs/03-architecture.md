@@ -88,7 +88,7 @@ neighbouraid/
 │   │   ├── models/          ← Pydantic schemas (alert, user, resource)
 │   │   ├── routes/          ← One module per /api/* prefix
 │   │   └── services/        ← Pure-ish business logic, see above
-│   ├── tests/               ← pytest suite (99 tests)
+│   ├── tests/               ← pytest suite
 │   └── requirements.txt
 ├── frontend/
 │   ├── public/
@@ -106,9 +106,11 @@ neighbouraid/
 │   └── package.json
 ├── .github/workflows/
 │   ├── ci.yml               ← multi-version pytest, lint, build, audit
-│   └── deploy.yml           ← Render deploy hook
+│   ├── deploy.yml           ← Cloudflare frontend deployment after green CI
+│   ├── deploy-ppt.yml       ← Presentation website
+│   └── android.yml          ← APK builds and signed GitHub Releases
 ├── docs/                    ← This folder
-├── deploy/vm/               ← One-command VM install (Docker + Caddy TLS)
+├── deploy/laptop/           ← Local Docker API + MongoDB + cloudflared
 ├── .env.example
 └── README.md
 ```
@@ -347,9 +349,9 @@ the read path**:
 | Reconnect dead WebSockets | `useVolunteerSocket` 3 s backoff |
 | Flush offline alert queue | `OfflineQueueFlusher` on app mount + `online` event |
 
-This is intentional — running a single FastAPI process on Render's
-free tier means we can't rely on a background worker that might be
-killed for inactivity.
+The laptop server is started on demand. When it is stopped or the laptop
+sleeps, backend processing stops too; the browser UI can remain accessible,
+but real-time updates and delivery need the server and tunnel online.
 
 ---
 

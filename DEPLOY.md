@@ -9,6 +9,10 @@ The real frontend stays hosted on Cloudflare when your laptop is off. That
 does **not** keep the API online: live accounts, alerts and volunteer updates
 need the Docker server running. The demo does not need the laptop.
 
+The backend and MongoDB run only on your laptop, connected through cloudflared.
+There is no Heroku/VM/cloud-backend deployment or Docker build job in CI.
+Only the frontend is hosted on Cloudflare; APKs are distributed on GitHub.
+
 ## Requirements
 
 - Node.js 22+ and dependencies installed with `npm ci` in `frontend/`.
@@ -275,16 +279,17 @@ An APK build/signature check does not replace these phone tests.
 ## CI and common problems
 
 CI runs Python 3.12/3.13 backend tests, frontend tests/lint/build modes,
-server-tool tests and Docker MongoDB/API auth/readiness checks. Dependency
+and server-tool tests. Dependency
 audits are non-blocking. Android uses Node 22/Java 21. Automatic publication
 starts only after you push the updated workflow and configure signing secrets;
 local edits do not publish a release.
 
-The Docker job builds only the backend image and starts temporary MongoDB/API
-containers to test authentication, edge access control, readiness and persistence
-after a restart. It does not run cloudflared, publish Docker images or deploy
-anything to your laptop. The frontend's optional Nginx container build is not
-part of CI because the deployed website uses Cloudflare.
+CI does not build Docker images, start a database/tunnel or deploy a backend.
+With your laptop stack running, use `npm run server:test` from `frontend/` to
+check MongoDB authentication, edge access control and API readiness. Use
+`npm run server:test -- --restart` only when a temporary API/database interruption
+is acceptable; it also checks data persistence. These integration checks are
+now local and must be run separately from CI.
 
 | Symptom | Check |
 |---|---|
@@ -299,6 +304,6 @@ part of CI because the deployed website uses Cloudflare.
 | No signed release | Read the Android run's signing warning/error; configure all four repository secrets. |
 | Entire signed release job skipped on a manual run | Push the updated workflow to `main`, then start a new Android package run on `main`. Old manual runs and other branches do not publish releases. |
 
-`deploy/vm/` is a separate legacy Caddy/VM option with external MongoDB. The
-self-contained MongoDB setup here is `deploy/laptop/docker-compose.yml`; the
-VM scripts do not automatically include it.
+The supported server setup is `deploy/laptop/docker-compose.yml`.
+It preserves database volumes on normal stop/start; the backend is reachable
+only while the laptop stack and its tunnel are online.

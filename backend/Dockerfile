@@ -13,11 +13,8 @@ RUN useradd --system --uid 10001 --create-home appuser
 COPY --chown=appuser:appuser ./app ./app
 USER appuser
 
-# Honour $PORT so the same image runs on:
-#   * Render (PORT=10000)
-#   * HuggingFace Spaces Docker SDK (PORT=7860)
-#   * Railway (PORT=...)
-#   * Bare uvicorn (PORT=8000 default, kept for backwards-compat)
+# Local laptop API container. Compose connects cloudflared to port 8000;
+# neither the API nor MongoDB publishes a host/LAN port.
 ENV PORT=8000
 EXPOSE 8000
 CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --no-proxy-headers"]

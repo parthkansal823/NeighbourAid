@@ -11,7 +11,7 @@ to be read in order, but every page can also be picked up on its own.
 | [04-feature-deep-dive.md](04-feature-deep-dive.md) | want to know exactly how a single feature works (AI triage, photos, escalation, …) |
 | [05-api-reference.md](05-api-reference.md) | are integrating with the backend or building a client |
 | [06-development.md](06-development.md) | are running the project locally for the first time |
-| [07-deployment.md](07-deployment.md) | are shipping the app to a server |
+| [07-deployment.md](07-deployment.md) | are setting up the laptop tunnel, web hosting or Android downloads |
 | [08-testing.md](08-testing.md) | are writing or running tests |
 | [09-troubleshooting.md](09-troubleshooting.md) | hit a problem and need a quick fix |
 | [10-glossary.md](10-glossary.md) | see a term and don't know what it means |

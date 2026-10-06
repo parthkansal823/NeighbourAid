@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
@@ -50,14 +50,20 @@ for (const [event, ref, expected] of [
   })
 }
 
-test('CI builds only the deployed backend container and keeps MongoDB integration checks', () => {
-  const docker = jobBlock(ci, 'docker-build')
-  assert.deepEqual([...docker.matchAll(/context: (.+)/g)].map(match => match[1]), ['./backend'])
-  assert.ok(docker.includes('push: false'))
-  assert.ok(docker.includes('load: true'))
-  assert.match(docker, /up --detach --no-build --wait --wait-timeout 180 api\n/)
-  assert.ok(docker.includes('npm run server:test -- --restart'))
-  assert.ok(docker.includes('if: always()'))
+test('CI keeps code checks but does not build or start backend containers', () => {
+  assert.doesNotMatch(ci, /^ {2}docker-build:/m)
+  assert.ok(jobBlock(ci, 'backend-test').includes('pytest tests/'))
+  assert.ok(jobBlock(ci, 'frontend-lint').includes('npm run test:tools'))
+  assert.doesNotMatch(ci, /docker\/build-push-action|docker\/setup-buildx-action|docker compose|npm run server:init/)
+})
+
+test('local Docker API/database/tunnel remain, without remote backend hosting configs', () => {
+  assert.ok(existsSync(path.join(repo, 'backend/Dockerfile')))
+  const compose = readFileSync(path.join(repo, 'deploy/laptop/docker-compose.yml'), 'utf8')
+  for (const service of ['mongo', 'api', 'tunnel']) assert.match(compose, new RegExp(`^  ${service}:`, 'm'))
+  for (const file of ['heroku.yml', 'deploy/vm/setup.sh', 'deploy/vm/docker-compose.yml', 'deploy/vm/Caddyfile']) {
+    assert.equal(existsSync(path.join(repo, file)), false, `Remote hosting config must be removed: ${file}`)
+  }
 })
 
 test('Android workflow calls the tested signing check and watches its changes', () => {
