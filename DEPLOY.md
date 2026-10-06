@@ -183,6 +183,9 @@ embed a GitHub access token in an APK to bypass a private repository.
 
 ### Create a signing key once
 
+If you already have a release keystore, reuse and back it up; do not generate
+a replacement just to fix a skipped workflow job.
+
 With JDK 21 installed, run from the repository root:
 
 ```powershell
@@ -223,8 +226,18 @@ address or private API key belongs there.
   No manual tag is needed for this path.
 - `v*` tag pushes can publish a named version. Use a **new** tag, not a previously
   published one; the workflow uses increasing build version codes.
+- After pushing this workflow, choose **Actions → Android package → Run workflow →
+  main** to build and publish a release manually. Manual runs on other branches
+  build only the debug APK.
 - Without signing secrets, main builds skip signed publication with a warning.
-  An explicit version-tag release fails instead, so it cannot look successful.
+  An explicit version-tag or manual-main release fails instead and lists the
+  missing secret names without printing their values.
+
+Older versions of the workflow allowed signed publication only on pushes, so
+their manual runs skip the entire release job even when all secrets exist.
+Push the updated workflow to `main`, then start a **new** run. Re-running an old
+run keeps its original commit/ref and does not pick up the changed policy. See
+[GitHub's re-run documentation](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/re-run-workflows-and-jobs).
 
 An installed APK from this update checks GitHub's public latest release on
 opening/returning to the app and at most once per four hours after a successful
@@ -267,6 +280,12 @@ audits are non-blocking. Android uses Node 22/Java 21. Automatic publication
 starts only after you push the updated workflow and configure signing secrets;
 local edits do not publish a release.
 
+The Docker job builds only the backend image and starts temporary MongoDB/API
+containers to test authentication, edge access control, readiness and persistence
+after a restart. It does not run cloudflared, publish Docker images or deploy
+anything to your laptop. The frontend's optional Nginx container build is not
+part of CI because the deployed website uses Cloudflare.
+
 | Symptom | Check |
 |---|---|
 | Docker connection fails | Open Docker Desktop and wait for the Linux engine; update Compose if older than 2.24. |
@@ -278,6 +297,7 @@ local edits do not publish a release.
 | Gradle fails on Java | Use JDK 21 and SDK 36; run `mobile:doctor`. |
 | APK refuses an update | Check signing key and increasing version code. Debug-to-release is not an in-place update. |
 | No signed release | Read the Android run's signing warning/error; configure all four repository secrets. |
+| Entire signed release job skipped on a manual run | Push the updated workflow to `main`, then start a new Android package run on `main`. Old manual runs and other branches do not publish releases. |
 
 `deploy/vm/` is a separate legacy Caddy/VM option with external MongoDB. The
 self-contained MongoDB setup here is `deploy/laptop/docker-compose.yml`; the

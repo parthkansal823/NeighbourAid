@@ -23,7 +23,7 @@ env:
 
 jobs:
   # -----------------------------------------------------------------------
-  # Backend: ruff lint + pytest with coverage on 3.11 and 3.12
+  # Backend: ruff lint + pytest with coverage on 3.12 and 3.13
   # Matrix gives us early warning when a new Python version breaks
   # something without needing a prod rollback.
   # -----------------------------------------------------------------------
@@ -71,9 +71,8 @@ jobs:
           retention-days: 14
 
   # -----------------------------------------------------------------------
-  # Frontend: ESLint, production build, artifact upload. Node 20 LTS is
-  # the project baseline (Node 18 went EOL April 2025); the job is fast
-  # enough that we don't need a matrix.
+  # Frontend: ESLint, tests, supported build modes and artifact upload.
+  # Node 22 is the project baseline; no separate version matrix is needed.
   # -----------------------------------------------------------------------
   frontend-lint:
     runs-on: ubuntu-latest
@@ -179,15 +178,23 @@ jobs:
           npm audit --audit-level=high || true
 
   # -----------------------------------------------------------------------
-  # Docker image build — just validates the Dockerfiles still build.
-  # Gated on lint+tests so we don't waste 5 min on broken code.
+  # Exercise the deployed backend image with authenticated MongoDB, including
+  # readiness, edge access control and persistence across a restart.
+  # The frontend is deployed to Cloudflare, not an Nginx container.
+  # These temporary CI containers do not deploy or start the laptop server.
   # -----------------------------------------------------------------------
   docker-build:
+    name: Backend Docker + MongoDB test
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [backend-test, frontend-lint]
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Server setup/probe scripts use Node builtins; no npm ci is needed.
+          node-version: "22"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -217,18 +224,3 @@ jobs:
       - name: Stop integration containers without deleting volumes
         if: always()
         run: docker compose --file deploy/laptop/docker-compose.yml down
-
-      - name: Build frontend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend
-          push: false
-          # Same throwaway values as the frontend-lint build step, for the
-          # same reason: vite.config.js refuses to build without them. They
-          # have to be build-args rather than `env:` because the build runs
-          # inside the image, where a step-level env var does not reach.
-          build-args: |
-            VITE_API_URL=https://ci-placeholder.invalid
-            VITE_WS_URL=wss://ci-placeholder.invalid
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

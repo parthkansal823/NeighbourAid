@@ -126,6 +126,9 @@ The Android workflow builds a debug artifact on relevant pushes and pull
 requests. With the four signing secrets configured, relevant **main-branch
 pushes** also publish a signed GitHub Release containing `app-release.apk`
 and its SHA-256 checksum. Version tags (`v*`) can publish named releases too.
+After pushing the updated workflow, **Actions → Android package → Run workflow →
+main** can also build and publish a signed release. Manual runs on other branches
+produce only a debug artifact.
 
 Required GitHub repository secrets:
 
@@ -135,7 +138,8 @@ Required GitHub repository secrets:
 - `ANDROID_KEY_PASSWORD`
 
 Without these, main pushes keep the debug artifact but skip signed publication.
-A version-tag release without the secrets fails with an explanation. See
+A version-tag or manual-main release without the secrets fails and lists the
+missing secret names, never their values. See
 [the signing setup](DEPLOY.md#android-signing-and-automatic-releases).
 
 The installed app checks public latest-release metadata when opened and
@@ -192,10 +196,15 @@ cd backend
 .\venv\Scripts\python.exe -m pytest tests/ -q
 ```
 
-CI tests Python 3.12/3.13, frontend lint/tests and build modes, Docker images,
+CI tests Python 3.12/3.13, frontend lint/tests and build modes, the backend Docker image,
 and an authenticated MongoDB/API integration probe. Dependency audits report
 findings but are currently non-blocking. The Android workflow separately
 builds the APK; physical-phone testing remains necessary before distribution.
+
+The Docker CI job checks the API and MongoDB in temporary GitHub-runner containers,
+including persistence after a restart. It does not start a public tunnel, publish
+images or deploy the laptop server. The frontend deploys to Cloudflare, so its
+optional Nginx Docker image is not built in CI.
 
 ## Layout and limits
 

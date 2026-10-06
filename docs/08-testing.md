@@ -155,20 +155,33 @@ global.fetch = vi.fn(async () => ({
 
 The workflow is at `.github/workflows/ci.yml`. Four jobs:
 
-1. **`backend-test`** — matrix on Python 3.11 + 3.12. Installs deps,
+1. **`backend-test`** — matrix on Python 3.12 + 3.13. Installs deps,
    runs ruff (`E9,F63,F7,F82` only — show-stoppers), pytest with
    coverage, uploads coverage XML as artifact.
-2. **`frontend-lint`** — `npm ci`, lint, **`npm test`**, build,
-   upload `dist/` as artifact.
+2. **`frontend-lint`** — Node 22, `npm ci`, lint, **`npm test`**,
+   `npm run test:tools`, private-file guard, direct-API/edge/demo builds;
+   uploads the real edge `dist/` as an artifact.
 3. **`security-audit`** — non-blocking (`continue-on-error: true` +
    `|| true` on each step). Runs `pip-audit` and `npm audit
    --audit-level=high`. Findings appear in the step log without
    failing the build.
 4. **`docker-build`** — gated on `backend-test + frontend-lint`.
-   Builds both Dockerfiles with GHA cache.
+   Displayed as **Backend Docker + MongoDB test**. Builds only the backend image
+   with GHA cache, then tests authenticated MongoDB/API readiness, edge access
+   control and data persistence after a restart. No public tunnel, frontend
+   container build, registry push or laptop deployment happens in this job.
 
 `concurrency` is set so push spam cancels in-flight runs of the
 same ref. `permissions: contents: read` keeps the runner least-priv.
+
+The separate Android workflow builds debug APKs, and publishes signed APKs on
+relevant `main` pushes, `v*` tag pushes or manual `main` runs when all four signing
+secrets are configured. PRs and manual runs on other branches cannot publish.
+`frontend/scripts/workflows.test.mjs` checks the actual release condition and
+runs `.github/scripts/check-android-signing.sh` with fake credentials. Explicit
+releases fail on missing secret names; ordinary main pushes warn and retain
+their debug artifact. Tests also guard against reintroducing the unused frontend
+Docker build or removing the MongoDB integration probe.
 
 ---
 
