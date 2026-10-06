@@ -25,6 +25,8 @@ export default [
       'dist/**',
       'dist-demo/**',
       'android/**',
+      'native/**/android/build/**',
+      'native/**/android/.gradle/**',
       'ios/**',
       '.wrangler/**',
       '.ruff_cache/**',

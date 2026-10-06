@@ -96,6 +96,9 @@ feed would silently receive nothing while every REST route kept working.`
   plugins: [react()],
   server: {
     port: 3000,
+    // Gradle writes/locks generated reports while Vite is running on Windows.
+    // Watching them caused EBUSY crashes and reloads unrelated to web source.
+    watch: { ignored: ['**/android/**', '**/ios/**', '**/dist-demo/**'] },
     proxy: {
       '/api': 'http://localhost:8000',
       '/ws': {

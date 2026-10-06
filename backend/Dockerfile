@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 RUN useradd --system --uid 10001 --create-home appuser
 COPY --chown=appuser:appuser ./app ./app
+COPY --chown=appuser:appuser ./scripts ./scripts
 USER appuser
 
 # Local laptop API container. Compose connects cloudflared to port 8000;

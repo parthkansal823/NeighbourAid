@@ -16,6 +16,7 @@ to be read in order, but every page can also be picked up on its own.
 | [09-troubleshooting.md](09-troubleshooting.md) | hit a problem and need a quick fix |
 | [10-glossary.md](10-glossary.md) | see a term and don't know what it means |
 | [11-feature-roadmap.md](11-feature-roadmap.md) | want the next feature ideas, clearly separated from implemented work |
+| [12-voice-first-aid-and-clinician-review.md](12-voice-first-aid-and-clinician-review.md) | want voice reporting, safe first-aid guidance, or clinician-review setup and limits |
 
 The docs assume **no prior familiarity** with the codebase, FastAPI,
 React, or Indian crisis-response tooling. Where domain terms come up

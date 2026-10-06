@@ -47,6 +47,19 @@ support—have their own board.
   Models run on the backend, not on the phone. See [setup and limitations](models/README.md).
 - Android release notices with a download button. Installation still needs the
   phone owner's confirmation.
+- Guided voice reporting: choose one of 11 languages, answer spoken/on-screen
+  questions, review the transcript and select a category before adding a draft.
+  Dictation is also available for paid-help descriptions and private clinician
+  questions. Speech-provider/language availability depends on the device; audio
+  may leave the device for transcription. The app does not store recordings.
+- A local first-aid guide with a safety check, adult/breathing gates, numbered
+  steps and optional read-aloud. English/Hindi medical copy is reference-based,
+  **not yet clinically reviewed for this app**. It is not diagnosis, medicine
+  advice or a replacement for calling 112 and following the dispatcher.
+- Private, consenting adult non-emergency review requests and an
+  operator-approved clinician desk. No doctor is automatically enrolled,
+  verified or promised to reply. Questions do not enter the public alert feed;
+  they expire after 72 hours. See [voice, first aid and clinician setup](docs/12-voice-first-aid-and-clinician-review.md).
 
 UI checks include all 13 routes in both web and Android shells using a
 memory-only API. These render tests are not a substitute for visual/device

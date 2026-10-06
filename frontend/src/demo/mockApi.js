@@ -396,6 +396,10 @@ export function createDemoAdapter(state = seedState()) {
     if (path === '/api/users/me/profile' && method === 'patch') { Object.assign(state.user, body); return response(config, state.user) }
     if ((path === '/api/auth/login' || path === '/api/auth/register') && method === 'post') return response(config, { token: fakeToken(), name: state.user.name, role: state.user.role }, 200)
 
+    if (path === '/api/medical-review/status' && method === 'get') return response(config, { accepting_requests: false, emergency_service: false, retention_hours: 72 })
+    if (path === '/api/medical-review/me' && method === 'get') return response(config, { can_review: false })
+    if (path === '/api/medical-review/mine' && method === 'get') return response(config, [])
+    if (path.startsWith('/api/medical-review/')) return response(config, { detail: 'Clinician review is unavailable in the fictional demo. Do not enter real medical information.' }, 503)
     return response(config, { detail: `Demo route not implemented: ${method.toUpperCase()} ${path}` }, 404)
   }
 }

@@ -5,6 +5,9 @@ import { apiError } from '../utils/error'
 import { useVoice } from '../hooks/useVoice'
 import { voiceCopy, voiceErrorMessage } from '../utils/voiceCopy'
 import LiveCamera from '../components/LiveCamera'
+import VoiceReportAssistant from '../components/VoiceReportAssistant'
+import FirstAidButton from '../components/FirstAidGuide'
+import { assistantCopy } from '../utils/assistantCopy'
 import { useI18n, speechLocaleFor } from '../utils/i18n'
 import { approxKb, compressImage } from '../utils/photo'
 import {
@@ -76,6 +79,7 @@ export default function PostAlert() {
   // volunteers there. Never blocks submit — see the catch below.
   const [address, setAddress] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
   const [photoProcessing, setPhotoProcessing] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [online, setOnline] = useState(
@@ -306,6 +310,9 @@ export default function PostAlert() {
         )}
 
         <form onSubmit={submit} className="space-y-5 sm:space-y-6">
+          <FirstAidButton />
+          <button type="button" className="tap flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500/50 px-4 py-3 font-semibold text-orange-300" onClick={() => { voice.cancel(); setAssistantOpen(true) }}><Mic className="h-5 w-5" aria-hidden />{assistantCopy(lang).title}</button>
+          {assistantOpen && <VoiceReportAssistant categories={CATEGORIES} existingDescription={form.description} isAnonymous={isAnonymous} onClose={() => setAssistantOpen(false)} onApply={draft => { setForm(old => ({ ...old, ...draft })); setAssistantOpen(false) }} />}
           <div>
             <span id="post-category-label" className="block text-sm text-gray-400 mb-2">{t('post_category')}</span>
             <div role="group" aria-labelledby="post-category-label" className="grid grid-cols-2 min-[400px]:grid-cols-3 gap-2">

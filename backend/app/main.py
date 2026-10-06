@@ -21,6 +21,7 @@ from .routes import (
     geo,
     help,
     inbound,
+    medical_review,
     news,
     push,
     resources,
@@ -187,6 +188,7 @@ app.include_router(inbound.router)
 app.include_router(geo.router)
 app.include_router(help.router)
 app.include_router(push.router)
+app.include_router(medical_review.router)
 
 
 def _safe_errors(errors):

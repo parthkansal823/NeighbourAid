@@ -246,10 +246,18 @@ run keeps its original commit/ref and does not pick up the changed policy. See
 An installed APK from this update checks GitHub's public latest release on
 opening/returning to the app and at most once per four hours after a successful
 check while active. It sends no account token or app records to GitHub. A newer
-uploaded APK offers **Download update** and **Later**. Downloading opens an
-external link; the user still permits installation in Android. An unavailable
+uploaded APK offers **Update now** and **Later**. In updater-enabled builds,
+Android downloads the APK inside the app, checks its package/version/signing
+identity, then opens Android's installer when you tap **Install update**.
+The phone owner still permits installation. An unavailable
 GitHub service does not block emergency features. Older APKs without this notice
 need one manual upgrade first. This is not silent installation or web-code OTA.
+
+The Android **More** menu shows the installed version and **Check for updates**.
+Notification permission is optional: without it, the in-app notice still works.
+Checks happen on opening/resuming or while active, not through a guaranteed
+closed-app background push. An older installed APK cannot acquire the new
+updater or speech plugin until you install one new **signed** APK first.
 
 Keep using the same signing key. Moving from debug to release may need
 uninstalling the debug APK: **send saved offline reports first**, because
@@ -300,6 +308,8 @@ now local and must be run separately from CI.
 | Site says server offline | Check `server:status`, Internet/laptop sleep, then `server:connect`; allow KV propagation. |
 | Sample tunnel URL rejected | Do not use `example.trycloudflare.com`. Docker connect discovers a real tunnel automatically. |
 | Gradle fails on Java | Use JDK 21 and SDK 36; run `mobile:doctor`. |
+| CI fails during `npm ci` | Use the committed corrected lockfile. Both Android and frontend CI use Node 22/npm 10; run a new workflow after pushing, not a rerun of the old commit. |
+| Wrangler reports authentication error 10000 | From `frontend/`, run `npx wrangler login`, `npx wrangler whoami`, then `npm run server:connect`. Do not paste API tokens into chat. |
 | APK refuses an update | Check signing key and increasing version code. Debug-to-release is not an in-place update. |
 | No signed release | Read the Android run's signing warning/error; configure all four repository secrets. |
 | Entire signed release job skipped on a manual run | Push the updated workflow to `main`, then start a new Android package run on `main`. Old manual runs and other branches do not publish releases. |
@@ -307,3 +317,17 @@ now local and must be run separately from CI.
 The supported server setup is `deploy/laptop/docker-compose.yml`.
 It preserves database volumes on normal stop/start; the backend is reachable
 only while the laptop stack and its tunnel are online.
+
+## Voice and optional clinician review
+
+Voice prompts and the first-aid reference guide are bundled in the clients.
+Speech recognition/read-aloud still depend on the installed device services;
+some require Internet access or language packs. No medical advice is generated
+by the optional triage LLM. The first-aid guide needs qualified review of its
+wording, translations and emergency branching before a real medical rollout.
+
+Clinician-review requests require the local API/database/tunnel. The desk is
+disabled until an operator has checked and approved a real clinician's identity
+and registration. Rebuild the local API for the new routes/CLI when ready;
+normal start/stop must preserve MongoDB volumes. No clinician has been enrolled
+by these code changes. See [the approval and revocation procedure](docs/12-voice-first-aid-and-clinician-review.md).

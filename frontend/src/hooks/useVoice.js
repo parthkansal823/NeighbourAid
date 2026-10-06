@@ -47,7 +47,7 @@ export function useVoice({ lang = 'en-IN', onResult } = {}) {
     setStatus('idle'); setInterim(''); setError('')
     return () => {
       const session = sessionRef.current
-      if (session) { session.active = false; session.rec?.abort?.() }
+      if (session) { session.active = false; clearTimeout(session.timer); session.rec?.abort?.() }
       sessionRef.current = null
     }
   }, [lang])
@@ -59,7 +59,7 @@ export function useVoice({ lang = 'en-IN', onResult } = {}) {
     const session = { active: true, stopped: false, final: false, errored: false, rec: null }
     sessionRef.current = session
     const live = () => session.active && sessionRef.current === session
-    const finish = () => { if (live()) { session.active = false; setStatus('idle') } }
+    const finish = () => { clearTimeout(session.timer); if (live()) { session.active = false; setStatus('idle') } }
     if (native) {
       setStatus('listening')
       void NeighbourAidSpeech.recognize({ language: lang }).then(result => {
@@ -78,7 +78,7 @@ export function useVoice({ lang = 'en-IN', onResult } = {}) {
       rec.continuous = false
       rec.maxAlternatives = 1
       const emitted = new Set()
-      rec.onstart = () => { if (live()) setStatus('listening') }
+      rec.onstart = () => { if (live()) { clearTimeout(session.timer); setStatus('listening') } }
       rec.onresult = event => {
         if (!live()) return
         const final = [], preview = []
@@ -105,6 +105,10 @@ export function useVoice({ lang = 'en-IN', onResult } = {}) {
         if (!session.final && !session.stopped && !session.errored) setError('no-speech')
         finish()
       }
+      session.timer = setTimeout(() => {
+        if (!live()) return
+        setError('failed'); finish(); rec.abort?.()
+      }, 12000)
       rec.start()
     } catch (err) {
       setError(err.name === 'NotAllowedError' || err.name === 'SecurityError' ? 'not-allowed' : 'failed')
@@ -118,9 +122,25 @@ export function useVoice({ lang = 'en-IN', onResult } = {}) {
     session.stopped = true
     if (!session.rec) { session.active = false; setStatus('idle'); return }
     setStatus('stopping')
-    try { session.rec.stop() }
+    try {
+      clearTimeout(session.timer)
+      session.timer = setTimeout(() => {
+        if (!session.active) return
+        session.active = false; setStatus('idle')
+        if (!session.final) setError('failed')
+        session.rec.abort?.()
+      }, 5000)
+      session.rec.stop()
+    }
     catch { session.active = false; setStatus('idle') }
   }, [])
 
-  return { supported, native, status, listening: status !== 'idle', interim, error, unavailableReason, start, stop }
+  const cancel = useCallback(() => {
+    const session = sessionRef.current
+    if (session) { session.active = false; clearTimeout(session.timer); session.rec?.abort?.() }
+    sessionRef.current = null
+    setStatus('idle'); setInterim('')
+  }, [])
+
+  return { supported, native, status, listening: status !== 'idle', interim, error, unavailableReason, start, stop, cancel }
 }

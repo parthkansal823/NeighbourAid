@@ -7,6 +7,8 @@ import { useI18n } from '../utils/i18n'
 import { getBrowseLocation } from '../utils/geo'
 import { AlertTriangle, MapPin } from '../components/icons'
 import BuddyPing from '../components/BuddyPing'
+import FirstAidButton from '../components/FirstAidGuide'
+import DoctorReviewPanel from '../components/DoctorReviewPanel'
 import { useTimeAgo } from '../hooks/useTimeAgo'
 
 const STATUS_STYLE = {
@@ -183,6 +185,8 @@ export default function Safety() {
         </div>
       </div>
 
+      <div className="mb-6"><FirstAidButton /></div>
+      <DoctorReviewPanel />
       {usingFallbackArea && (
         <div className="bg-amber-950/60 border border-amber-800/70 text-amber-300 text-xs rounded-lg px-4 py-2.5 mb-4 flex items-start gap-2">
           <MapPin className="h-4 w-4 shrink-0 mt-px" aria-hidden />

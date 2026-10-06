@@ -25,6 +25,8 @@ import { filterHelpRequests } from '../utils/helpFilters'
 import { helpSchedule, helpTimeline, localHelpTime, recordedTime } from '../utils/helpSchedule'
 import Button from '../components/Button'
 import EmptyState from '../components/EmptyState'
+import VoiceInput from '../components/VoiceInput'
+import { joinVoiceDraft } from '../utils/assistantCopy'
 import { Skeleton } from '../components/Skeleton'
 import { HELP_ICONS, HelpIcon, Handshake, MapPin, Plus, Search, X } from '../components/icons'
 
@@ -512,6 +514,10 @@ export function RequestForm({ coords, onDone }) {
 
   const submit = async (e) => {
     e.preventDefault()
+    if (form.description.length > 1000) {
+      toast({ variant: 'warning', title: `${t('help_details')}: max 1,000 characters` })
+      return
+    }
     const schedule = helpSchedule(form.schedule_start, form.schedule_end, { local: true })
     setScheduleError(schedule.error || '')
     if (schedule.error) return
@@ -591,6 +597,8 @@ export function RequestForm({ coords, onDone }) {
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
+        <div className="mt-3"><VoiceInput onText={text => setForm(old => ({ ...old, description: joinVoiceDraft(old.description, text) }))} /></div>
+        {form.description.length > 1000 && <p role="alert" className="mt-2 text-sm text-orange-300">{t('help_details')}: max 1,000 characters</p>}
       </div>
 
       <fieldset>

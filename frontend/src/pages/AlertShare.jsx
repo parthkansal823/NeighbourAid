@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
+import FirstAidButton from '../components/FirstAidGuide'
 import {
   ArrowRight,
   CategoryIcon,
@@ -93,6 +94,7 @@ export default function AlertShare() {
           </p>
         )}
         <div className="relative flex flex-wrap gap-2 mt-4">
+          {['medical', 'fire', 'accident'].includes(alert.category) && <FirstAidButton />}
           <Link
             to={mapsUrl}
             className="group relative bg-blue-500 hover:bg-blue-400 active:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:shadow-blue-500/40 transition-colors duration-200 overflow-hidden"

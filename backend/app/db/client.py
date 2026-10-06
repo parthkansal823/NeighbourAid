@@ -40,6 +40,11 @@ async def connect():
         _db = _client[_DEFAULT_DB_NAME]
     await _db.alerts.create_index([("location", "2dsphere")])
     await _db.users.create_index("email", unique=True)
+    await _db.medical_reviews.create_index("expires_at", expireAfterSeconds=0)
+    await _db.medical_reviews.create_index([("requester_id", 1), ("created_at", -1)])
+    await _db.medical_reviews.create_index([("assigned_to", 1), ("created_at", -1)])
+    await _db.medical_reviews.create_index([("status", 1), ("created_at", 1)])
+    await _db.clinicians.create_index([("active", 1), ("valid_until", 1)])
 
     # Compound indexes for the non-geo alert queries.
     #

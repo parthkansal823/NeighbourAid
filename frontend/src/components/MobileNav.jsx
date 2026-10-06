@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { HeartHandshake, Home, Map, Siren, User } from './icons'
 import { useAuth } from '../context/AuthContext'
@@ -19,6 +19,20 @@ export default function MobileNav({ native = false }) {
   const { user } = useAuth()
   const { t } = useI18n()
   const [keyboardOpen, setKeyboardOpen] = useState(false)
+  const nav = useRef(null)
+
+  useEffect(() => {
+    if (!native) return undefined
+    const element = nav.current
+    const shell = element?.closest('.native-app')
+    if (!shell) return undefined
+    const measure = () => shell.style.setProperty('--app-nav-height', `${element.getBoundingClientRect().height}px`)
+    measure()
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
+    observer?.observe(element)
+    window.addEventListener('resize', measure)
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); shell.style.removeProperty('--app-nav-height') }
+  }, [native, keyboardOpen])
 
   useEffect(() => {
     if (!native) return undefined
@@ -48,6 +62,7 @@ export default function MobileNav({ native = false }) {
 
   return (
     <nav
+      ref={nav}
       aria-label="Primary navigation"
       hidden={native && keyboardOpen}
       className={native ? 'mobile-nav fixed inset-x-0 bottom-0 z-[1000] border-t border-line bg-surface px-2 pb-[env(safe-area-inset-bottom)]' : 'fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden'}

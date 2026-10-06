@@ -2,6 +2,7 @@
     <!-- Visibility for the system speech dialog, not a background recorder.
          Its own speech provider handles microphone access and consent. -->
     <queries>
+        <intent><action android:name="android.intent.action.TTS_SERVICE" /></intent>
         <intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent>
     </queries>
 </manifest>

@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import androidx.activity.result.ActivityResult;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -12,11 +14,62 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.util.ArrayList;
+import java.util.Locale;
 
 /** User-triggered system speech dialog. No audio is stored or sent to our API. */
 @CapacitorPlugin(name = "NeighbourAidSpeech")
 public class NeighbourAidSpeechPlugin extends Plugin {
     private boolean busy;
+    private TextToSpeech speaker;
+    private PluginCall promptCall;
+
+    @PluginMethod public void speakPrompt(PluginCall call) {
+        String text = call.getString("text", "").trim();
+        String language = call.getString("language", "en-IN");
+        if (text.isEmpty() || text.length() > 500 || !SpeechPolicy.supportedLocale(language)) {
+            call.reject("Invalid spoken prompt", "invalid-prompt"); return;
+        }
+        getActivity().runOnUiThread(() -> {
+            stopPromptInternal();
+            promptCall = call;
+            try {
+                speaker = new TextToSpeech(getContext(), status -> getActivity().runOnUiThread(() -> {
+                    if (promptCall != call || speaker == null) return;
+                    if (status != TextToSpeech.SUCCESS || speaker.setLanguage(Locale.forLanguageTag(language)) < 0) {
+                        finishPrompt(call, false); return;
+                    }
+                    speaker.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                        @Override public void onStart(String id) {}
+                        @Override public void onDone(String id) { getActivity().runOnUiThread(() -> finishPrompt(call, true)); }
+                        @Override public void onError(String id) { getActivity().runOnUiThread(() -> finishPrompt(call, false)); }
+                    });
+                    if (speaker.speak(text, TextToSpeech.QUEUE_FLUSH, null, "prompt") != TextToSpeech.SUCCESS) finishPrompt(call, false);
+                }));
+            } catch (RuntimeException ex) { finishPrompt(call, false); }
+        });
+    }
+
+    @PluginMethod public void stopPrompt(PluginCall call) {
+        getActivity().runOnUiThread(() -> { stopPromptInternal(); call.resolve(); });
+    }
+
+    private void finishPrompt(PluginCall call, boolean spoken) {
+        if (promptCall != call) return;
+        promptCall = null;
+        TextToSpeech old = speaker;
+        speaker = null;
+        if (old != null) { old.stop(); old.shutdown(); }
+        JSObject result = new JSObject(); result.put("spoken", spoken); call.resolve(result);
+    }
+
+    private void stopPromptInternal() {
+        if (promptCall != null) finishPrompt(promptCall, false);
+    }
+
+    @Override protected void handleOnDestroy() {
+        getActivity().runOnUiThread(this::stopPromptInternal);
+        super.handleOnDestroy();
+    }
 
     @PluginMethod public void isAvailable(PluginCall call) {
         JSObject answer = new JSObject();
