@@ -1,44 +1,17 @@
-"""Optional local vision model, used to check photo evidence against the claim.
+"""Optional backend-local photo captioning with a conservative verdict.
 
-WHAT PROBLEM THIS SOLVES
+The model captions a photo without being shown the reporter's category.
+`verdict_for` then compares incident concepts in that caption with the claim.
+Negated, uncertain, mixed or non-visual contradictions are treated as unclear;
+a photo cannot rule out gas, power, water or medical problems.
 
-`services/photo.py` scores attached photos, but it can only see that a file is
-a real, large-enough image: dimensions, decodability, byte count. It then adds
-up to 30 points to `verified_score`.
+A supported mismatch can subtract a capped score penalty. A matching caption
+never adds points, and neither result proves an incident or authenticates the
+photo. Model mistakes remain possible, even after these guards.
 
-Nothing checks what the photo is *of*. Attach a picture of your lunch to a
-"fire" report and it scores exactly like a picture of a fire. Since
-verified_score is what volunteers read as "several signals agree, this is
-real", that is the one number in the app most worth lying to, and the easiest
-to lie to.
-
-WHAT IT DOES
-
-Asks a small local vision model one narrow question per alert: does this photo
-plausibly show a {category} incident? Only three answers are accepted — yes,
-no, unclear.
-
-WHY IT CAN ONLY EVER SUBTRACT
-
-A confirmation is never used to raise the score, only a clear contradiction to
-lower it. This is the same one-directional rule the urgency upgrade follows,
-pointed the other way, and for the same reason: the model is the weaker judge.
-
-  * A false "yes" would hand an attacker the thing they wanted — a model
-    vouching for a fake photo is worse than no model, because the score now
-    carries false authority.
-  * A false "no" costs an honest reporter some of a bonus they only got for
-    attaching *any* image. The alert still stands on witnesses, corroborating
-    reports and weather.
-
-So the failure this design allows is the recoverable one.
-
-COST AND DEFAULTS
-
-Off unless both LLM_VISION_MODEL_PATH and LLM_VISION_MMPROJ_PATH point at real
-files, and never on the request path — it runs inside background enrichment,
-after the alert has already reached volunteers. See models/README.md for which
-weights and why.
+Off unless both vision weight paths are configured. Inference runs in
+background enrichment with a bounded slot and timeout; failures have no score
+effect. See models/README.md for setup and limitations.
 """
 
 from __future__ import annotations
@@ -50,6 +23,7 @@ from pathlib import Path
 
 from ..core.config import settings
 from .inference import InferenceSlot
+from .evidence import uncertain_caption
 
 log = logging.getLogger(__name__)
 
@@ -196,13 +170,23 @@ def verdict_for(description: str, category: str) -> str:
 
     if not description or category not in _CATEGORY_LOOKS_LIKE:
         return UNCLEAR
+    # "No fire" must not become YES simply because it contains "fire".
+    # An unsure model is not evidence against an honest reporter either.
+    if uncertain_caption(description):
+        return UNCLEAR
     seen = concepts_in(description)
     if not seen:
         return UNCLEAR
     # The alert categories and the concept keys mostly share names; this maps
     # the few that differ.
     expected = _CATEGORY_CONCEPT.get(category, category)
-    return YES if expected in seen else NO
+    if expected in seen:
+        return YES
+    # A static picture cannot disprove a gas leak, power outage, water-supply
+    # issue or medical symptoms. Mixed scenes are also inconclusive.
+    if category in {"gas", "power", "water", "medical"} or len(seen) > 1:
+        return UNCLEAR
+    return NO
 
 
 # Alert category -> the CONCEPTS key that would confirm it. Only the names
@@ -211,6 +195,7 @@ _CATEGORY_CONCEPT = {
     "structure": "collapse",
     "missing": "missing_person",
     "water": "flood",
+    "gas": "gas_leak",
 }
 
 

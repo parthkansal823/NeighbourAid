@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 log = logging.getLogger(__name__)
 
@@ -67,6 +68,10 @@ class Settings(BaseSettings):
     # background enrichment task after the alert has already been broadcast.
     LLM_TIMEOUT_SECONDS: float = 20.0
     LLM_THREADS: int = 4
+    # 2,000-character Indic reports can exceed the old 1,024-token window.
+    # Bound the configurable context; exceeding it still retains fallback,
+    # never truncates away a dangerous detail at the end of a report.
+    LLM_CONTEXT_TOKENS: int = Field(default=2048, ge=1024, le=8192)
     # 0 = CPU only. Raise on a machine with a GPU; llama.cpp offloads that
     # many layers.
     LLM_GPU_LAYERS: int = 0

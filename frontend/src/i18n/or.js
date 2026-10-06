@@ -7,6 +7,15 @@
 // here reaches a volunteer as CRITICAL, so the two must be added together
 // — a UI language without its keywords silently ranks every report MEDIUM.
 export default {
+  map_filters: "ଫିଲ୍ଟର",
+  map_fullscreen: "ପୂର୍ଣ୍ଣ ପରଦା ମାନଚିତ୍ର",
+  map_exit_fullscreen: "ପୂର୍ଣ୍ଣ ପରଦାରୁ ଫେରନ୍ତୁ",
+  map_recenter: "ମୋ ସ୍ଥାନକୁ ଫେରନ୍ତୁ",
+  native_home_subtitle: 'ଜରୁରୀ ପରିସ୍ଥିତି ଜଣାନ୍ତୁ, ପାଖରେ ସହାୟତା ଖୋଜନ୍ତୁ କିମ୍ବା ଦୈନନ୍ଦିନ କାମ ପାଇଁ ସହାୟତା ମାଗନ୍ତୁ।',
+  app_update_details: 'ବିବରଣୀ',
+  nav_home: 'ହୋମ୍',
+  nav_report_short: 'ସୂଚନା',
+  nav_respond_short: 'ସହାୟତା',
   help_schedule_title: 'ପସନ୍ଦର ସମୟ (ଇଚ୍ଛାଧୀନ)',
   help_schedule_start: 'ଆରମ୍ଭ',
   help_schedule_end: 'ଶେଷ',

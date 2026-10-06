@@ -8,6 +8,15 @@
 // together — a UI language without its keywords silently ranks every
 // report MEDIUM.
 export default {
+  map_filters: "ಫಿಲ್ಟರ್‌ಗಳು",
+  map_fullscreen: "ಪೂರ್ಣ ಪರದೆ ನಕ್ಷೆ",
+  map_exit_fullscreen: "ಪೂರ್ಣ ಪರದೆಯಿಂದ ಹಿಂದಕ್ಕೆ",
+  map_recenter: "ನನ್ನ ಸ್ಥಳಕ್ಕೆ ಹಿಂತಿರುಗಿ",
+  native_home_subtitle: 'ತುರ್ತು ಪರಿಸ್ಥಿತಿಯನ್ನು ತಿಳಿಸಿ, ಹತ್ತಿರದ ನೆರವು ಹುಡುಕಿ ಅಥವಾ ದಿನನಿತ್ಯದ ಕೆಲಸಕ್ಕೆ ಸಹಾಯ ಕೇಳಿ.',
+  app_update_details: 'ವಿವರಗಳು',
+  nav_home: 'ಮುಖಪುಟ',
+  nav_report_short: 'ವರದಿ',
+  nav_respond_short: 'ಸಹಾಯ',
   help_schedule_title: 'ಆದ್ಯತೆಯ ಸಮಯ (ಐಚ್ಛಿಕ)',
   help_schedule_start: 'ಆರಂಭ',
   help_schedule_end: 'ಅಂತ್ಯ',

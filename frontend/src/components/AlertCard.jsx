@@ -7,6 +7,7 @@ import { useI18n } from '../utils/i18n'
 import { translateText } from '../utils/translate'
 import { useToast } from './Toast'
 import ShareAlert from './ShareAlert'
+import NativeOverlay from './NativeOverlay'
 import AutoDispatch from './AutoDispatch'
 import { useTimeAgo } from '../hooks/useTimeAgo'
 import {
@@ -225,7 +226,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
           </button>
         ))}
       </div>
-      {open != null && (
+      {open != null && (<NativeOverlay>
         <div
           className="fixed inset-0 z-1050 bg-black/85 flex items-center justify-center p-4"
           onClick={() => setOpen(null)}
@@ -270,7 +271,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
             </>
           )}
         </div>
-      )}
+      </NativeOverlay>)}
     </>
   )
 }

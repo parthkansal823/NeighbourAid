@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Camera, X } from './icons'
+import NativeOverlay from './NativeOverlay'
 
 /**
  * In-app camera capture. Opens the device camera, shows a live preview, and
@@ -100,7 +101,7 @@ export default function LiveCamera({ onCapture, onClose, busy = false }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col" role="dialog" aria-modal="true">
+    <NativeOverlay><div className="camera-dialog fixed inset-0 z-[60] bg-black/95 flex flex-col" role="dialog" aria-modal="true" aria-label="Take a photo">
       <div className="flex items-center justify-between px-4 py-3 text-white">
         <span className="text-sm font-medium">Take a photo</span>
         <button
@@ -145,6 +146,6 @@ export default function LiveCamera({ onCapture, onClose, busy = false }) {
           <Camera className="h-7 w-7 text-black" aria-hidden />
         </button>
       </div>
-    </div>
+    </div></NativeOverlay>
   )
 }

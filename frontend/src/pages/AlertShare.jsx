@@ -70,7 +70,7 @@ export default function AlertShare() {
   const mapsUrl = `/map?dest=${lat},${lng}&focus=${alert.id}`
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="page-panel max-w-2xl mx-auto px-4 py-8 space-y-6">
       <section className="relative surface-card p-5 sm:p-6 reveal-up overflow-hidden">
         <div
           aria-hidden
@@ -79,7 +79,7 @@ export default function AlertShare() {
         <div className="relative flex items-center justify-between gap-2 mb-3 flex-wrap">
           <div className="flex items-center gap-2">
             <CategoryIcon category={alert.category} className="h-6 w-6 shrink-0" />
-            <span className="font-semibold capitalize text-white text-lg">{alert.category}</span>
+            <h1 className="font-semibold capitalize text-white text-lg">{alert.category}</h1>
           </div>
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${URGENCY_BADGE[alert.urgency]}`}>
             {alert.urgency}

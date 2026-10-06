@@ -304,7 +304,7 @@ export default function Resources() {
     'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 placeholder:text-gray-600'
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
+    <div className="page-panel max-w-2xl mx-auto px-4 py-6 sm:py-8">
       <div className="mb-5 sm:mb-6 reveal-up">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>

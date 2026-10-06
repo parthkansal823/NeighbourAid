@@ -8,6 +8,15 @@
 // together — a UI language without its keywords silently ranks every
 // report MEDIUM.
 export default {
+  map_filters: "ഫിൽട്ടറുകൾ",
+  map_fullscreen: "പൂർണ്ണ സ്ക്രീൻ മാപ്പ്",
+  map_exit_fullscreen: "പൂർണ്ണ സ്ക്രീനിൽ നിന്ന് മടങ്ങുക",
+  map_recenter: "എന്റെ സ്ഥാനത്തേക്ക് മടങ്ങുക",
+  native_home_subtitle: 'അടിയന്തര സാഹചര്യം അറിയിക്കുക, സമീപത്ത് സഹായം കണ്ടെത്തുക അല്ലെങ്കിൽ ദൈനംദിന ജോലികൾക്ക് സഹായം ചോദിക്കുക.',
+  app_update_details: 'വിശദാംശങ്ങൾ',
+  nav_home: 'ഹോം',
+  nav_report_short: 'അറിയിക്കുക',
+  nav_respond_short: 'സഹായം',
   help_schedule_title: 'ഇഷ്ടപ്പെട്ട സമയം (ഐച്ഛികം)',
   help_schedule_start: 'ആരംഭം',
   help_schedule_end: 'അവസാനം',

@@ -140,7 +140,7 @@ export default function News() {
   }, [load])
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
+    <main className="page-panel mx-auto max-w-3xl px-4 py-8 sm:px-6">
       <header className="mb-6 flex items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold text-white">

@@ -250,7 +250,7 @@ export default function PostAlert() {
   const [lng, lat] = form.location.coordinates
 
   return (
-    <div className="relative min-h-screen flex items-start sm:items-center justify-center px-4 py-8 sm:py-12 overflow-hidden">
+    <div className="auth-page relative min-h-screen flex items-start sm:items-center justify-center px-4 py-8 sm:py-12 overflow-hidden">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-xl rounded-full bg-red-500/10 blur-3xl"
@@ -305,11 +305,12 @@ export default function PostAlert() {
         <form onSubmit={submit} className="space-y-5 sm:space-y-6">
           <div>
             <span id="post-category-label" className="block text-sm text-gray-400 mb-2">{t('post_category')}</span>
-            <div role="group" aria-labelledby="post-category-label" className="grid grid-cols-3 gap-2">
+            <div role="group" aria-labelledby="post-category-label" className="grid grid-cols-2 min-[400px]:grid-cols-3 gap-2">
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   type="button"
+                  aria-pressed={form.category === cat}
                   onClick={() => setForm({ ...form, category: cat })}
                   className={`py-2.5 rounded-lg border capitalize text-sm font-medium transition-colors duration-200 active:scale-95 ${
                     form.category === cat
@@ -410,7 +411,7 @@ export default function PostAlert() {
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
-                    className="absolute top-1 right-1 bg-black/70 hover:bg-black text-white w-6 h-6 rounded-full text-xs leading-none flex items-center justify-center"
+                    className="photo-remove absolute top-1 right-1 bg-black/70 hover:bg-black text-white w-6 h-6 rounded-full text-xs leading-none flex items-center justify-center"
                     aria-label="Remove photo"
                   >
                     ×

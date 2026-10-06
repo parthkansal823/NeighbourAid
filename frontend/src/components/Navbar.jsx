@@ -11,7 +11,7 @@ const navLink = ({ isActive }) =>
       : 'text-gray-400 hover:bg-surface-1 hover:text-white'
   }`
 
-function LanguageMenu() {
+export function LanguageMenu() {
   const { lang, setLang, languages, t, autoTranslate, setAutoTranslate } = useI18n()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -36,13 +36,13 @@ function LanguageMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1 text-xs border border-gray-700 hover:border-orange-500/60 hover:bg-orange-500/5 text-gray-300 hover:text-white px-2.5 py-1 rounded-md transition-colors duration-200"
+        className="language-trigger flex items-center gap-1 text-xs border border-gray-700 hover:border-orange-500/60 hover:bg-orange-500/5 text-gray-300 hover:text-white px-2.5 py-1 rounded-md transition-colors duration-200"
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label="Change language"
         title="Change language"
       >
-        <Globe className="h-3.5 w-3.5" aria-hidden />
+        <Globe className="language-globe h-3.5 w-3.5" aria-hidden />
         <span>{current.short}</span>
         <svg
           aria-hidden
@@ -50,7 +50,7 @@ function LanguageMenu() {
           height="10"
           viewBox="0 0 12 12"
           fill="none"
-          className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`language-chevron transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         >
           <path d="M3 4.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

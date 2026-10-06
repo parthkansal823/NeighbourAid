@@ -6,8 +6,9 @@ import { apiError } from '../utils/error'
 import { useI18n } from '../utils/i18n'
 // `Map` is aliased: the bare name collides with the JS built-in, which also
 // means ESLint's no-undef would NOT have caught it going missing.
-import { Map as MapIcon, MapPin, Flame, X } from '../components/icons'
+import { Map as MapIcon, MapPin, Flame, X, ChevronDown, Maximize2, Minimize2 } from '../components/icons'
 import { GEOLOCATION_SUPPORTED } from '../utils/geo'
+import { isNativeApp } from '../utils/runtime'
 
 const URGENCY_FILTERS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 // Every AlertCategory the server can send, in rough order of how often it is
@@ -64,6 +65,49 @@ export default function MapDashboard() {
   const [showHeat, setShowHeat] = useState(false)
   const [heatPoints, setHeatPoints] = useState([])
   const watchIdRef = useRef(null)
+  const [expanded, setExpanded] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [smallScreen, setSmallScreen] = useState(() => window.matchMedia('(max-width: 639px)').matches)
+  const toolbarRef = useRef(null)
+  const mapPageRef = useRef(null)
+  const expandButtonRef = useRef(null)
+  const [controlsHeight, setControlsHeight] = useState(144)
+  const compact = isNativeApp() || smallScreen || expanded
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 639px)')
+    const change = () => setSmallScreen(media.matches)
+    media.addEventListener('change', change)
+    return () => media.removeEventListener('change', change)
+  }, [])
+
+  useEffect(() => {
+    const toolbar = toolbarRef.current
+    if (!toolbar || typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(() => setControlsHeight(toolbar.offsetHeight))
+    observer.observe(toolbar)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!expanded) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const close = (event) => {
+      if (event.key === 'Escape') { setExpanded(false); expandButtonRef.current?.focus() }
+      if (event.key === 'Tab') {
+        const controls = Array.from(mapPageRef.current?.querySelectorAll('button:not(:disabled), a[href], [tabindex="0"]') || [])
+        const first = controls[0], last = controls.at(-1)
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+      }
+    }
+    window.addEventListener('keydown', close)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', close)
+    }
+  }, [expanded])
 
   // Parse ?dest=lat,lng&focus=alertId — these come from "Directions" links
   // throughout the app (alert cards, share pages, resource pins).
@@ -217,18 +261,26 @@ export default function MapDashboard() {
     : 'Locating…'
 
   return (
-    <div className="flex flex-col h-[calc(100vh-57px)]">
-      <div className="glass border-b border-gray-800 px-3 sm:px-6 py-2 sm:py-3 space-y-2">
+    <div ref={mapPageRef} className={`map-page relative flex flex-col h-[calc(100vh-57px)]${compact ? ' map-compact' : ''}${expanded ? ' map-expanded' : ''}`} style={{ '--map-controls-height': `${controlsHeight}px` }}>
+      <div ref={toolbarRef} className="map-toolbar glass border-b border-gray-800 px-3 sm:px-6 py-2 sm:py-3 space-y-2">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <span className="text-white font-semibold text-sm sm:text-base inline-flex items-center gap-2">
+          <h1 className="text-white font-semibold text-sm sm:text-base inline-flex items-center gap-2">
             <MapIcon className="h-4 w-4" aria-hidden />
-            {t('map_title')}
-          </span>
-          <div className="flex gap-1.5 flex-wrap">
+            {t(compact ? 'nav_map' : 'map_title')}
+          </h1>
+          {compact && <button type="button" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen} aria-controls="map-urgency-filters map-category-filters" className="tap ml-auto inline-flex items-center gap-1 rounded-lg border border-line px-2 text-xs text-gray-200">
+            {t('map_filters')}{(urgencyFilter !== 'ALL' || categoryFilter !== 'all') && <span className="h-1.5 w-1.5 rounded-full bg-orange-400" aria-hidden />}
+            <ChevronDown className={`h-4 w-4${filtersOpen ? ' rotate-180' : ''}`} aria-hidden />
+          </button>}
+          <button ref={expandButtonRef} type="button" onClick={() => setExpanded((value) => !value)} aria-pressed={expanded} aria-label={t(expanded ? 'map_exit_fullscreen' : 'map_fullscreen')} title={t(expanded ? 'map_exit_fullscreen' : 'map_fullscreen')} className="tap inline-flex shrink-0 items-center justify-center rounded-lg border border-line text-gray-200">
+            {expanded ? <Minimize2 className="h-4 w-4" aria-hidden /> : <Maximize2 className="h-4 w-4" aria-hidden />}
+          </button>
+          {(!compact || filtersOpen) && <div id="map-urgency-filters" role="group" aria-label="Urgency" className="map-filters flex gap-1.5 flex-wrap">
             {URGENCY_FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setUrgencyFilter(f)}
+                aria-pressed={urgencyFilter === f}
                 className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-colors duration-200 ${
                   urgencyFilter === f
                     ? 'border-orange-500 bg-orange-500/15 text-orange-200'
@@ -241,7 +293,7 @@ export default function MapDashboard() {
                 ) : null}
               </button>
             ))}
-          </div>
+          </div>}
           <span className="text-gray-500 text-[11px] sm:text-xs ml-auto w-full sm:w-auto order-last sm:order-0">
             {loading
               ? t('map_loading')
@@ -258,11 +310,12 @@ export default function MapDashboard() {
           </span>
         </div>
 
-        <div className="flex gap-1.5 flex-wrap">
+        {(!compact || filtersOpen) && <div id="map-category-filters" role="group" aria-label={t('post_category')} className="map-filters flex gap-1.5 flex-wrap">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
+              aria-pressed={categoryFilter === cat}
               className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-colors duration-200 ${
                 categoryFilter === cat
                   ? 'border-blue-500 bg-blue-500/15 text-blue-200'
@@ -275,7 +328,7 @@ export default function MapDashboard() {
               ) : null}
             </button>
           ))}
-        </div>
+        </div>}
 
         <div className="flex items-center justify-between gap-2 text-[11px] text-gray-500">
           <span className="truncate flex items-center gap-1.5">
@@ -307,7 +360,8 @@ export default function MapDashboard() {
               onClick={recenterNow}
               disabled={locating}
               className="text-xs border border-gray-700 hover:border-blue-500/60 hover:text-white text-gray-300 px-2 py-0.5 rounded-md transition-colors duration-200 disabled:opacity-50"
-              title="Recenter to current location"
+              title={t('map_recenter')}
+              aria-label={t('map_recenter')}
             >
               {locating ? (
                 <span className="inline-flex items-center gap-1">
@@ -324,7 +378,7 @@ export default function MapDashboard() {
         </div>
       </div>
 
-      <div className="flex-1 p-2 sm:p-4 min-h-0">
+      <div className="map-body flex-1 p-2 sm:p-4 min-h-0">
         <MapView
           alerts={visible}
           center={userCenter}

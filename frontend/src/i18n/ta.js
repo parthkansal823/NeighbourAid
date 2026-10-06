@@ -2,6 +2,15 @@
 // lookup time (see utils/i18n.jsx), so a partial file renders a
 // mixed UI rather than blank labels — keep it complete.
 export default {
+  map_filters: "வடிகட்டிகள்",
+  map_fullscreen: "முழுத்திரை வரைபடம்",
+  map_exit_fullscreen: "முழுத்திரையிலிருந்து திரும்பு",
+  map_recenter: "என் இருப்பிடத்திற்குத் திரும்பு",
+  native_home_subtitle: 'அவசர நிலையைத் தெரிவிக்கவும், அருகிலுள்ள உதவியைத் தேடவும் அல்லது அன்றாட வேலைகளுக்கு உதவி கேட்கவும்.',
+  app_update_details: 'விவரங்கள்',
+  nav_home: 'முகப்பு',
+  nav_report_short: 'புகார்',
+  nav_respond_short: 'உதவு',
   help_schedule_title: 'விருப்பமான நேரம் (விருப்பத்தேர்வு)',
   help_schedule_start: 'தொடக்கம்',
   help_schedule_end: 'முடிவு',

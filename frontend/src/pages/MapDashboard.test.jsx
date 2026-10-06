@@ -1,0 +1,67 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
+import { I18nProvider } from '../utils/i18n'
+import MapDashboard from './MapDashboard'
+
+const state = vi.hoisted(() => ({ native: true }))
+vi.mock('../utils/runtime', () => ({ isNativeApp: () => state.native }))
+vi.mock('../utils/geo', () => ({ GEOLOCATION_SUPPORTED: false }))
+vi.mock('../utils/api', () => ({ default: { get: vi.fn(async () => ({ data: [
+  { id: 'test-fire', category: 'fire', urgency: 'HIGH' },
+  { id: 'test-medical', category: 'medical', urgency: 'CRITICAL' },
+] })) } }))
+vi.mock('../components/MapView', () => ({ default: ({ alerts }) => <div data-testid="map-surface">{alerts.map((alert) => <span key={alert.id}>{alert.id}</span>)}</div> }))
+
+beforeEach(() => { state.native = true })
+const mount = () => render(<MemoryRouter><I18nProvider><MapDashboard /></I18nProvider></MemoryRouter>)
+
+describe('map-first layout', () => {
+  it('keeps the phone map visible, reveals filters on demand and applies them', async () => {
+    const user = userEvent.setup()
+    const { container } = mount()
+    expect(container.querySelector('.map-page')).toHaveClass('map-compact')
+    expect(screen.queryByRole('group', { name: 'Category' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Filters' })).toHaveAttribute('aria-expanded', 'false')
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    const categories = screen.getByRole('group', { name: 'Category' })
+    await user.click(within(categories).getByRole('button', { name: /^fire/ }))
+    expect(within(categories).getByRole('button', { name: /fire/ })).toHaveAttribute('aria-pressed', 'true')
+    await waitFor(() => expect(screen.getByTestId('map-surface')).toHaveTextContent('test-fire'))
+    expect(screen.getByTestId('map-surface')).not.toHaveTextContent('test-medical')
+    await user.click(screen.getByRole('button', { name: 'Filters' }))
+    expect(screen.queryByRole('group', { name: 'Category' })).not.toBeInTheDocument()
+    expect(screen.getByTestId('map-surface')).toHaveTextContent('test-fire')
+  })
+
+  it('expands the map without navigation, exits on Escape, and restores scrolling and focus', async () => {
+    const user = userEvent.setup()
+    const { container } = mount()
+    await user.click(screen.getByRole('button', { name: 'Full-screen map' }))
+    expect(container.querySelector('.map-page')).toHaveClass('map-expanded')
+    expect(screen.getByRole('button', { name: 'Exit full-screen map' })).toHaveAttribute('aria-pressed', 'true')
+    expect(document.body.style.overflow).toBe('hidden')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(container.querySelector('.map-page')).not.toHaveClass('map-expanded')
+    expect(document.body.style.overflow).toBe('')
+    expect(screen.getByRole('button', { name: 'Full-screen map' })).toHaveFocus()
+  })
+
+  it('cleans up the full-screen scroll lock when leaving the page', async () => {
+    const user = userEvent.setup()
+    const { unmount } = mount()
+    await user.click(screen.getByRole('button', { name: 'Full-screen map' }))
+    unmount()
+    expect(document.body.style.overflow).toBe('')
+  })
+
+  it('keeps desktop filters visible without a bottom-panel toggle', () => {
+    state.native = false
+    const { container } = mount()
+    expect(container.querySelector('.map-page')).not.toHaveClass('map-compact')
+    expect(screen.queryByRole('button', { name: 'Filters' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Category' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Urgency' })).toBeInTheDocument()
+  })
+})

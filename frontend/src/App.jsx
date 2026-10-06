@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Fragment, useCallback, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './components/Toast'
 import { I18nProvider } from './utils/i18n'
@@ -22,6 +23,8 @@ import AlertShare from './pages/AlertShare'
 import ServerOfflineBanner from './components/ServerOfflineBanner'
 import OfflineQueueStatus from './components/OfflineQueueStatus'
 import AppUpdateNotice from './components/AppUpdateNotice'
+import NativeHeader from './components/NativeHeader'
+import { isNativeApp } from './utils/runtime'
 
 function PrivateRoute({ children, role }) {
   const { user } = useAuth()
@@ -39,7 +42,18 @@ function DemoModeBanner() {
   )
 }
 
+function NativeFrame({ children }) {
+  const { pathname } = useLocation()
+  return <div className={`native-app${pathname === '/map' ? ' native-map-app' : ''}`}>{children}</div>
+}
+
 export default function App() {
+  const native = isNativeApp()
+  const Shell = native ? NativeFrame : Fragment
+  const [dialerOpen, setDialerOpen] = useState(false)
+  const openDialer = useCallback(() => setDialerOpen(true), [])
+  const closeDialer = useCallback(() => setDialerOpen(false), [])
+  const statuses = <><ServerOfflineBanner native={native} /><OfflineQueueStatus /><DemoModeBanner /></>
   return (
     <ErrorBoundary>
     <I18nProvider>
@@ -48,17 +62,13 @@ export default function App() {
         <BrowserRouter
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
         >
-          {/*
-            Above the Navbar so it is the first thing read, and outside
-            <Routes> so it survives navigation — the server being off is a
-            property of the deployment, not of the page you happen to be on.
-          */}
-          <ServerOfflineBanner />
-          <OfflineQueueStatus />
+          <Shell>
+          {!native && statuses}
+          {native ? <NativeHeader onOpenEmergency={openDialer} /> : <Navbar />}
           <AppUpdateNotice />
-          <DemoModeBanner />
-          <Navbar />
-          <main className="pb-[5.5rem] lg:pb-0">
+          <main id="main-content" className={native ? 'app-content' : 'web-content pb-[5.5rem] lg:pb-0'}>
+            {/* Status strips stay in flow, below the persistent app header. */}
+            {native && statuses}
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -103,8 +113,9 @@ export default function App() {
               <Route path="/alert/:id" element={<AlertShare />} />
             </Routes>
           </main>
-          <MobileNav />
-          <EmergencyDialer />
+          <MobileNav native={native} />
+          <EmergencyDialer native={native} open={dialerOpen} onOpen={openDialer} onClose={closeDialer} />
+          </Shell>
         </BrowserRouter>
       </ToastProvider>
     </AuthProvider>

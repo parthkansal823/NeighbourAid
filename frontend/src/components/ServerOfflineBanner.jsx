@@ -17,7 +17,7 @@
 import { useI18n } from '../utils/i18n'
 import { useServerStatus } from '../hooks/useServerStatus'
 
-export default function ServerOfflineBanner() {
+export default function ServerOfflineBanner({ native = false }) {
   const { t } = useI18n()
   const { state } = useServerStatus()
 
@@ -33,7 +33,9 @@ export default function ServerOfflineBanner() {
       // sentence to say so.
       role="status"
       aria-live="polite"
-      className="sticky top-0 z-[1100] w-full border-b border-amber-500/40 bg-amber-500/15 px-4 py-2.5 text-center text-sm text-amber-200 backdrop-blur"
+      className={native
+        ? 'w-full border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed text-amber-200'
+        : 'sticky top-0 z-[1100] w-full border-b border-amber-500/40 bg-amber-500/15 px-4 py-2.5 text-center text-sm text-amber-200 backdrop-blur'}
     >
       <span className="font-medium">{t('server_off_title')}</span>{' '}
       <span className="text-amber-200/80">{t('server_off_body')}</span>

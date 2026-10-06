@@ -163,7 +163,7 @@ export default function Safety() {
   }, [deferredSearch, filter, list])
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
+    <div className="page-panel max-w-2xl mx-auto px-4 py-6 sm:py-8">
       <div className="mb-5 sm:mb-6 reveal-up">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>

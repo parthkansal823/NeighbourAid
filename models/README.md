@@ -1,89 +1,95 @@
-# Local model weights
+# Optional local models
 
-Everything in this directory except this README is **gitignored**. The weights
-are downloaded artefacts, not source: a single 7B checkpoint is ~4.7 GB, which
-is larger than the rest of this repo combined and over GitHub's 100 MB
-per-file hard limit. This file pins exactly what to fetch so the directory is
-reproducible from a clone.
+Triage works without model weights or an API key. Optional models run on the
+laptop backend, **not in the Android APK**. File size is not runtime RAM.
+This repository does not implement phone-local inference.
 
-Nothing here is required to run NeighbourAid. Triage works with no model at
-all — see [`backend/app/services/vocab.py`](../backend/app/services/vocab.py),
-which scores 90% on the eval set at 0.04 ms per report using no weights, no
-network and no API key. These models are for evaluating whether an LLM can
-beat that, and for the capabilities keyword matching cannot cover at all.
+Weights in this directory are gitignored. Download them explicitly; neither
+the application nor its default Docker image downloads them automatically.
 
-## Fetching
+## Checkpoints
 
-```bash
-pip install huggingface_hub
-python - <<'EOF'
-from huggingface_hub import hf_hub_download
-# The one the serving path is tuned for. Fetch this if you fetch nothing else.
-hf_hub_download('ggml-org/gemma-3-1b-it-GGUF',
-                'gemma-3-1b-it-Q4_K_M.gguf', local_dir='models')
-# Kept for comparison only — see the measured table below.
-hf_hub_download('Qwen/Qwen2.5-3B-Instruct-GGUF',
-                'qwen2.5-3b-instruct-q4_k_m.gguf', local_dir='models')
-hf_hub_download('bartowski/Qwen2.5-7B-Instruct-GGUF',
-                'Qwen2.5-7B-Instruct-Q4_K_M.gguf', local_dir='models')
-EOF
-```
-
-Downloads resume, so a killed transfer can be re-run — but run it in the
-foreground or under a process manager that outlives the shell. A detached
-`nohup … &` gets orphaned and leaves multi-gigabyte `.incomplete` files in
-`models/.cache/` with nothing to show for it.
-
-## Models
-
-| File | Size | Purpose |
+| File | Approximate weight size | Use |
 |---|---|---|
-| `gemma-3-1b-it-Q4_K_M.gguf` | **769 MB** | **What the serving path uses.** Best score of the three and the only one small enough to be plausible on a phone. |
-| `qwen2.5-3b-instruct-q4_k_m.gguf` | 2.1 GB | Instruction LLM. 4-bit fits a 4 GB GPU entirely. Strongest Indic coverage per parameter of the small open models. |
-| `Qwen2.5-7B-Instruct-Q4_K_M.gguf` | 4.7 GB | Same family, larger. Needs partial CPU offload on 4 GB VRAM. |
+| `gemma-3-1b-it-Q4_K_M.gguf` | 769 MiB | Text model used in the current local evaluation |
+| `SmolVLM-500M-Instruct-Q8_0.gguf` + `mmproj-SmolVLM-500M-Instruct-Q8_0.gguf` | 520 MiB combined | Optional photo-caption model and projector |
+| `qwen2.5-3b-instruct-q4_k_m.gguf` | 2 GiB | Older comparison checkpoint; not required |
+| `Qwen2.5-7B-Instruct-Q4_K_M.gguf` | 4.4 GiB | Larger comparison checkpoint; not required |
 
-Runtime is [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python),
-installed from the prebuilt CPU wheel index so no compiler and — importantly —
-no `torch` is required:
+The text checkpoint is available from
+[ggml-org on Hugging Face](https://huggingface.co/ggml-org/gemma-3-1b-it-GGUF).
+Check the model's licence before distributing its weights. The application
+does not require redistributing weights with either its source or APK.
 
-```bash
-pip install llama-cpp-python \
-  --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
+## Enable and evaluate on Windows
+
+From the repository root, install the optional runtime into the backend venv:
+
+```powershell
+.\backend\venv\Scripts\python.exe -m pip install -r backend\requirements-llm.txt --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 ```
 
-## Measured results
+With the text weights downloaded, evaluate from `backend/`:
 
-All on the same 40-case labelled set,
-[`backend/tests/eval_dataset.py`](../backend/tests/eval_dataset.py), scored the
-same way as `python -m tests.eval_triage`. Anything else compares a model
-against a different exam.
+```powershell
+$env:LLM_MODEL_PATH = '../models/gemma-3-1b-it-Q4_K_M.gguf'
+$env:NA_DISABLE_AI_MODEL = '0'
+.\venv\Scripts\python.exe -m tests.eval_hybrid
+```
 
-| Engine | Overall | Implied danger | CRITICAL sunk | Latency | RAM |
-|---|---|---|---|---|---|
-| Keyword classifier | **90%** | 5/7 | 0 | **0.04 ms** | **0** |
-| multilingual-e5-small (int8 ONNX) | 75% | 5/7 | 3 | 6 ms | 454 MB |
-| Qwen2.5-3B-Instruct | 70% | **6/7** | 0 | 1538 ms | 2.1 GB |
-| Classifier → LLM hybrid | 88% | **6/7** | 0 | median 0 ms | 2.1 GB |
+These variables apply to that terminal only. To enable the backend, configure
+`LLM_MODEL_PATH` and restart it. Paths must exist inside the process/container
+serving requests. The default Docker image does **not** install the optional
+runtime or contain weights; setting a host path alone will not enable a model
+inside that container.
 
-Read that table before adding a model to the serving path. **The LLM alone
-scores worse than the classifier**, largely by promoting HIGH to CRITICAL —
-it is following the rubric's "when between two bands, choose the more urgent",
-and a feed where everything is CRITICAL carries no signal.
+For photo captions also configure `LLM_VISION_MODEL_PATH` and
+`LLM_VISION_MMPROJ_PATH`. `LLM_CONTEXT_TOKENS` defaults to 2048 (allowed
+1024–8192), `LLM_THREADS` to 4 and `LLM_GPU_LAYERS` to 0. A report exceeding
+the context budget retains the fallback rather than silently dropping its
+ending. `NA_DISABLE_AI_MODEL=1` disables text and vision together.
 
-"CRITICAL sunk" counts life-threatening reports ranked MEDIUM or below. It is
-the number that matters most: a report below its true urgency is shown to
-volunteers beneath genuinely less urgent ones.
+## Current local evaluation — 6 October 2026
 
-The hybrid consults the LLM only where the classifier matched nothing and is
-by construction guessing — 22% of reports, hence a 0 ms median.
+Run with actual Gemma 3 1B weights, current prompt and JSON schema, using
+[`eval_hybrid`](../backend/tests/eval_hybrid.py).
+There are 41 development cases; one arguable case is excluded from accuracy.
 
-## Where an LLM is actually worth its weight
+| Engine | Correct / graded | Implied danger | CRITICAL ranked MEDIUM or LOW |
+|---|---|---|---|
+| Keyword classifier | 38/40 (95%) | 5/7 | 0 |
+| Classifier + optional Gemma | 39/40 (97.5%) | 6/7 | 0 |
 
-Not urgency; that is solved. The gaps with no keyword workaround:
+The model was consulted on 8/41 reports. This small development set is **not**
+clinical validation or proof of real-world accuracy. One implied-danger case
+remains missed. Inference takes seconds and varies with CPU, context and
+other running tasks. RAM was not measured in this run.
 
-- **Summarisation.** `generate_headline` truncates at 90 characters. A voice
-  transcript is rambling, and a volunteer scanning a feed needs a sentence.
-- **Cross-language duplicate detection.** `similarity()` is character 4-gram
-  overlap, so "fire near Gate 3" and "aag gate 3 ke paas" do not match — the
-  exact case that matters when several people report one incident.
-- **Images**, which need a vision model and are not covered here at all.
+## Safety boundaries
+
+- All inference happens after an alert is saved and broadcast.
+- The model can only raise urgency where the deterministic classifier matched
+  nothing. It cannot lower urgency or replace a known CRITICAL result.
+- Generation uses [JSON Schema constraints](https://llama-cpp-python.readthedocs.io/en/stable/#json-and-json-schema-mode),
+  followed by strict output validation. Model output is still untrusted.
+- Headline checks reject new incident concepts, script/language drift and
+  invented numeric values. Negated descriptions accept only literal excerpts
+  retaining their negation cues; otherwise the original headline stays.
+  These checks cannot prove every name, spelled-out count or semantic detail.
+- Photo captions do not authenticate an image. Negated, uncertain and mixed
+  captions are inconclusive. A static photo cannot disprove gas leaks,
+  electrical outages, water-supply faults or medical symptoms. A matching
+  caption never increases a score; a supported clear mismatch can only
+  subtract the capped photo penalty. Violence is not judged.
+- A timeout retains the inference slot until native work actually finishes;
+  bursts do not build an unbounded model queue.
+
+Regression tests need no weights:
+
+```powershell
+cd backend
+.\venv\Scripts\python.exe -m pytest tests/test_ai_evidence_guards.py tests/test_ai_runtime_reliability.py tests/test_enrich_guards.py -q
+```
+
+Cross-language duplicates use deterministic incident concepts plus text
+similarity, not an embedding model or vector database.

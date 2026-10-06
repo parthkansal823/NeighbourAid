@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessageCircle, Share2 } from './icons'
 import { useToast } from './Toast'
+import NativeOverlay from './NativeOverlay'
 
 /**
  * Share an alert outside the app — WhatsApp, SMS, anywhere someone has a
@@ -82,7 +83,7 @@ export default function ShareAlert({ alert }) {
         <Share2 className="h-3.5 w-3.5" aria-hidden />
         Share
       </button>
-      {open && (
+      {open && (<NativeOverlay>
         <div
           className="fixed inset-0 z-950 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 sm:p-4"
           onClick={() => setOpen(false)}
@@ -151,7 +152,7 @@ export default function ShareAlert({ alert }) {
             </p>
           </div>
         </div>
-      )}
+      </NativeOverlay>)}
     </>
   )
 }

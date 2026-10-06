@@ -295,7 +295,7 @@ export default function VolunteerFeed() {
   const connected = status === 'open'
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 sm:py-8">
+    <div className="page-panel max-w-2xl mx-auto px-4 py-6 sm:py-8">
       <div className="flex items-center justify-between mb-5 sm:mb-6 gap-3 reveal-up">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl font-bold text-white">{t('vol_title')}</h1>

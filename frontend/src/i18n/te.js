@@ -2,6 +2,15 @@
 // lookup time (see utils/i18n.jsx), so a partial file renders a
 // mixed UI rather than blank labels — keep it complete.
 export default {
+  map_filters: "ఫిల్టర్లు",
+  map_fullscreen: "పూర్తి తెర మ్యాప్",
+  map_exit_fullscreen: "పూర్తి తెర నుండి తిరుగు",
+  map_recenter: "నా స్థానానికి తిరుగు",
+  native_home_subtitle: 'అత్యవసర పరిస్థితిని తెలియజేయండి, సమీపంలో సహాయం కనుగొనండి లేదా రోజువారీ పనులకు సహాయం అడగండి.',
+  app_update_details: 'వివరాలు',
+  nav_home: 'హోమ్',
+  nav_report_short: 'నివేదించు',
+  nav_respond_short: 'స్పందించు',
   help_schedule_title: 'కోరుకున్న సమయం (ఐచ్ఛికం)',
   help_schedule_start: 'ప్రారంభం',
   help_schedule_end: 'ముగింపు',

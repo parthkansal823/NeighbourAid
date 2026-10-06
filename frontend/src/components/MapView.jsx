@@ -140,6 +140,8 @@ function ResizeWatcher() {
   const map = useMap()
   useEffect(() => {
     const onResize = () => map.invalidateSize()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(onResize)
+    observer?.observe(map.getContainer())
     window.addEventListener('resize', onResize)
     window.addEventListener('orientationchange', onResize)
     // also run once after mount — parent may have laid out before map
@@ -148,6 +150,7 @@ function ResizeWatcher() {
       window.removeEventListener('resize', onResize)
       window.removeEventListener('orientationchange', onResize)
       clearTimeout(id)
+      observer?.disconnect()
     }
   }, [map])
   return null
@@ -155,7 +158,7 @@ function ResizeWatcher() {
 
 function Legend() {
   return (
-    <div className="absolute bottom-3 right-3 z-400 surface-float bg-surface-1/90 backdrop-blur-sm px-3 py-2 text-[11px] text-gray-300 space-y-1 max-w-[160px] reveal-up">
+    <div className="map-legend absolute bottom-3 right-3 z-400 surface-float bg-surface-1/90 backdrop-blur-sm px-3 py-2 text-[11px] text-gray-300 space-y-1 max-w-[160px] reveal-up">
       <div className="font-semibold text-gray-100 mb-1 flex items-center gap-1">
         <span className="inline-block w-1 h-3 bg-accent rounded-full" />
         Urgency

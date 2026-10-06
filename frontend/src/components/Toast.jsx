@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Info, Siren } from './icons'
+import { isNativeApp } from '../utils/runtime'
 
 const ToastContext = createContext(null)
 
@@ -43,7 +44,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ push, dismiss }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-1000 flex flex-col gap-2 w-[340px] max-w-[calc(100vw-2rem)]">
+      <div className={`app-toasts ${isNativeApp() ? 'native-toasts' : 'web-toasts'} fixed bottom-4 right-4 z-1000 flex flex-col gap-2 w-[340px] max-w-[calc(100vw-2rem)]`}>
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} onClose={() => dismiss(t.id)} />
         ))}

@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 import api from '../utils/api'
 import QuickSOS from '../components/QuickSOS'
+import NativeHome from '../components/NativeHome'
+import { isNativeApp } from '../utils/runtime'
 import { OFFLINE_QUEUE_EVENT, listPending } from '../utils/offlineQueue'
 
 export default function Home() {
@@ -307,6 +309,8 @@ export default function Home() {
       },
     ]
   }, [contactCount, myStats, pendingOffline, skillCount, stats, user])
+
+  if (isNativeApp()) return <><QuickSOS /><NativeHome heroPrimary={heroPrimary} stats={stats} /></>
 
   return (
     <div className="min-h-screen bg-surface">

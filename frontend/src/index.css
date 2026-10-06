@@ -1,5 +1,84 @@
 @import 'tailwindcss';
 
+/* Installed app only. Web (including phone browsers and demo) keeps its UI. */
+.native-app {
+  --app-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --app-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+  --app-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
+  --app-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+  --app-header-height: calc(4rem + var(--app-safe-top));
+  --app-nav-height: calc(4.5rem + var(--app-safe-bottom));
+  min-height: 100dvh;
+  background: #101010;
+  color-scheme: dark;
+}
+.native-app .app-header { padding-top: var(--app-safe-top); }
+.native-app .app-header > div { padding-left: max(.75rem, var(--app-safe-left)); padding-right: max(.75rem, var(--app-safe-right)); }
+.native-app .app-content { padding-bottom: calc(var(--app-nav-height) + 1rem); }
+.native-app .app-content { padding-left: var(--app-safe-left); padding-right: var(--app-safe-right); }
+.native-app .app-content h1 { font-size: clamp(1.5rem, 5vw, 1.875rem); line-height: 1.25; }
+.native-app .app-content :is(input, select, textarea):not([type='checkbox']):not([type='radio']) { font-size: 16px; min-height: 48px; background-color: #171717; border-color: #343434; }
+.native-app .app-content :is(h1, h2, h3, p, dd) { overflow-wrap: anywhere; }
+.native-app .mobile-nav[hidden] { display: none; }
+.native-app .mobile-nav { padding-left: max(.5rem, var(--app-safe-left)); padding-right: max(.5rem, var(--app-safe-right)); padding-bottom: var(--app-safe-bottom); }
+.native-app .page-panel { padding-top: 1.5rem; }
+.native-app .app-update-notice > div { gap: .5rem; }
+.native-app .language-trigger { min-width: 44px; min-height: 44px; border-radius: 12px; font-size: 14px; justify-content: center; }
+.native-app .language-globe, .native-app .language-chevron { display: none; }
+.native-app .mobile-nav a { text-align: center; overflow-wrap: anywhere; }
+.native-map-app { height: 100dvh; display: flex; flex-direction: column; }
+.native-map-app > .app-header, .native-map-app > .app-update-notice { flex-shrink: 0; }
+.native-map-app .app-content { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: var(--app-nav-height); }
+.native-map-app .app-content > :not(.map-page) { flex-shrink: 0; }
+.native-app .map-page { flex: 1; height: auto; min-height: 16rem; }
+.native-app .map-page h1 { font-size: 1rem; }
+.native-app .auth-page { min-height: calc(100dvh - var(--app-header-height) - var(--app-nav-height) - 1rem); align-items: flex-start; padding-top: 1.5rem; overflow: visible; }
+.native-app .auth-page > [aria-hidden] { display: none; }
+.native-app .auth-page > .surface-card { padding: 1.25rem; }
+.native-app .auth-page input:not([type='checkbox']):not([type='radio']) { min-height: 48px; background: #171717; border-color: #343434; border-radius: 12px; font-size: 16px; }
+.native-app .reveal-up, .native-app .pop-in { animation: none; }
+.native-app main > .min-h-screen { min-height: calc(100dvh - var(--app-header-height) - var(--app-nav-height)); }
+.app-overlay { position: fixed; inset: 0; z-index: 1400; }
+.native-overlay { color-scheme: dark; }
+.native-overlay [role='dialog'] { padding-top: max(1rem, var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); padding-bottom: max(1rem, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); padding-left: max(.75rem, var(--safe-area-inset-left, env(safe-area-inset-left, 0px))); padding-right: max(.75rem, var(--safe-area-inset-right, env(safe-area-inset-right, 0px))); }
+.native-overlay button { min-width: 44px; min-height: 44px; }
+.native-overlay input { min-width: 0; font-size: 16px; }
+.native-overlay [role='dialog'] > .surface-float { max-height: 100%; }
+.native-toasts { bottom: calc(5.5rem + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); z-index: 1350; }
+.native-toasts button { min-width: 44px; min-height: 44px; }
+.native-app .photo-remove { width: 44px; height: 44px; }
+
+/* Responsive fixes, not a desktop redesign. Grids and form controls may
+   shrink to the phone width; long contact details must not widen a page. */
+:is(.web-content, .app-content) { min-width: 0; }
+:is(.web-content, .app-content) :is(input, select, textarea):not([type='checkbox']):not([type='radio']) { min-width: 0; max-width: 100%; }
+@media (max-width: 639px) {
+  .web-content :is(h1, h2, h3, p, dd) { overflow-wrap: anywhere; }
+  .web-content .auth-page { align-items: flex-start; min-height: calc(100dvh - 10rem); }
+  .web-content .map-page { height: calc(100dvh - 10rem); min-height: 18rem; }
+  .web-toasts { bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px)); }
+  .web-toasts button, .web-content .photo-remove { min-width: 44px; min-height: 44px; }
+}
+
+/* Map-first phone layout: all controls live in the bottom panel. The
+   expanded view also uses this layout on desktop, with a visible exit. */
+.map-compact .map-body { position: absolute; inset: 0; padding: 0; z-index: 0; }
+.map-compact .leaflet-container { border-radius: 0; min-height: 0 !important; }
+.map-compact .map-toolbar { position: absolute; inset-inline: 0; bottom: 0; z-index: 500; max-height: 65%; overflow-y: auto; border-top: 1px solid #343434; border-bottom: 0; border-radius: 16px 16px 0 0; background: #171717; padding: .5rem .75rem; }
+.map-compact .map-toolbar h1 { font-size: 1rem; line-height: 1.25; }
+.map-compact .map-filters { width: 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: .25rem; }
+.map-compact .map-filters button { flex-shrink: 0; white-space: nowrap; min-height: 44px; }
+.map-compact .map-legend { bottom: calc(var(--map-controls-height) + 2.25rem); font-size: 10px; padding: .5rem; }
+.map-compact .leaflet-bottom { bottom: calc(var(--map-controls-height) + .25rem); }
+.map-compact .leaflet-control-attribution { font-size: 10px; }
+.map-expanded, .native-app .map-expanded, .web-content .map-expanded { position: fixed; inset: 0; z-index: 1300; height: 100dvh; min-height: 0; background: #101010; }
+.map-expanded .map-toolbar { bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
+.map-expanded .leaflet-top { top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); }
+.map-expanded .map-legend { bottom: calc(var(--map-controls-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + 2.25rem); }
+.map-expanded .leaflet-bottom { bottom: calc(var(--map-controls-height) + .25rem); }
+.map-expanded .map-body { padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
+.native-app .map-expanded::before { content: ''; position: absolute; inset-inline: 0; top: 0; height: var(--app-safe-top); background: #101010; z-index: 1000; pointer-events: none; }
+
 @theme {
   --color-critical: #ef4444;
   --color-high: #f97316;

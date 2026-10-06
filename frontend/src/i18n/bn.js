@@ -2,6 +2,15 @@
 // lookup time (see utils/i18n.jsx), so a partial file renders a
 // mixed UI rather than blank labels — keep it complete.
 export default {
+  map_filters: "ফিল্টার",
+  map_fullscreen: "পূর্ণ পর্দায় মানচিত্র",
+  map_exit_fullscreen: "পূর্ণ পর্দা থেকে ফিরুন",
+  map_recenter: "আমার অবস্থানে ফিরুন",
+  native_home_subtitle: 'জরুরি পরিস্থিতি জানান, কাছাকাছি সহায়তা খুঁজুন বা দৈনন্দিন কাজে সাহায্য চান।',
+  app_update_details: 'বিস্তারিত',
+  nav_home: 'হোম',
+  nav_report_short: 'জানান',
+  nav_respond_short: 'সাড়া',
   help_schedule_title: 'পছন্দের সময় (ঐচ্ছিক)',
   help_schedule_start: 'শুরু',
   help_schedule_end: 'শেষ',

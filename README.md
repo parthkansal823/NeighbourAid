@@ -16,7 +16,13 @@ support—have their own board.
 
 ## What's included
 
-- React/Vite web app and a Capacitor Android package sharing the same UI.
+- React/Vite web app and a Capacitor Android package sharing routes and features.
+  Android has a compact action-first home, a 112 menu and flat bottom tabs;
+  desktop keeps its existing layout. Forms, maps and long text adapt to small
+  screens. Android safe-area spacing also supports older WebViews.
+- Map-first phone view with filters and location controls in a collapsible
+  bottom panel. The full-screen map has a visible exit control; desktop keeps
+  its normal top toolbar. Map tiles still need a network connection.
 - FastAPI accounts, alerts, volunteer responses, resources, safety check-ins,
   paid-help requests and live WebSocket updates.
 - Volunteer-feed search and All/Open/My accepted views. Active critical alerts
@@ -33,8 +39,16 @@ support—have their own board.
   Each needs its own configuration; none is required to start the app.
   Local models have bounded admission and strict text-output checks; an AI
   timeout or failed address/weather lookup keeps the fallback available.
+  Headline suggestions reject invented numeric values and unsafe negation
+  changes. Doubtful or mixed photo captions do not reduce evidence scores;
+  a photo cannot disprove a gas leak, power outage or medical symptoms.
+  Models run on the backend, not on the phone. See [setup and limitations](models/README.md).
 - Android release notices with a download button. Installation still needs the
   phone owner's confirmation.
+
+UI checks include all 13 routes in both web and Android shells using a
+memory-only API. These render tests are not a substitute for visual/device
+testing or testing authenticated flows against a running real server.
 
 ## Start the real app with Docker
 

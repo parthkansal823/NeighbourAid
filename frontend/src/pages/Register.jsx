@@ -87,7 +87,7 @@ export default function Register() {
     'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 text-base placeholder:text-gray-600'
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 overflow-hidden">
+    <div className="auth-page relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 overflow-hidden">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-xl rounded-full bg-orange-500/10 blur-3xl"

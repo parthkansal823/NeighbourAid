@@ -49,12 +49,16 @@ export default function AppUpdateNotice() {
     setUpdate(null)
   }
   return (
-    <aside aria-label={t('app_update_title')} className="border-b border-orange-500/30 bg-black px-4 py-3 text-white">
+    <aside aria-label={t('app_update_title')} className="app-update-notice border-b border-orange-500/30 bg-black px-4 py-3 text-white">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
         <div role="status" className="max-w-2xl">
           <p className="text-sm font-medium">{t('app_update_title')}</p>
-          <p className="mt-0.5 text-xs text-gray-300">{t('app_update_body').replace('{version}', update.versionName)}</p>
-          {__APP_BUILD__.channel !== 'release' && <p className="mt-1 text-xs text-orange-300">{t('app_update_debug')}</p>}
+          <p className="mt-0.5 text-xs text-gray-300">{update.versionName}</p>
+          <details className="mt-1 text-xs leading-relaxed text-gray-300">
+            <summary className="flex min-h-11 cursor-pointer items-center text-orange-300">{t('app_update_details')}</summary>
+            <p>{t('app_update_body').replace('{version}', update.versionName)}</p>
+            {__APP_BUILD__.channel !== 'release' && <p className="mt-1 text-orange-300">{t('app_update_debug')}</p>}
+          </details>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <a href={update.downloadUrl} target="_blank" rel="noopener noreferrer" className="tap flex items-center rounded-lg bg-orange-500 px-3 text-sm font-medium text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400">{t('app_update_download')}</a>

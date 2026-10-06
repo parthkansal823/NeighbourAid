@@ -28,7 +28,7 @@ export default function Login() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-4 py-8 overflow-hidden">
+    <div className="auth-page relative min-h-screen flex items-center justify-center px-4 py-8 overflow-hidden">
       <div
         aria-hidden
         className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-xl rounded-full bg-orange-500/10 blur-3xl"
