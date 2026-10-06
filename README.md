@@ -2,6 +2,7 @@
   <img src="frontend/public/brand-logo.png" alt="NeighbourAid Logo" width="55" height="55" style="vertical-align: middle;">
   NeighbourAid
 </h1>
+
 [![CI](https://img.shields.io/github/actions/workflow/status/parthkansal823/NeighbourAid/ci.yml?branch=main&label=CI&logo=github)](https://github.com/parthkansal823/NeighbourAid/actions/workflows/ci.yml)
 [![Android](https://img.shields.io/github/actions/workflow/status/parthkansal823/NeighbourAid/android.yml?branch=main&label=Android&logo=android)](https://github.com/parthkansal823/NeighbourAid/actions/workflows/android.yml)
 
