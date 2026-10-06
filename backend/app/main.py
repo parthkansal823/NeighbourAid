@@ -15,6 +15,7 @@ from .core.security import decode_token_safe
 from .core.security_headers import SecurityHeadersMiddleware
 from .db.client import connect, disconnect, get_db
 from .routes import (
+    advisories,
     alerts,
     auth,
     geo,
@@ -180,6 +181,7 @@ app.include_router(users.router)
 app.include_router(stats.router)
 app.include_router(safety.router)
 app.include_router(news.router)
+app.include_router(advisories.router)
 app.include_router(resources.router)
 app.include_router(inbound.router)
 app.include_router(geo.router)

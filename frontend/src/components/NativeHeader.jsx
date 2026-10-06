@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 import { LanguageMenu } from './Navbar'
 import { LifeBuoy, Menu, X } from './icons'
+import NativeUpdateSettings from './NativeUpdateSettings'
 
 /** Compact Android header. The website keeps its existing Navbar. */
 export default function NativeHeader({ onOpenEmergency }) {
@@ -60,6 +61,7 @@ export default function NativeHeader({ onOpenEmergency }) {
       {open && <nav id="native-menu" aria-label="More navigation" className="absolute inset-x-0 top-full max-h-[calc(100dvh-10rem)] overflow-y-auto border-b border-line bg-surface p-3 shadow-lg">
         {links.map(({ to, key }) => <Link key={to} to={to} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-xl px-3 text-sm text-gray-200 hover:bg-surface-2">{t(key)}</Link>)}
         {user && <button type="button" onClick={() => { logout(); setOpen(false); navigate('/') }} className="flex min-h-12 w-full items-center rounded-xl px-3 text-sm text-gray-300">{t('nav_logout')}</button>}
+        <NativeUpdateSettings />
       </nav>}
     </header>
   )

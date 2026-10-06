@@ -6,6 +6,7 @@ import { trustedUpdateDownload } from './appUpdate'
 
 const CHANNEL = 'app-updates'
 const NOTIFIED = 'neighbouraid-notified-release'
+export const UPDATE_CHECK_EVENT = 'neighbouraid:check-update'
 
 export async function openAppUpdate(raw) {
   const url = trustedUpdateDownload(raw)
@@ -40,6 +41,10 @@ export async function listenForUpdateTap() {
   return LocalNotifications.addListener('localNotificationActionPerformed', (event) => {
     if (event.notification?.id !== 1900000001) return
     // Notification extras are untrusted too; never launch an arbitrary URL.
-    void openAppUpdate(event.notification.extra?.downloadUrl).catch(() => {})
+    if (trustedUpdateDownload(event.notification.extra?.downloadUrl)) {
+      // Bring back the in-app update bar, not a browser/GitHub page. The
+      // user still presses Update before any download or installation.
+      window.dispatchEvent(new Event(UPDATE_CHECK_EVENT))
+    }
   })
 }

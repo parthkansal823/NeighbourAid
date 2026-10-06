@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { MessageCircle, Share2 } from './icons'
 import { useToast } from './Toast'
 import NativeOverlay from './NativeOverlay'
+import { nativeShareAlert, publicAlertUrl } from '../utils/nativeShare'
 
 /**
  * Share an alert outside the app — WhatsApp, SMS, anywhere someone has a
@@ -18,9 +19,7 @@ export default function ShareAlert({ alert }) {
   const firstFocusRef = useRef(null)
 
   const shareUrl = useMemo(() => {
-    if (!alert?.id) return typeof window !== 'undefined' ? window.location.origin : ''
-    const base = typeof window !== 'undefined' ? window.location.origin : ''
-    return `${base}/alert/${alert.id}`
+    return publicAlertUrl(alert?.id)
   }, [alert?.id])
 
   const shareText = useMemo(() => {
@@ -46,6 +45,8 @@ export default function ShareAlert({ alert }) {
   }, [open])
 
   const onClick = async () => {
+    try { if (await nativeShareAlert(alert?.id)) return }
+    catch (err) { if (/cancel/i.test(err.message || '')) return }
     if (canNativeShare) {
       try {
         await navigator.share({

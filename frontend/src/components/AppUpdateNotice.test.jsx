@@ -7,6 +7,9 @@ import en from '../i18n/en'
 const { isNativeApp, latestAppUpdate } = vi.hoisted(() => ({ isNativeApp: vi.fn(), latestAppUpdate: vi.fn() }))
 vi.mock('../utils/runtime', () => ({ isNativeApp }))
 vi.mock('../utils/appUpdate', () => ({ latestAppUpdate }))
+vi.mock('../utils/androidUpdate', () => ({ UPDATE_CHECK_EVENT: 'neighbouraid:check-update', UPDATE_RESULT_EVENT: 'neighbouraid:update-result' }))
+vi.mock('../components/AndroidUpdateAction', () => ({ default: () => <button type="button">Update now</button> }))
+vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform: () => 'android' } }))
 vi.mock('../utils/updateNotification', () => ({
   enableUpdateNotifications: vi.fn().mockResolvedValue(true),
   listenForUpdateTap: vi.fn().mockResolvedValue(null),
@@ -33,11 +36,10 @@ describe('nonblocking app update notice', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('offers a trusted external download and warns test-APK users', async () => {
+  it('offers an in-app update action and warns test-APK users', async () => {
     render(<AppUpdateNotice />)
-    const link = await screen.findByRole('link', { name: 'Download update' })
-    expect(link).toHaveAttribute('href', update.downloadUrl)
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(await screen.findByRole('button', { name: 'Update now' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Download update' })).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('build-12')
     expect(screen.getByRole('status')).toHaveTextContent('saved local reports can be lost')
   })
@@ -84,5 +86,15 @@ describe('nonblocking app update notice', () => {
       window.dispatchEvent(new Event('online'))
     })
     expect(latestAppUpdate).toHaveBeenCalledOnce()
+  })
+
+  it('a manual check bypasses throttling and restores a dismissed release', async () => {
+    localStorage.setItem('neighbouraid-dismissed-release', '12')
+    render(<AppUpdateNotice />)
+    await act(async () => {})
+    expect(screen.queryByRole('button', { name: 'Update now' })).not.toBeInTheDocument()
+    act(() => window.dispatchEvent(new Event('neighbouraid:check-update')))
+    expect(await screen.findByRole('button', { name: 'Update now' })).toBeInTheDocument()
+    expect(latestAppUpdate).toHaveBeenCalledTimes(2)
   })
 })

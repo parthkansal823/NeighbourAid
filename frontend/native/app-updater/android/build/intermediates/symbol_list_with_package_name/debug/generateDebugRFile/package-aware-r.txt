@@ -1,0 +1,2 @@
+com.neighbouraid.updater
+xml neighbouraid_update_paths

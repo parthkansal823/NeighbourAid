@@ -48,6 +48,8 @@ describe('native update notification', () => {
     expect(await notifyAppUpdate(update, 'Update', 'build-42')).toBe(true)
   })
   it('revalidates a notification tap URL', async () => {
+    const manualCheck = vi.fn()
+    window.addEventListener('neighbouraid:check-update', manualCheck)
     await listenForUpdateTap()
     const listener = mocks.listen.mock.calls[0][1]
     listener({ notification: { id: 1900000001, extra: { downloadUrl: 'https://evil.com/app-release.apk' } } })
@@ -55,7 +57,9 @@ describe('native update notification', () => {
     expect(mocks.launch).not.toHaveBeenCalled()
     listener({ notification: { id: 1900000001, extra: { downloadUrl: update.downloadUrl } } })
     await Promise.resolve()
-    expect(mocks.launch).toHaveBeenCalledWith({ url: update.downloadUrl })
+    expect(manualCheck).toHaveBeenCalledOnce()
+    expect(mocks.launch).not.toHaveBeenCalled()
+    window.removeEventListener('neighbouraid:check-update', manualCheck)
   })
   it('does not launch arbitrary assets or run on the web', async () => {
     expect(await openAppUpdate(update.downloadUrl.replace('app-release.apk', 'virus.apk'))).toBe(false)

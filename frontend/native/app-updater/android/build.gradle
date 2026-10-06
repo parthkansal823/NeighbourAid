@@ -1,0 +1,24 @@
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'com.neighbouraid.updater'
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        minSdk rootProject.ext.minSdkVersion
+        targetSdk rootProject.ext.targetSdkVersion
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_21
+        targetCompatibility JavaVersion.VERSION_21
+    }
+}
+repositories {
+    google()
+    mavenCentral()
+}
+dependencies {
+    implementation project(':capacitor-android')
+    implementation "androidx.core:core:${rootProject.ext.androidxCoreVersion}"
+    implementation "androidx.appcompat:appcompat:${rootProject.ext.androidxAppCompatVersion}"
+    testImplementation "junit:junit:${rootProject.ext.junitVersion}"
+}

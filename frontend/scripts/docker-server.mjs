@@ -86,7 +86,11 @@ async function connect() {
     await delay(2000)
   }
   if (!origin) throw new Error('Tunnel/API did not become ready. Check Docker status and MongoDB network access, then retry. No routing change was made.')
-  await setApiOrigin(origin)
+  try {
+    await setApiOrigin(origin)
+  } catch {
+    throw new Error('Docker MongoDB/API/tunnel are running, but Cloudflare routing was NOT updated. If Wrangler reports authentication error 10000, run npx wrangler login in frontend/, approve your own account in the browser, then retry npm run server:connect. Check CONFIG/account permissions if login does not help. Do not delete database volumes or run server:setup again.')
+  }
   console.log('Docker MongoDB, API and tunnel are running. The real web app and Android APK use the same Worker URL.\nKV routing can take about a minute to propagate. Stop the stack with npm run server:stop; database volumes are preserved.')
 }
 

@@ -5,6 +5,7 @@ import { useI18n } from '../utils/i18n'
 import api from '../utils/api'
 import QuickSOS from '../components/QuickSOS'
 import NativeHome from '../components/NativeHome'
+import OfficialAdvisories from '../components/OfficialAdvisories'
 import { isNativeApp } from '../utils/runtime'
 import { OFFLINE_QUEUE_EVENT, listPending } from '../utils/offlineQueue'
 
@@ -343,6 +344,7 @@ export default function Home() {
             {t('home_cta_map')}
           </Link>
         </div>
+        <OfficialAdvisories compact />
       </section>
 
       {personalStats.length > 0 && (

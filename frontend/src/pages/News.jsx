@@ -21,6 +21,7 @@ import { useI18n } from '../utils/i18n'
 import { apiError } from '../utils/error'
 import EmptyState from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
+import OfficialAdvisories from '../components/OfficialAdvisories'
 import {
   Globe,
   Newspaper,
@@ -155,6 +156,7 @@ export default function News() {
           />
         </button>
       </header>
+      <OfficialAdvisories />
       <label className="mb-4 block text-sm text-gray-300">
         {t('news_sources')}
         <select className="tap mt-1 w-full rounded-lg border border-line bg-surface px-3" value={source} onChange={event => setSource(event.target.value)}>

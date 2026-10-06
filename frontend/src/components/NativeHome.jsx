@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useI18n } from '../utils/i18n'
 import { ArrowRight, Map, ShieldCheck, Wrench } from './icons'
+import OfficialAdvisories from './OfficialAdvisories'
 
 /** Action-first home for the installed app; no demo counts or new API calls. */
 export default function NativeHome({ heroPrimary, stats }) {
@@ -13,6 +14,7 @@ export default function NativeHome({ heroPrimary, stats }) {
         <Link to={heroPrimary.to} className={`flex min-h-14 items-center justify-center rounded-xl px-3 py-3 text-center text-sm font-semibold ${heroPrimary.tone} ${heroPrimary.tone.includes('text-black') ? '' : 'text-white'}`}>{heroPrimary.label}</Link>
         <Link to="/map" className="flex min-h-14 items-center justify-center gap-2 rounded-xl border border-line bg-surface-1 px-3 py-3 text-center text-sm font-medium text-white"><Map className="h-5 w-5 shrink-0" aria-hidden />{t('nav_map')}</Link>
       </div>
+      <OfficialAdvisories compact />
       <Link to="/help" className="mt-5 flex items-start gap-3 rounded-2xl border border-line bg-surface-1 p-4">
         <Wrench className="mt-1 h-5 w-5 shrink-0 text-orange-400" aria-hidden />
         <div className="min-w-0 flex-1"><h2 className="font-semibold text-white">{t('help_title')}</h2><p className="mt-1 text-sm leading-relaxed text-gray-400">{t('help_subtitle')}</p></div>

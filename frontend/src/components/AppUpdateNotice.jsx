@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
+import AndroidUpdateAction from './AndroidUpdateAction'
+import { UPDATE_CHECK_EVENT, UPDATE_RESULT_EVENT } from '../utils/androidUpdate'
 import { isNativeApp } from '../utils/runtime'
 import { latestAppUpdate } from '../utils/appUpdate'
 import { useI18n } from '../utils/i18n'
@@ -18,18 +21,28 @@ export default function AppUpdateNotice() {
     let busy = false
     let lastChecked = -CHECK_INTERVAL
     let listener
+    let manualRequested = false
     void listenForUpdateTap().then((handle) => {
       if (active) listener = handle
       else void handle?.remove()
     }).catch(() => {})
-    const check = async () => {
-      if (busy || !navigator.onLine || document.visibilityState === 'hidden' || Date.now() - lastChecked < CHECK_INTERVAL) return
+    const result = state => window.dispatchEvent(new CustomEvent(UPDATE_RESULT_EVENT, { detail: state }))
+    const check = async (manual = false) => {
+      if (manual) manualRequested = true
+      if (!navigator.onLine) {
+        if (manualRequested) { manualRequested = false; result('unavailable') }
+        return
+      }
+      if (busy || document.visibilityState === 'hidden' || (!manualRequested && Date.now() - lastChecked < CHECK_INTERVAL)) return
       busy = true
       lastChecked = Date.now()
       try {
-        const release = await latestAppUpdate(__APP_BUILD__.versionCode)
+        const release = await latestAppUpdate(__APP_BUILD__.versionCode, fetch, { reportUnavailable: true })
+        const manualCheck = manualRequested
+        manualRequested = false
         let dismissed = false
-        try { dismissed = localStorage.getItem(DISMISSED_KEY) === String(release?.versionCode) } catch { /* Private storage can be unavailable. */ }
+        try { dismissed = !manualCheck && localStorage.getItem(DISMISSED_KEY) === String(release?.versionCode) } catch { /* Private storage can be unavailable. */ }
+        if (active && manualCheck) result(release ? 'found' : 'none')
         if (active) setUpdate(dismissed ? null : release)
         if (active && release && !dismissed) {
           await notifyAppUpdate(release, t('app_update_title'), release.versionName).catch(() => {})
@@ -37,20 +50,24 @@ export default function AppUpdateNotice() {
       } catch {
         // An unavailable update service must not hide or block emergency actions.
         lastChecked = -CHECK_INTERVAL
+        if (active && manualRequested) { manualRequested = false; result('unavailable') }
       } finally {
         busy = false
       }
     }
     const onVisible = () => { void check() }
+    const onManual = () => { void check(true) }
     void check()
     const timer = setInterval(onVisible, CHECK_INTERVAL)
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('online', onVisible)
+    window.addEventListener(UPDATE_CHECK_EVENT, onManual)
     return () => {
       active = false
       clearInterval(timer)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('online', onVisible)
+      window.removeEventListener(UPDATE_CHECK_EVENT, onManual)
       void listener?.remove()
     }
   }, [t])
@@ -92,7 +109,7 @@ export default function AppUpdateNotice() {
           {message && <p role="alert" className="mt-1 text-xs text-orange-300">{message}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <a href={update.downloadUrl} onClick={download} aria-disabled={downloading} target="_blank" rel="noopener noreferrer" className="tap flex items-center rounded-lg bg-orange-500 px-3 text-sm font-medium text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400">{t('app_update_download')}</a>
+          {Capacitor.getPlatform() === 'android' ? <AndroidUpdateAction key={update.versionCode} update={update} /> : <a href={update.downloadUrl} onClick={download} aria-disabled={downloading} target="_blank" rel="noopener noreferrer" className="tap flex items-center rounded-lg bg-orange-500 px-3 text-sm font-medium text-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400">{t('app_update_download')}</a>}
           <button type="button" onClick={dismiss} className="tap rounded-lg px-3 text-sm text-gray-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400">{t('app_update_later')}</button>
         </div>
       </div>

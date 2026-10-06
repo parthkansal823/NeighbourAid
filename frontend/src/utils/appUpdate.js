@@ -27,20 +27,24 @@ export function updateFromRelease(release, currentVersionCode) {
   if (!version || !Number.isSafeInteger(version.versionCode) || version.versionCode < 1 || version.versionCode <= currentVersionCode ||
       version.versionCode > 2100000000 || typeof version.versionName !== 'string' ||
       !version.versionName.trim() || version.versionName.length > 80) return null
-  const asset = release.assets.find((item) => item?.name === 'app-release.apk' && item.state === 'uploaded' && Number.isSafeInteger(item.size) && item.size > 0)
+  const asset = release.assets.find((item) => item?.name === 'app-release.apk' && item.state === 'uploaded' && Number.isSafeInteger(item.size) && item.size > 0 && item.size <= 100 * 1024 * 1024)
   const downloadUrl = trustedUpdateDownload(asset?.browser_download_url)
   const releaseUrl = trustedUrl(release.html_url, `${REPO_PREFIX}tag/`)
   if (!downloadUrl || !releaseUrl || !new URL(downloadUrl).pathname.endsWith('/app-release.apk')) return null
   return { versionCode: version.versionCode, versionName: version.versionName, downloadUrl, releaseUrl }
 }
 
-export async function latestAppUpdate(currentVersionCode, fetchImpl = fetch) {
+export async function latestAppUpdate(currentVersionCode, fetchImpl = fetch, { reportUnavailable = false } = {}) {
   const response = await fetchImpl(RELEASES_API, {
     signal: AbortSignal.timeout(8000), credentials: 'omit', referrerPolicy: 'no-referrer',
     headers: { Accept: 'application/vnd.github+json' },
   })
   // No release yet, or GitHub's public read limit: never block the crisis UI.
-  if (response.status === 404 || response.status === 429 || response.status === 403) return null
+  if (response.status === 404) return null
+  if (response.status === 429 || response.status === 403) {
+    if (reportUnavailable) throw new Error('Public update service unavailable')
+    return null
+  }
   if (!response.ok) throw new Error('Could not check for an app update')
   return updateFromRelease(await response.json(), currentVersionCode)
 }

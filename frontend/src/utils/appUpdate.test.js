@@ -44,7 +44,7 @@ describe('Android release metadata', () => {
 
   it('requires a complete nonempty asset and a matching repository release page', () => {
     const item = release().assets[0]
-    for (const change of [{ size: 0 }, { state: 'starter' }, { name: 'app-debug.apk' }]) {
+    for (const change of [{ size: 0 }, { size: 101 * 1024 * 1024 }, { state: 'starter' }, { name: 'app-debug.apk' }]) {
       expect(updateFromRelease(release({ assets: [{ ...item, ...change }] }), 1)).toBeNull()
     }
     expect(updateFromRelease(release({ html_url: 'https://evil.test/release' }), 1)).toBeNull()
@@ -67,5 +67,9 @@ describe('public update check', () => {
 
   it('reports an outage to the nonblocking caller', async () => {
     await expect(latestAppUpdate(1, async () => ({ status: 503, ok: false }))).rejects.toThrow('Could not check')
+  })
+
+  it('does not claim there is no update when a manual check is rate-limited', async () => {
+    await expect(latestAppUpdate(1, async () => ({ status: 403, ok: false }), { reportUnavailable: true })).rejects.toThrow('unavailable')
   })
 })

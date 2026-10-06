@@ -68,7 +68,7 @@ jobs:
 
       - name: Assemble installable debug APK
         working-directory: frontend/android
-        run: ./gradlew app:assembleDebug --no-daemon
+        run: ./gradlew app:assembleDebug :neighbouraid-app-updater:testDebugUnitTest --no-daemon
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
