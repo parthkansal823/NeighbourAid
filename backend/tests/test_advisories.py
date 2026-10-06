@@ -104,7 +104,9 @@ async def test_etags_reuse_xml_and_failed_refresh_is_not_all_clear(monkeypatch):
 
 
 def test_expired_cached_warning_is_not_returned(monkeypatch):
-    monkeypatch.setattr(service, "_items", service.parse_cap(cap(), LINK, NOW)["items"])
+    items = service.parse_cap(cap(), LINK, NOW)["items"]
+    items[0]["expires_at"] = (datetime.now(timezone.utc) - timedelta(seconds=1)).isoformat()
+    monkeypatch.setattr(service, "_items", items)
     assert not service.current_snapshot()["items"]
 
 

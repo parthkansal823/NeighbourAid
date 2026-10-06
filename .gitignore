@@ -48,6 +48,9 @@ pnpm-debug.log*
 # Build output (shipped via CI, not the repo)
 frontend/dist/
 frontend/dist-demo/
+# Generated build output for our local Capacitor plugin (source stays tracked).
+frontend/native/**/build/
+frontend/native/**/.gradle/
 frontend/.vite/
 
 # --- HuggingFace cache ---
