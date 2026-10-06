@@ -22,9 +22,11 @@ from ..services.verification import (
     WITNESS_RADIUS_M,
     bump_witness,
     compute_verified_score,
+    evidence_summary,
     filter_corroborating,
     find_corroborating_alerts,
     pick_canonical,
+    refresh_score,
 )
 from ..services.weather import supports_category
 from ..services.webhook import fire_alert_created
@@ -94,6 +96,8 @@ def _serialize(doc: dict, include_photos: bool = True) -> dict:
     doc.setdefault("witnesses", 1)
     doc.setdefault("witnessed_by", [])
     doc.setdefault("verified_score", 0)
+    doc["verified_score"] = max(0, min(100, int(doc["verified_score"] or 0)))
+    doc["evidence_summary"] = evidence_summary(doc)
     doc.setdefault("address", None)
     doc.setdefault("weather", None)
     doc.setdefault("weather_match", False)
@@ -432,7 +436,7 @@ async def create_alert(
     #    the alert existing. They now run after the insert — see
     #    services/enrich.py — and the card fills in over the WebSocket.
     corroborating = await find_corroborating_alerts(
-        db, alert.category.value, [lng, lat]
+        db, alert.category.value, [lng, lat], is_drill=bool(alert.is_drill)
     )
 
     address = None
@@ -440,7 +444,7 @@ async def create_alert(
     weather_match = False
     # Keep only corroborating alerts whose text is semantically close —
     # avoids same-category-same-area-but-different-incident false positives.
-    corroborating = filter_corroborating(alert.description, corroborating)
+    corroborating = filter_corroborating(alert.description, corroborating, reporter_id=reporter_id)
     corroborating_ids = [doc["_id"] for doc in corroborating]
 
     # Fold this report into the incident it corroborates.
@@ -460,7 +464,10 @@ async def create_alert(
     duplicate_of = canonical["_id"] if canonical else None
     if canonical is not None:
         try:
-            await bump_witness(db, canonical["_id"], reporter_id)
+            witnessed = await bump_witness(db, canonical["_id"], reporter_id)
+            if witnessed:
+                refreshed = await refresh_score(db, witnessed)
+                await manager.broadcast_nearby(_serialize({**refreshed}, include_photos=False))
         except Exception:  # noqa: BLE001 — a failed merge must not lose the report
             log.info("could not add witness to canonical alert %s", canonical["_id"])
 
@@ -518,12 +525,8 @@ async def create_alert(
     result = await db.alerts.insert_one(doc)
     doc["_id"] = result.inserted_id
 
-    # 3. Boost corroborating alerts — they just got independently confirmed
-    if corroborating_ids:
-        await db.alerts.update_many(
-            {"_id": {"$in": corroborating_ids}},
-            {"$inc": {"verified_score": 15}},
-        )
+    # The canonical witness above is counted once. Do not also increment
+    # every nearby score: that double-counted one author and exceeded 100.
 
     # Broadcast the lightweight version (no photos) to volunteers — keeps
     # the WebSocket frame small. Clients can pull photos on click.
@@ -597,18 +600,10 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
     # public form, so leaving it out would mean the duplicates that actually
     # pile up are exactly the ones that never collapse.
     #
-    # The witness bump is keyed on the IP hash rather than a user id, which
-    # is the only identity an anonymous report has. It is weak — one phone
-    # switching networks counts twice, a shared connection counts once — but
-    # it is the same identity the abuse rate-limit already relies on, and
-    # over-counting a witness is the mild direction to be wrong in.
+    # Anonymous tips can fold into an identified incident, but a network/IP
+    # is not an independent witness identity and must not add a vote.
     canonical = pick_canonical(corroborating)
     duplicate_of = canonical["_id"] if canonical else None
-    if canonical is not None:
-        try:
-            await bump_witness(db, canonical["_id"], f"anon:{hash(ip)}")
-        except Exception:  # noqa: BLE001 — a failed merge must not lose the report
-            log.info("could not add witness to canonical alert %s", canonical["_id"])
     photo_analysis = analyze_photos(alert.photos)
     verified_score = compute_verified_score(
         witnesses=1,
@@ -969,19 +964,7 @@ async def witness_alert(
     if not updated:
         return _serialize(alert, include_photos=False)
 
-    new_score = compute_verified_score(
-        witnesses=updated["witnesses"],
-        corroborating_alerts=len(updated.get("corroborating_ids", [])),
-        weather_match=updated.get("weather_match", False),
-    )
-    # Re-add the photo bump which compute_verified_score doesn't know about
-    new_score = min(100, new_score + (updated.get("photo_evidence_score") or 0))
-    updated = await db.alerts.find_one_and_update(
-        {"_id": oid},
-        {"$set": {"verified_score": new_score}},
-        return_document=True,
-        projection=_LIST_PROJECTION,
-    )
+    updated = await refresh_score(db, updated)
     serialized = _serialize(updated, include_photos=False)
     await manager.broadcast_nearby(serialized)
     return serialized

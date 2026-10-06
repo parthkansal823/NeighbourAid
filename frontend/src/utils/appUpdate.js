@@ -12,6 +12,11 @@ function trustedUrl(raw, prefix) {
   }
 }
 
+export function trustedUpdateDownload(raw) {
+  const url = trustedUrl(raw, `${REPO_PREFIX}download/`)
+  return url && new URL(url).pathname.endsWith('/app-release.apk') ? url : null
+}
+
 export function updateFromRelease(release, currentVersionCode) {
   if (!release || release.draft || release.prerelease) return null
   if (typeof release.body !== 'string' || !Array.isArray(release.assets)) return null
@@ -23,7 +28,7 @@ export function updateFromRelease(release, currentVersionCode) {
       version.versionCode > 2100000000 || typeof version.versionName !== 'string' ||
       !version.versionName.trim() || version.versionName.length > 80) return null
   const asset = release.assets.find((item) => item?.name === 'app-release.apk' && item.state === 'uploaded' && Number.isSafeInteger(item.size) && item.size > 0)
-  const downloadUrl = trustedUrl(asset?.browser_download_url, `${REPO_PREFIX}download/`)
+  const downloadUrl = trustedUpdateDownload(asset?.browser_download_url)
   const releaseUrl = trustedUrl(release.html_url, `${REPO_PREFIX}tag/`)
   if (!downloadUrl || !releaseUrl || !new URL(downloadUrl).pathname.endsWith('/app-release.apk')) return null
   return { versionCode: version.versionCode, versionName: version.versionName, downloadUrl, releaseUrl }

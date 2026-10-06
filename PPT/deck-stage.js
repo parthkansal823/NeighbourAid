@@ -178,9 +178,16 @@
     .btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
     .btn:active { background: rgba(255,255,255,0.18); }
     .btn:focus { outline: none; }
-    .btn:focus-visible { outline: none; }
+    .btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
     .btn::-moz-focus-inner { border: 0; }
     .btn svg { width: 14px; height: 14px; display: block; }
+    @media (pointer: coarse) {
+      .btn { min-width: 44px; height: 44px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      .overlay { filter: none; }
+    }
     .btn .kbd {
       display: inline-flex;
       align-items: center;

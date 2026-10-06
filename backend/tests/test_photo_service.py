@@ -42,12 +42,30 @@ def test_analyze_one_valid_photo_bumps_score():
     assert "1 photo" in out["photo_findings"]
 
 
-def test_analyze_three_photos_caps_at_30_with_triangulation():
-    photos = [_image_data_url(640, 480) for _ in range(3)]
+def test_analyze_three_distinct_photos_caps_at_30():
+    photos = [_image_data_url(640, 480, color) for color in ((200, 30, 30), (30, 200, 30), (30, 30, 200))]
     out = analyze_photos(photos)
-    # 12*3 = 36, capped to 30, plus the +4 triangulation bonus capped to 30
     assert out["photo_evidence_score"] == 30
-    assert "strong visual" in out["photo_findings"]
+    assert "contents not verified" in out["photo_findings"]
+
+
+def test_repeating_the_same_attachment_adds_no_extra_evidence():
+    photo = _image_data_url(640, 480)
+    out = analyze_photos([photo, photo, photo])
+    assert out["photo_evidence_score"] == 12
+    assert sum(c["is_duplicate"] for c in out["photo_checks"]) == 2
+    assert out["photo_confidence"] == 0.33
+
+
+def test_malformed_attachments_count_in_quality_denominator():
+    out = analyze_photos([_image_data_url(640, 480), "invalid"])
+    assert out["photo_confidence"] == 0.5
+
+
+def test_missing_decoder_must_not_award_arbitrary_bytes(monkeypatch):
+    from app.services import photo
+    monkeypatch.setattr(photo, "Image", None)
+    assert analyze_photos([_image_data_url(640, 480)])["photo_evidence_score"] == 0
 
 
 def test_analyze_rejects_tiny_image_as_invalid_evidence():

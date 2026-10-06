@@ -65,10 +65,10 @@ function AlertRow({ a, onCancel, cancelling, index = 0 }) {
         </p>
       )}
       <div className="flex flex-wrap gap-2 sm:gap-3 mt-2 text-[11px] text-gray-500">
-        <span className="tabular-nums">Verified {a.verified_score ?? 0}/100</span>
+        <span className="tabular-nums">Evidence {Math.max(0, Math.min(100, a.verified_score ?? 0))}/100</span>
         <span>
-          <Users className="h-3 w-3 inline-block mr-1 -mt-0.5" aria-hidden />{a.witnesses ?? 1}{' '}
-          {(a.witnesses ?? 1) !== 1 ? t('card_witness_many') : t('card_witness_one')}
+          <Users className="h-3 w-3 inline-block mr-1 -mt-0.5" aria-hidden />{Math.max(0, (a.witnesses ?? 1) - 1)}{' '}
+          {Math.max(0, (a.witnesses ?? 1) - 1) !== 1 ? t('card_witness_many') : t('card_witness_one')}
         </span>
         {a.corroborating_ids?.length ? (
           <span className="inline-flex items-center gap-1"><Link2 className="h-3 w-3" aria-hidden />{a.corroborating_ids.length} {t('card_similar_nearby')}</span>

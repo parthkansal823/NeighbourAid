@@ -37,7 +37,7 @@ from .llm import (
     is_enabled as llm_enabled,
     summarise as llm_summarise,
 )
-from .verification import compute_verified_score
+from .verification import compute_verified_score, score_ceiling
 from .vision import (
     CONTRADICTION_PENALTY,
     NO,
@@ -65,6 +65,7 @@ _SNAPSHOT_FIELDS = (
     "description", "headline", "headline_source", "urgency", "urgency_reason",
     "urgency_confidence", "photos", "photo_verdict", "photo_findings",
     "category", "location", "status",
+    "is_anonymous", "via",
 )
 
 
@@ -179,6 +180,12 @@ async def _maybe_penalise_photo(db, alert_id: ObjectId, category: str,
         return verified_score
 
     review = await vision_review(photos, category)
+    if review.get("verdict") in {"yes", "unclear"} and review.get("penalty") == 0:
+        update["photo_verdict"] = review["verdict"]
+        finding = review.get("finding")
+        if isinstance(finding, str) and finding:
+            update["photo_findings"] = finding
+        return verified_score
     penalty = review.get("penalty")
     if (review.get("verdict") != NO or type(penalty) is not int
             or not 0 < penalty <= CONTRADICTION_PENALTY):
@@ -264,7 +271,7 @@ async def enrich_alert(
             new_bonus = compute_verified_score(
                 witnesses=0, corroborating_alerts=0, weather_match=weather_match,
             )
-            verified_score = max(0, min(100, verified_score + new_bonus - previous_bonus))
+            verified_score = max(0, min(score_ceiling(snapshot), verified_score + new_bonus - previous_bonus))
             update.update(weather=weather, weather_match=weather_match)
             if verified_score != snapshot.get("verified_score", fallback_score):
                 update["verified_score"] = verified_score

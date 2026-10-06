@@ -9,10 +9,12 @@ An alert's `verified_score` (0-100) combines independent signals:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import re
+import unicodedata
 
 from bson import ObjectId
 
-from .ai import similarity
+from .ai import _char_similarity, concepts_in, similarity
 
 CORROBORATE_RADIUS_M = 500
 CORROBORATE_WINDOW_MIN = 30
@@ -33,14 +35,14 @@ def compute_verified_score(
 ) -> int:
     """Composite 0-100 score. Each independent source adds capped weight."""
     score = 0
-    score += min(40, witnesses * 8)          # up to 40 pts from community witnesses
-    score += min(40, corroborating_alerts * 15)  # up to 40 pts from nearby same-category alerts
+    score += min(40, max(0, witnesses) * 8)
+    score += min(40, max(0, corroborating_alerts) * 15)
     if weather_match:
         score += 20                          # 20 pts from external weather confirmation
     return min(100, score)
 
 
-async def find_corroborating_alerts(db, category: str, coordinates: list[float]):
+async def find_corroborating_alerts(db, category: str, coordinates: list[float], *, is_drill: bool = False):
     """Return open alerts of the same category within the corroboration
     radius/window — excluding resolved ones. Caller filters out the alert
     being scored if needed."""
@@ -64,6 +66,7 @@ async def find_corroborating_alerts(db, category: str, coordinates: list[float])
             #
             # `None` also matches documents written before the field existed.
             "duplicate_of": None,
+            "is_drill": True if is_drill else {"$ne": True},
             "created_at": {"$gte": since},
             "location": {
                 "$nearSphere": {
@@ -76,27 +79,115 @@ async def find_corroborating_alerts(db, category: str, coordinates: list[float])
     return [doc async for doc in cursor]
 
 
-def filter_corroborating(description: str, candidates: list[dict]) -> list[dict]:
-    """Narrow raw geo/category candidates down to ones that actually describe
-    the same incident.
+_LOCATION_NUMBER = re.compile(
+    r"(?:gate|sector|block|ward|house|plot|गेट|सेक्टर|ब्लॉक|वार्ड|ਮਕਾਨ|ਗੇਟ|ਸੈਕਟਰ|ਬਲਾਕ|ਗਲੀ)\s*[-:#]?\s*(\d+)",
+    re.IGNORECASE,
+)
 
-    `find_corroborating_alerts` matches on category + radius + time window
-    only, so it happily returns "child lost at the market" as corroboration
-    for "elderly man collapsed". Requiring `CORROBORATE_SIMILARITY_MIN`
-    textual overlap is what makes the resulting count trustworthy enough to
-    feed into `compute_verified_score`.
+
+def _normalise(text: str) -> str:
+    return "".join(str(unicodedata.decimal(c)) if c.isdecimal() else c
+                   for c in unicodedata.normalize("NFKC", text or "")).casefold()
+
+
+def same_incident(a: str, b: str) -> bool:
+    """Conservative folding: shared hazard words alone never hide a report.
+
+    A cross-script match needs a shared numbered location. Conflicting
+    numbers reject a match even when wording is near identical. Unnumbered
+    cross-script reports remain separate, rather than guessing a location.
+    This is a retrieval rule, not an AI authenticity judgement.
     """
-    return [
-        c
-        for c in candidates
-        if similarity(description, c.get("description", "")) >= CORROBORATE_SIMILARITY_MIN
-    ]
+    a, b = _normalise(a), _normalise(b)
+    if not a.strip() or not b.strip():
+        return False
+    numbers_a, numbers_b = set(re.findall(r"\d+", a)), set(re.findall(r"\d+", b))
+    if numbers_a and numbers_b and numbers_a != numbers_b:
+        return False
+    if _char_similarity(a, b) >= 0.8:
+        return True
+    locations_a = set(_LOCATION_NUMBER.findall(a))
+    locations_b = set(_LOCATION_NUMBER.findall(b))
+    return bool(locations_a & locations_b and concepts_in(a) & concepts_in(b)
+                and similarity(a, b) >= CORROBORATE_SIMILARITY_MIN)
+
+
+def filter_corroborating(description: str, candidates: list[dict], *, reporter_id: str | None = None) -> list[dict]:
+    """At most one report per identified author; anonymous tips add no proof."""
+    kept, authors = [], set()
+    for candidate in candidates:
+        author = str(candidate["reporter_id"]) if candidate.get("reporter_id") else None
+        if candidate.get("is_anonymous") or (author and (author == reporter_id or author in authors)):
+            continue
+        if same_incident(description, candidate.get("description", "")):
+            kept.append(candidate)
+            if author:
+                authors.add(author)
+    return kept
+
+
+def score_for_alert(doc: dict) -> int:
+    """Rebuild a bounded score without undoing anonymity or vision penalties."""
+    score = compute_verified_score(
+        int(doc.get("witnesses") or 0), len(doc.get("corroborating_ids") or []),
+        bool(doc.get("weather_match")),
+    ) + max(0, min(30, int(doc.get("photo_evidence_score") or 0)))
+    # Cap bonuses BEFORE deductions; otherwise a saturated score erases a
+    # contradiction penalty as soon as another witness arrives.
+    score = min(100, score)
+    if doc.get("is_anonymous"):
+        score -= 5 if doc.get("via") == "whatsapp" else 10
+    if doc.get("photo_verdict") == "no":
+        from .vision import CONTRADICTION_PENALTY
+        score -= CONTRADICTION_PENALTY
+    return max(0, min(100, score))
+
+
+def score_ceiling(doc: dict) -> int:
+    """Upper bound that enrichment must respect even at saturation."""
+    return score_for_alert({**doc, "witnesses": 99, "corroborating_ids": [1] * 99,
+                            "weather_match": True, "photo_evidence_score": 30})
+
+
+async def refresh_score(db, doc: dict) -> dict:
+    """Compare-and-set: a stale witness must not overwrite new AI evidence.
+
+    Contended writes reread at most three times; the last live document is
+    returned if contention continues, never overwritten with an old snapshot.
+    """
+    fields = ("witnesses", "corroborating_ids", "weather_match", "photo_evidence_score",
+              "photo_verdict", "is_anonymous", "via", "verified_score")
+    for _ in range(3):
+        updated = await db.alerts.find_one_and_update(
+            {"_id": doc["_id"], **{field: doc.get(field) for field in fields}},
+            {"$set": {"verified_score": score_for_alert(doc)}}, return_document=True,
+        )
+        if updated:
+            return updated
+        latest = await db.alerts.find_one({"_id": doc["_id"]})
+        if not latest:
+            return doc
+        doc = latest
+    return doc
+
+
+def evidence_summary(doc: dict) -> dict:
+    """Public explanation; no witness IDs, no percentage of truth."""
+    return {
+        "independent_witnesses": max(0, int(doc.get("witnesses") or 1) - 1),
+        "similar_reports": len(doc.get("corroborating_ids") or []),
+        "weather_context": bool(doc.get("weather_match")),
+        "attachment_quality_score": max(0, min(30, int(doc.get("photo_evidence_score") or 0))),
+        "photo_review": doc.get("photo_verdict") or "not_checked",
+        "fact_checked": False,
+    }
 
 
 async def bump_witness(db, alert_id: ObjectId, user_id: str) -> dict | None:
     """Idempotently add a witness — one user can only confirm once."""
     return await db.alerts.find_one_and_update(
-        {"_id": alert_id, "witnessed_by": {"$ne": user_id}},
+        {"_id": alert_id, "witnessed_by": {"$ne": user_id},
+         "status": {"$ne": "resolved"}, "reporter_id": {"$ne": ObjectId(user_id)}},
         {
             "$addToSet": {"witnessed_by": user_id},
             "$inc": {"witnesses": 1},

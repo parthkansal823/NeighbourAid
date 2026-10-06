@@ -22,12 +22,9 @@ import { apiError } from '../utils/error'
 import EmptyState from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
 import {
-  BadgeCheck,
   Globe,
   Newspaper,
   RefreshCw,
-  ShieldAlert,
-  TriangleAlert,
 } from '../components/icons'
 
 /**
@@ -39,12 +36,6 @@ import {
  * that judgement matters more here than in most news UIs: during a crisis,
  * a plausible-looking false report spreads faster than the correction.
  */
-const TRUST = {
-  verified: { cls: 'border-low/40 bg-low/10 text-low', Icon: BadgeCheck },
-  reputable: { cls: 'border-sky-500/40 bg-sky-500/10 text-sky-300', Icon: BadgeCheck },
-  unverified: { cls: 'border-medium/40 bg-medium/10 text-medium', Icon: TriangleAlert },
-  suspicious: { cls: 'border-critical/40 bg-critical/10 text-critical', Icon: ShieldAlert },
-}
 
 const TOPIC = {
   fire: 'border-high/40 text-high',
@@ -59,9 +50,9 @@ const TOPIC = {
 }
 
 function NewsCard({ item }) {
-  const trust = TRUST[item.trust] ?? TRUST.unverified
-  const TrustIcon = trust.Icon
+  const { t, lang } = useI18n()
   const topicCls = TOPIC[item.topic] ?? TOPIC.other
+  const published = new Date(item.published_at || item.published)
 
   return (
     <li className="surface-card alert-enter press-in overflow-hidden">
@@ -73,13 +64,9 @@ function NewsCard({ item }) {
       >
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${trust.cls}`}
+            className="inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs text-gray-300"
           >
-            <TrustIcon className="h-3 w-3" aria-hidden />
-            {item.trust}
-            {typeof item.authenticity_score === 'number' && (
-              <span className="tabular-nums opacity-70">{item.authenticity_score}</span>
-            )}
+            {t('news_source_link')}
           </span>
           {item.topic && (
             <span
@@ -96,9 +83,10 @@ function NewsCard({ item }) {
           <p className="mb-3 line-clamp-2 text-sm text-gray-400">{item.summary}</p>
         )}
 
-        <div className="flex items-center gap-2 text-xs text-gray-500">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
           <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden />
           <span className="truncate">{item.source}</span>
+          {!Number.isNaN(published.getTime()) && <time dateTime={published.toISOString()}>{published.toLocaleString(lang)}</time>}
           {/*
             The domain is shown whenever it does NOT match the feed it came
             from. That mismatch is the one signal a reader can check for
@@ -121,6 +109,8 @@ export default function News() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [source, setSource] = useState('')
+  const [sources, setSources] = useState([])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -128,6 +118,7 @@ export default function News() {
     try {
       const { data } = await api.get('/api/news/recent')
       setItems(data.items || [])
+      setSources(data.sources || [])
     } catch (err) {
       setError(apiError(err))
     } finally {
@@ -138,6 +129,8 @@ export default function News() {
   useEffect(() => {
     void load()
   }, [load])
+  const availableSources = [...new Set(items.map(item => item.source))].sort()
+  const visible = source ? items.filter(item => item.source === source) : items
 
   return (
     <main className="page-panel mx-auto max-w-3xl px-4 py-8 sm:px-6">
@@ -147,7 +140,7 @@ export default function News() {
             <Newspaper className="h-6 w-6 text-accent" aria-hidden />
             {t('news_title')}
           </h1>
-          <p className="mt-1 text-sm text-gray-500">{t('news_subtitle')}</p>
+          <p className="mt-1 text-sm text-gray-400">{t('news_note')}</p>
         </div>
         <button
           type="button"
@@ -162,6 +155,14 @@ export default function News() {
           />
         </button>
       </header>
+      <label className="mb-4 block text-sm text-gray-300">
+        {t('news_sources')}
+        <select className="tap mt-1 w-full rounded-lg border border-line bg-surface px-3" value={source} onChange={event => setSource(event.target.value)}>
+          <option value="">{t('news_all_sources')}</option>
+          {availableSources.map(name => <option key={name} value={name}>{name}</option>)}
+        </select>
+      </label>
+      {sources.some(item => !item.available) && <p role="status" className="mb-4 text-sm text-amber-300">{t('news_feed_unavailable')}</p>}
 
       {loading && !items.length ? (
         <ul className="space-y-3" aria-busy="true">
@@ -179,7 +180,7 @@ export default function News() {
         <EmptyState title={t('news_empty')} body={t('news_empty_body')} />
       ) : (
         <ul className="space-y-3">
-          {items.map((item) => (
+          {visible.map((item) => (
             <NewsCard key={item.link} item={item} />
           ))}
         </ul>

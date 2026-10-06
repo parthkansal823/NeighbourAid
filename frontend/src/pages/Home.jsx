@@ -560,18 +560,6 @@ export default function Home() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {news.map((n) => {
-              const trust = n.trust || 'unverified'
-              const score = typeof n.authenticity_score === 'number' ? n.authenticity_score : null
-              const trustStyle =
-                trust === 'verified'
-                  ? 'bg-emerald-900/50 border-emerald-700 text-emerald-300'
-                  : trust === 'reputable'
-                  ? 'bg-blue-900/40 border-blue-700 text-blue-300'
-                  : trust === 'unverified'
-                  ? 'bg-yellow-900/40 border-yellow-700 text-yellow-300'
-                  : 'bg-red-900/40 border-red-700 text-red-300'
-              const trustIcon =
-                trust === 'verified' ? 'OK' : trust === 'reputable' ? 'OK' : 'CAUTION'
               const topic = n.topic || 'other'
               const topicColor =
                 topic === 'fire'
@@ -611,16 +599,9 @@ export default function Home() {
                       {n.source}
                     </span>
                     <span
-                      className={`ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${trustStyle} whitespace-nowrap flex items-center gap-1`}
-                      title={
-                        n.domain_match
-                          ? `Link resolves to ${n.domain}`
-                          : `Link points outside ${n.domain || 'source'}`
-                      }
+                      className="ml-auto text-xs px-1.5 py-0.5 rounded-full border border-line text-gray-400"
                     >
-                      <span>{trustIcon}</span>
-                      <span className="capitalize">{trust}</span>
-                      {score != null && <span className="opacity-70 tabular-nums">. {score}</span>}
+                      {t('news_source_link')}
                     </span>
                   </div>
                   <h3 className="text-sm font-semibold text-gray-100 line-clamp-2 mb-1 group-hover:text-white transition-colors">

@@ -66,7 +66,7 @@ def test_score_high_for_canonical_link_with_metadata():
     )
     # 60 base + 20 domain match + 5 published + 5 distinct summary = 90
     assert score == 90
-    assert label == "verified"
+    assert label == "source-matched"
 
 
 def test_score_penalised_for_clickbait_screamer():

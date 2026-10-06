@@ -1,18 +1,14 @@
-"""Lightweight server-side photo checks.
+"""Attachment quality, not incident authenticity or a truth probability.
 
-Avoids loading a heavy vision model — running on a free Render tier next
-to a 1.6 GB HF triage model means every extra MB matters. Instead we do
-three cheap, useful things on the base64 blob the client uploaded:
-
-1. Validate it's a real image (not a malicious/empty blob).
-2. Measure rough size / dimensions to grade evidence quality.
-3. Derive a small "visual evidence" score bump for verification.
+Checks decoding, dimensions and repeated bytes. A usable image can still be
+old, edited or unrelated; only the optional vision review examines contents.
 """
 
 from __future__ import annotations
 
 import base64
 import io
+import hashlib
 import logging
 import re
 from typing import Any, List
@@ -44,10 +40,10 @@ def _analyze_one(data_url: str) -> dict[str, Any] | None:
     if decoded is None:
         return None
     mime, raw = decoded
-    entry = {"mime": mime.lower(), "bytes": len(raw)}
+    entry = {"mime": mime.lower(), "bytes": len(raw), "fingerprint": hashlib.sha256(raw).hexdigest()}
 
     if Image is None:
-        entry.update({"width": None, "height": None, "is_valid": len(raw) > 1000})
+        entry.update({"width": None, "height": None, "is_valid": False})
         return entry
 
     try:
@@ -81,21 +77,27 @@ def analyze_photos(photos: List[str]) -> dict[str, Any]:
         if info is not None:
             checks.append(info)
 
-    valid = [c for c in checks if c.get("is_valid")]
+    seen = set()
+    valid = []
+    for check in checks:
+        fingerprint = check.get("fingerprint")
+        check["is_duplicate"] = fingerprint in seen if fingerprint else False
+        if fingerprint:
+            seen.add(fingerprint)
+        if check.get("is_valid") and not check["is_duplicate"]:
+            valid.append(check)
     n_valid = len(valid)
-    n_total = len(checks)
+    n_total = len(photos)  # malformed input must not disappear from the denominator
 
     score = min(30, 12 * n_valid)
-    if n_valid >= 3:
-        score = min(30, score + 4)
     confidence = (n_valid / max(1, n_total)) if n_total else 0.0
 
     if n_valid == 0:
         findings = "No usable photo evidence (images too small or corrupt)."
     elif n_valid == 1:
-        findings = "1 photo attached — visual corroboration."
+        findings = "1 photo usable — attachment quality only; contents not verified."
     else:
-        findings = f"{n_valid} photos attached — strong visual corroboration."
+        findings = f"{n_valid} distinct photos usable — attachment quality only; contents not verified."
 
     return {
         "photo_checks": checks,

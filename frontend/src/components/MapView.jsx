@@ -565,7 +565,7 @@ export default function MapView({
                 <div className="text-sm max-w-[240px]">
                   <p className="font-bold capitalize">{alert.category}</p>
                   <p className="text-xs text-gray-600 mb-1">
-                    {alert.urgency} · {alert.status} · verified {alert.verified_score ?? 0}/100
+                    {alert.urgency} · {alert.status} · evidence {Math.max(0, Math.min(100, alert.verified_score ?? 0))}/100
                   </p>
                   <p className="mb-1">{alert.description}</p>
                   {alert.address ? (

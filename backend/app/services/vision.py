@@ -224,10 +224,8 @@ async def check_photo(data_url: str, category: str) -> str:
 async def review_photos(photos: list[str], category: str) -> dict:
     """Review the attached photos and say how much evidence to take back.
 
-    Only the first photo is examined. A second inference doubles the cost for
-    a case that barely occurs — someone attaching one honest photo and one
-    decorative one — and the penalty is capped anyway, so a second "no" could
-    not subtract more.
+    Examine up to three distinct attachments sequentially. Mixed or unclear
+    captions cannot penalise the whole report. No extra credit for a match.
 
     Returns {"verdict", "penalty", "finding"}; a zero penalty means leave the
     existing photo score exactly as it is.
@@ -239,14 +237,17 @@ async def review_photos(photos: list[str], category: str) -> dict:
         # No description for this category, so there is no question to ask.
         return none_taken
 
-    verdict = await check_photo(photos[0], category)
-    if verdict != NO:
-        # Confirmations deliberately earn nothing — see the module docstring.
-        return {"verdict": verdict, "penalty": 0, "finding": ""}
+    selected = list(dict.fromkeys(photos))[:3]
+    verdicts = [await check_photo(photo, category) for photo in selected]
+    if not all(verdict == NO for verdict in verdicts):
+        verdict = YES if all(v == YES for v in verdicts) else UNCLEAR
+        finding = ("Photo contents appear consistent; the incident is not independently verified."
+                   if verdict == YES else "Photo review inconclusive; no penalty applied.")
+        return {"verdict": verdict, "penalty": 0, "finding": finding}
 
     log.info("Vision contradicted the claim on an attached photo")
     return {
         "verdict": NO,
         "penalty": CONTRADICTION_PENALTY,
-        "finding": "Attached photo does not appear to show the reported incident.",
+        "finding": "Photo captions suggest a mismatch. This is not proof the report is false.",
     }

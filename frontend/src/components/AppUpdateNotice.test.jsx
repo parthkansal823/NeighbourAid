@@ -7,7 +7,14 @@ import en from '../i18n/en'
 const { isNativeApp, latestAppUpdate } = vi.hoisted(() => ({ isNativeApp: vi.fn(), latestAppUpdate: vi.fn() }))
 vi.mock('../utils/runtime', () => ({ isNativeApp }))
 vi.mock('../utils/appUpdate', () => ({ latestAppUpdate }))
-vi.mock('../utils/i18n', () => ({ useI18n: () => ({ t: (key) => en[key] }) }))
+vi.mock('../utils/updateNotification', () => ({
+  enableUpdateNotifications: vi.fn().mockResolvedValue(true),
+  listenForUpdateTap: vi.fn().mockResolvedValue(null),
+  notifyAppUpdate: vi.fn().mockResolvedValue(false),
+  openAppUpdate: vi.fn().mockResolvedValue(true),
+}))
+const translate = key => en[key]
+vi.mock('../utils/i18n', () => ({ useI18n: () => ({ t: translate }) }))
 
 const update = { versionCode: 12, versionName: 'build-12', downloadUrl: 'https://github.com/parthkansal823/NeighbourAid/releases/download/android-12/app-release.apk' }
 beforeEach(() => {

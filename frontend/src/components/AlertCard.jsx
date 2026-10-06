@@ -9,9 +9,9 @@ import { useToast } from './Toast'
 import ShareAlert from './ShareAlert'
 import NativeOverlay from './NativeOverlay'
 import AutoDispatch from './AutoDispatch'
+import EvidenceSummary, { evidenceFor } from './EvidenceSummary'
 import { useTimeAgo } from '../hooks/useTimeAgo'
 import {
-  Bot,
   CategoryIcon,
   Clock,
   Car,
@@ -515,9 +515,9 @@ export default function AlertCard({ alert, onUpdate }) {
     }
   }
 
-  const score = alert.verified_score ?? 0
+  const score = Math.max(0, Math.min(100, Number(alert.verified_score) || 0))
   const band = scoreBand(score, t)
-  const witnesses = alert.witnesses ?? 1
+  const witnesses = evidenceFor(alert).witnesses
   const isOwn = user?.id && alert.reporter_id === user.id
   const [lng, lat] = alert.location?.coordinates ?? [0, 0]
   const mapsUrl = `/map?dest=${lat},${lng}&focus=${alert.id}`
@@ -653,22 +653,13 @@ export default function AlertCard({ alert, onUpdate }) {
       <EtaStrip alert={alert} onUpdate={onUpdate} canEdit={canSetEta} />
 
       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] mb-3">
-        {typeof alert.urgency_confidence === 'number' && (
-          <span
-            className="bg-gray-900/60 border border-gray-800 text-gray-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1"
-            title="AI confidence in the urgency classification"
-          >
-            <Bot className="h-3 w-3" aria-hidden />
-            {Math.round((alert.urgency_confidence ?? 0) * 100)}% {t('card_ai_confident')}
-          </span>
-        )}
         {alert.photo_evidence_score > 0 && (
           <span
             className="bg-emerald-900/50 border border-emerald-700 text-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1"
-            title={alert.photo_findings || 'Photo evidence boosts verification'}
+            title={t('evidence_attachment')}
           >
             <ImageIcon className="h-3 w-3" aria-hidden />
-            +{alert.photo_evidence_score} photo evidence
+            {t('evidence_photos')}
           </span>
         )}
         {alert.vulnerability && (
@@ -719,6 +710,7 @@ export default function AlertCard({ alert, onUpdate }) {
             style={{ width: `${score}%` }}
           />
         </div>
+        <EvidenceSummary alert={alert} />
         <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-gray-400">
           <span className="inline-flex items-center gap-1">
             <Users className="h-3 w-3" aria-hidden />

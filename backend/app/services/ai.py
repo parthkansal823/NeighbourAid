@@ -278,7 +278,7 @@ def _concept_similarity(a: str, b: str) -> float:
 
 
 def similarity(a: str, b: str) -> float:
-    """How likely two reports describe the same incident — 0.0 to 1.0.
+    """Retrieval similarity — 0.0 to 1.0, NOT a likelihood of truth.
 
     The stronger of two signals:
 
@@ -297,9 +297,9 @@ def similarity(a: str, b: str) -> float:
     so nothing that corroborated before stops corroborating now. The risk it
     does carry is a false positive from two different incidents sharing a
     concept — "fire in the market" and "fire near the school" both score 1.0
-    on concepts alone. That is survivable here only because every caller
-    already filters on category, radius and time window first; the score is
-    the last narrowing step, never the first. Do not reuse it standalone.
+    on concepts alone. `verification.same_incident` adds conservative
+    location/number and wording checks before anything can be folded.
+    Do not use this value alone to merge reports or verify authenticity.
     """
     if not a or not b:
         return 0.0

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from ..services.news import fetch_news
+from ..services.news import fetch_news, news_status
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
@@ -13,4 +13,4 @@ async def recent():
     Scraping is cached for 5 minutes so the endpoint is always fast.
     """
     items = await fetch_news()
-    return {"count": len(items), "items": items}
+    return {"count": len(items), "items": items, **news_status()}
