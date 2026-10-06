@@ -45,7 +45,7 @@ from typing import Literal
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 from ..core.limits import limit_write
 from ..core.security import get_current_user
@@ -96,6 +96,17 @@ HelpKind = Literal[
 
 # How long a request stays open before the TTL index removes it.
 REQUEST_TTL_DAYS = 14
+SCHEDULE_MAX_HOURS = 24
+# Keep date type checks independent of an injectable clock in route tests.
+_DATETIME_TYPE = datetime
+
+_MILESTONES = (
+    ("posted", "created_at"),
+    ("accepted", "accepted_at"),
+    ("started", "work_started_at"),
+    ("done", "done_at"),
+    ("cancelled", "cancelled_at"),
+)
 
 # Budget bounds, in rupees. The ceiling is not about what work costs — it is
 # an abuse guard, because an unbounded number in a public listing is an
@@ -114,6 +125,31 @@ class HelpCreate(BaseModel):
     # to be reached on WhatsApp, some by a shop landline, some not at all
     # until they have seen who is offering.
     contact: str = Field(default="", max_length=120)
+    # A preference, not a guaranteed appointment or an automatic reminder.
+    # The two ends are explicit so workers do not have to guess a time zone.
+    schedule_start: AwareDatetime | None = None
+    schedule_end: AwareDatetime | None = None
+
+    @field_validator("schedule_start", "schedule_end")
+    @classmethod
+    def _schedule_utc(cls, value):
+        return value.astimezone(timezone.utc) if value is not None else None
+
+    @model_validator(mode="after")
+    def _schedule_window(self):
+        start, end = self.schedule_start, self.schedule_end
+        if start is None and end is None:
+            return self
+        if start is None or end is None:
+            raise ValueError("provide both schedule_start and schedule_end")
+        now = datetime.now(timezone.utc)
+        if start <= now:
+            raise ValueError("the preferred visit must be in the future")
+        if end <= start or end - start > timedelta(hours=SCHEDULE_MAX_HOURS):
+            raise ValueError("the visit window must be positive and at most 24 hours")
+        if end > now + timedelta(days=REQUEST_TTL_DAYS):
+            raise ValueError("the visit window must end within the next 14 days")
+        return self
 
     @field_validator("title", "description", "contact")
     @classmethod
@@ -148,10 +184,22 @@ class OfferCreate(BaseModel):
         return v.strip()
 
 
+def _iso_utc(value) -> str | None:
+    if not isinstance(value, _DATETIME_TYPE):
+        return None
+    # PyMongo decodes dates as naive UTC unless tz_aware is enabled. Never
+    # let a browser interpret those UTC dates as its local time.
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
+
+
 def _serialize(doc: dict, viewer_id: str | None = None) -> dict:
+    doc = dict(doc)
     doc["id"] = str(doc.pop("_id"))
     doc["requester_id"] = str(doc["requester_id"])
-    offers = doc.get("offers") or []
+    offers = [dict(off) for off in doc.get("offers") or []]
+    doc["offers"] = offers
     for off in offers:
         off["worker_id"] = str(off["worker_id"])
 
@@ -168,6 +216,27 @@ def _serialize(doc: dict, viewer_id: str | None = None) -> dict:
     )
     if not (is_requester or is_accepted_worker):
         doc.pop("contact", None)
+
+    # Only actual recorded milestones. Old accepted rows with no timestamp
+    # must not acquire a made-up acceptance date. Other bidders do not gain
+    # access to the participants' work history merely by making an offer.
+    if is_requester or is_accepted_worker:
+        doc["timeline"] = [
+            {"event": event, "at": stamp}
+            for event, field in _MILESTONES
+            if (stamp := _iso_utc(doc.get(field))) is not None
+        ]
+        for _, field in _MILESTONES[1:]:
+            if field in doc:
+                doc[field] = _iso_utc(doc[field])
+    else:
+        doc.pop("timeline", None)
+        for _, field in _MILESTONES[1:]:
+            doc.pop(field, None)
+
+    for field in ("schedule_start", "schedule_end"):
+        if field in doc:
+            doc[field] = _iso_utc(doc[field])
 
     doc["accepted_worker_id"] = str(accepted) if accepted else None
     doc["offer_count"] = len(offers)
@@ -198,11 +267,16 @@ async def create_request(
         "budget_min": body.budget_min,
         "budget_max": body.budget_max,
         "contact": body.contact,
+        "schedule_start": body.schedule_start,
+        "schedule_end": body.schedule_end,
         "status": "open",
         "offers": [],
         "accepted_worker_id": None,
         "created_at": now,
-        "expires_at": now + timedelta(days=REQUEST_TTL_DAYS),
+        # Once a preferred window has passed, stop soliciting new offers.
+        # Acceptance moves the retention deadline so the worker's active job
+        # is not removed at the scheduled end time.
+        "expires_at": body.schedule_end or now + timedelta(days=REQUEST_TTL_DAYS),
     }
     result = await db.help_requests.insert_one(doc)
     doc["_id"] = result.inserted_id
@@ -345,6 +419,7 @@ async def accept_offer(
     db = get_db()
     oid = _oid(request_id)
     w_oid = _oid(worker_id)
+    now = datetime.now(timezone.utc)
 
     updated = await db.help_requests.find_one_and_update(
         {
@@ -352,9 +427,12 @@ async def accept_offer(
             "requester_id": ObjectId(payload["sub"]),
             "status": "open",
             "offers.worker_id": w_oid,
-            "expires_at": {"$gt": datetime.now(timezone.utc)},
+            "expires_at": {"$gt": now},
         },
-        {"$set": {"status": "accepted", "accepted_worker_id": w_oid}},
+        {"$set": {
+            "status": "accepted", "accepted_worker_id": w_oid,
+            "accepted_at": now, "expires_at": now + timedelta(days=REQUEST_TTL_DAYS),
+        }},
         return_document=True,
     )
     if not updated:
@@ -365,17 +443,51 @@ async def accept_offer(
     return _serialize(updated, viewer_id=payload["sub"])
 
 
-@router.patch("/{request_id}/done")
-async def mark_done(request_id: str, payload: dict = Depends(get_current_user)):
-    """Close a request. Only the requester can."""
+@router.patch("/{request_id}/start", dependencies=[Depends(limit_write)])
+async def start_work(request_id: str, payload: dict = Depends(get_current_user)):
+    """The accepted worker records work start once; a retry preserves its time."""
     db = get_db()
+    now = datetime.now(timezone.utc)
+    eligible = {
+        "_id": _oid(request_id), "accepted_worker_id": ObjectId(payload["sub"]),
+        "status": "accepted", "expires_at": {"$gt": now},
+    }
     updated = await db.help_requests.find_one_and_update(
-        {"_id": _oid(request_id), "requester_id": ObjectId(payload["sub"])},
-        {"$set": {"status": "done", "done_at": datetime.now(timezone.utc)}},
+        {**eligible, "work_started_at": None},
+        {"$set": {"work_started_at": now}},
         return_document=True,
     )
     if not updated:
-        raise HTTPException(404, "Request not found or not yours")
+        # The atomic write, not a read followed by a write, decides who won.
+        # A repeated tap is harmless while the same accepted case is active.
+        updated = await db.help_requests.find_one(
+            {**eligible, "work_started_at": {"$ne": None}},
+        )
+    if not updated:
+        raise HTTPException(404, "Request not found or work cannot be started")
+    return _serialize(updated, viewer_id=payload["sub"])
+
+
+@router.patch("/{request_id}/done", dependencies=[Depends(limit_write)])
+async def mark_done(request_id: str, payload: dict = Depends(get_current_user)):
+    """Requester-only completion; never overwrite cancellation or completion."""
+    db = get_db()
+    now = datetime.now(timezone.utc)
+    owner = {"_id": _oid(request_id), "requester_id": ObjectId(payload["sub"])}
+    updated = await db.help_requests.find_one_and_update(
+        {**owner, "status": {"$in": ["open", "accepted"]}, "expires_at": {"$gt": now}},
+        {"$set": {
+            "status": "done", "done_at": now,
+            "expires_at": now + timedelta(days=REQUEST_TTL_DAYS),
+        }},
+        return_document=True,
+    )
+    if not updated:
+        updated = await db.help_requests.find_one(
+            {**owner, "status": "done", "expires_at": {"$gt": now}},
+        )
+    if not updated:
+        raise HTTPException(404, "Request not found, not yours, or no longer active")
     return _serialize(updated, viewer_id=payload["sub"])
 
 
@@ -392,9 +504,8 @@ async def withdraw_request(request_id: str, payload: dict = Depends(get_current_
       set out is owed the word "cancelled", not a row that silently stops
       existing. `/mine` returns it to them as `offered`, so they see it.
 
-    Nothing is kept forever either way: a cancelled row still carries the
-    `expires_at` it was created with, so the TTL index clears it on the same
-    14-day schedule as everything else.
+    A cancelled row is kept for 14 days after cancellation, so the worker
+    gets a chance to see the outcome even if the preferred window just ended.
     """
     db = get_db()
     oid = _oid(request_id)
@@ -420,12 +531,14 @@ async def withdraw_request(request_id: str, payload: dict = Depends(get_current_
 
     # An offer or acceptance may have won the race with deletion. Preserve
     # that row for the worker, but never overwrite a concurrent closure.
+    now = datetime.now(timezone.utc)
     updated = await db.help_requests.find_one_and_update(
         {**owner, "status": {"$in": ["open", "accepted"]}},
         {
             "$set": {
                 "status": "cancelled",
-                "cancelled_at": datetime.now(timezone.utc),
+                "cancelled_at": now,
+                "expires_at": now + timedelta(days=REQUEST_TTL_DAYS),
             }
         },
         return_document=True,

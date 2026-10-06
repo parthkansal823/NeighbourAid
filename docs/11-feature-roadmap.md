@@ -5,6 +5,11 @@ triage, a map, paid-help offers, contact release after acceptance, safety
 check-ins, quiet hours, drills, resource matching, estimated dispatch times,
 offline queuing and optional push/webhooks. Those are not new proposals here.
 
+Paid-help preferred visit windows and a private work timeline are now
+implemented too. The timeline records posted, accepted, started, done and
+cancelled timestamps only when those actions actually happened. It is not an
+emergency responder arrival/handoff timeline.
+
 ## Recommended next
 
 1. **Private case chat.** Reporter and accepted responder/worker can message
@@ -14,10 +19,12 @@ offline queuing and optional push/webhooks. Those are not new proposals here.
    the requester sees who is responsible rather than the case silently reopening.
 3. **Worker reviews after completion.** One review per completed job, with
    moderation and an appeal path. No made-up ratings or self-issued trust badges.
-4. **Scheduled jobs.** Preferred date/time slots for plumber, electrician,
-   repair and computer-support requests. Keep payment settlement outside the app.
-5. **Incident timeline.** Show reported, accepted, arrived, handed over and
-   resolved events with timestamps. Keep sensitive notes participant-only.
+4. **Agreed rescheduling.** Let a requester propose a new visit window and
+   the accepted worker confirm it. The current window is only a preference,
+   not a confirmed appointment or worker-availability calendar.
+5. **Emergency case handover history.** Add actual arrival and responder
+   handoff actions to emergency cases, with participant-only details. The paid
+   job timeline does not yet provide these emergency-case events.
 
 ## More useful additions
 
@@ -48,6 +55,6 @@ offline queuing and optional push/webhooks. Those are not new proposals here.
     feature-suggestion reports during CI. Human approval remains necessary;
     no automatic commits, deployments, credential changes or user messaging.
 
-Start with 1, 3, 4 and 5 after the current regression fixes. Hospital/ambulance
+Suggested next priorities are 1, 2 and 3. Hospital/ambulance
 live availability, paid messaging gateways and identity-verification providers
 need real integrations and consent—not fictional data or automatic emergency calls.

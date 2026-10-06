@@ -455,7 +455,13 @@ unexpected close.
 | Endpoint | Limit |
 |---|---|
 | `POST /api/alerts/anonymous` | 10/hour per source IP |
-| Everything else | None enforced server-side |
+| `POST /api/auth/login` | 20/minute per source IP |
+| `POST /api/auth/register` | 5/hour per source IP |
+| Routes using `limit_write`, including help creation/offers/start/done | Shared 60/minute per source IP |
+
+Limits are in-memory per API process, not account quotas or a distributed
+abuse-prevention guarantee. Other routes can have their own limits; inspect
+their declared dependencies rather than assuming unlimited access.
 
 ---
 
@@ -527,3 +533,50 @@ where to look:
 ```json
 { "status": "degraded", "database": "unreachable" }
 ```
+
+---
+
+## Paid-help visit windows and timeline
+
+`POST /api/help/` accepts optional `schedule_start` and `schedule_end` in
+addition to the existing kind, title, location, budget and contact fields.
+Omit both or send both as `null` for flexible timing. Otherwise both must be
+timezone-aware, start in the future, have a positive span of at most 24 hours
+and end within 14 days. Invalid windows return `422` before a database write.
+Responses normalize scheduled times to UTC ISO strings.
+
+```json
+{
+  "schedule_start": "2026-10-07T10:00:00+05:30",
+  "schedule_end": "2026-10-07T12:00:00+05:30"
+}
+```
+
+The example is only the optional scheduling fields, not a complete creation
+payload. Use future dates when submitting. These times are preferences, not
+confirmed availability or a payment transaction.
+
+Authenticated participant responses contain `timeline`, an ordered list of
+`{"event":"posted|accepted|started|done|cancelled","at":"UTC ISO time"}`
+entries. Only existing recorded timestamps are included. Public nearby
+listings and nonparticipant bidders receive no timeline or private milestone
+timestamps. Offers remain requester-only; contact is visible only to the
+requester and accepted worker.
+
+- `PATCH /api/help/{id}/accept?worker_id=...`: requester chooses an existing
+  offer on an open, unexpired job. Records acceptance and retains the row for
+  14 days. Repeated acceptance of a closed/already accepted job returns `404`.
+- `PATCH /api/help/{id}/start`: accepted worker only, while status is
+  `accepted` and unexpired. Records start once without changing status.
+  Repeated calls return the same timestamp. Ineligible callers return `404`.
+- `PATCH /api/help/{id}/done`: requester only, for an open/accepted unexpired
+  job. Repeated completion returns the same timestamp; cancellation cannot
+  be changed to completion. Refusals return `404`.
+- `DELETE /api/help/{id}`: requester withdraws. No offers means deletion;
+  otherwise the row is soft-cancelled and kept for 14 days. Already terminal
+  rows return `409`.
+
+All mutation routes require authentication. Invalid object IDs return `400`.
+An unaccepted scheduled listing expires at the preferred window's end; a
+flexible listing expires 14 days after creation. TTL cleanup is asynchronous,
+so open-job queries and offer/accept/start/done guards also enforce deadlines.

@@ -481,3 +481,58 @@ payload small.
 
 **Where to tweak.** `backend/app/services/webhook.py`,
 `backend/app/core/config.py::ALERT_WEBHOOK_URL`.
+
+---
+
+## 4.16 Preferred paid-help visits and work history
+
+Plumbing, electrical, repair and computer-support jobs remain separate from
+emergency alerts. A requester can optionally choose a future visit window.
+The UI uses the device's local time and sends explicit UTC timestamps. Both
+ends are required, the window may be up to 24 hours long, and it must end
+within the next 14 days. Leaving both fields empty keeps timing flexible.
+
+This is a preference, not a guaranteed booking. The app does not check a
+worker's calendar, send appointment reminders or settle payments. An open
+scheduled listing stops accepting offers when its preferred window ends.
+
+Only the requester and accepted worker receive the work timeline. It uses
+actual stored timestamps; legacy rows do not get invented acceptance dates.
+Only the accepted worker may record work start. Only the requester may mark
+the job done or withdraw it. Repeated start/done requests preserve the
+original timestamp, and completion cannot overwrite cancellation.
+
+Acceptance, completion and soft cancellation retain the row for 14 days
+after that action. MongoDB TTL eventually removes expired rows. Withdrawal
+before anyone offers deletes the request rather than leaving a history row.
+
+The demo mirrors these actions with fictional memory-only records. Reloading
+can reset them. Source: `routes/help.py`, `pages/Help.jsx`,
+`utils/helpSchedule.js`, and `demo/mockApi.js`.
+
+## 4.17 Optional AI runtime safeguards
+
+Text triage and headline rewriting accept a single JSON field, not an urgency
+word found somewhere in model commentary. Malformed, duplicate-key or extra
+output keeps the deterministic answer. Prompts mark report text as untrusted
+incident data; this reduces instruction confusion but is not a guarantee
+against all prompt injection or hallucination.
+
+Text classification and headline rewriting share one inference slot. Vision
+has a separate slot. Busy callers fall back instead of queuing more native
+model calls. Loading is covered by the same admission. A caller timeout or
+cancellation does not free a still-running model: the actual worker releases
+its slot when finished. A hung native call can therefore keep that model
+unavailable until process restart, while the app's fallback keeps working.
+
+Address and weather lookups fail independently, so one unavailable provider
+does not skip the AI checks. Enrichment uses a conditional snapshot write to
+avoid overwriting newer user edits or verification scores. Conflicting work
+is discarded rather than retried blindly. These services do not log report,
+headline, photo content or inference exception messages.
+
+These are reliability changes tested with fake models, not a new measured
+accuracy result. Models remain optional, background-only and disabled by
+`NA_DISABLE_AI_MODEL=1`. Urgency may only increase; vision confirmations do
+not increase verification scores. Source: `services/inference.py`, `llm.py`,
+`vision.py`, and `enrich.py`.

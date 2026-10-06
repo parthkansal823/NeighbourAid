@@ -43,19 +43,20 @@ weights and why.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import threading
 from pathlib import Path
 
 from ..core.config import settings
+from .inference import InferenceSlot
 
 log = logging.getLogger(__name__)
 
 _vlm = None
 _load_failed = False
 _lock = threading.Lock()
+_inference = InferenceSlot()
 
 # The three answers we accept. Anything else is treated as "unclear", because
 # a model that has gone off-script is not a model to take evidence from.
@@ -119,7 +120,9 @@ def _get_vlm():
             )
             return None
         try:
-            handler = MTMDChatHandler(clip_model_path=settings.LLM_VISION_MMPROJ_PATH)
+            handler = MTMDChatHandler(
+                clip_model_path=settings.LLM_VISION_MMPROJ_PATH, verbose=False,
+            )
             _vlm = Llama(
                 model_path=settings.LLM_VISION_MODEL_PATH,
                 chat_handler=handler,
@@ -131,10 +134,10 @@ def _get_vlm():
                 verbose=False,
                 seed=0,
             )
-            log.info("Vision model loaded from %s", settings.LLM_VISION_MODEL_PATH)
-        except Exception as exc:  # noqa: BLE001 — degrade, never crash
+            log.info("Vision model loaded")
+        except Exception:  # noqa: BLE001 — exception messages can contain inputs
             _load_failed = True
-            log.warning("Could not load vision model, skipping photo checks: %s", exc)
+            log.warning("Could not load vision model; skipping photo checks")
     return _vlm
 
 
@@ -163,9 +166,10 @@ def _describe_sync(data_url: str) -> str:
             temperature=0.0,
             max_tokens=48,
         )
-        return (out["choices"][0]["message"]["content"] or "").strip()
-    except Exception as exc:  # noqa: BLE001
-        log.info("Vision description failed: %s", exc)
+        content = out["choices"][0]["message"]["content"]
+        return content.strip() if isinstance(content, str) else ""
+    except Exception:  # noqa: BLE001
+        log.info("Vision description failed; skipping photo check")
         return ""
 
 
@@ -221,19 +225,10 @@ async def describe_photo(data_url: str) -> str:
     """
     if not is_enabled():
         return ""
-    try:
-        return await asyncio.wait_for(
-            asyncio.to_thread(_describe_sync, data_url),
-            timeout=settings.LLM_VISION_TIMEOUT_SECONDS,
-        )
-    except (TimeoutError, asyncio.TimeoutError):
-        log.info(
-            "Vision check timed out after %ss", settings.LLM_VISION_TIMEOUT_SECONDS
-        )
-        return ""
-    except Exception as exc:  # noqa: BLE001
-        log.info("Vision check call failed: %s", exc)
-        return ""
+    return await _inference.run(
+        lambda: _describe_sync(data_url),
+        timeout=settings.LLM_VISION_TIMEOUT_SECONDS, fallback="",
+    )
 
 
 async def check_photo(data_url: str, category: str) -> str:
@@ -264,7 +259,7 @@ async def review_photos(photos: list[str], category: str) -> dict:
         # Confirmations deliberately earn nothing — see the module docstring.
         return {"verdict": verdict, "penalty": 0, "finding": ""}
 
-    log.info("Vision contradicted the %s claim on an attached photo", category)
+    log.info("Vision contradicted the claim on an attached photo")
     return {
         "verdict": NO,
         "penalty": CONTRADICTION_PENALTY,

@@ -14,7 +14,7 @@
  * the server module for why that is a deliberate line rather than a gap.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import { useAuth } from '../context/AuthContext'
@@ -22,6 +22,7 @@ import { useI18n } from '../utils/i18n'
 import { useToast } from '../components/Toast'
 import { getBrowseLocation } from '../utils/geo'
 import { filterHelpRequests } from '../utils/helpFilters'
+import { helpSchedule, helpTimeline, localHelpTime, recordedTime } from '../utils/helpSchedule'
 import Button from '../components/Button'
 import EmptyState from '../components/EmptyState'
 import { Skeleton } from '../components/Skeleton'
@@ -38,8 +39,15 @@ function rupees(min, max) {
   return `₹${max || min}`
 }
 
-function RequestCard({ item, onOffer, onAccept, onDone, onWithdraw, isMine, busy }) {
-  const { t } = useI18n()
+export function RequestCard({ item, onOffer, onAccept, onStart, onDone, onWithdraw, viewerId, busy }) {
+  const { t, lang } = useI18n()
+  const isMine = Boolean(viewerId && item.requester_id === viewerId)
+  const isWorker = Boolean(viewerId && item.accepted_worker_id === viewerId)
+  const participant = isMine || isWorker
+  const timeline = participant ? helpTimeline(item.timeline) : []
+  const started = timeline.some((entry) => entry.event === 'started') || Boolean(recordedTime(item.work_started_at))
+  const scheduleStart = localHelpTime(item.schedule_start, lang)
+  const scheduleEnd = localHelpTime(item.schedule_end, lang)
   const budget = rupees(item.budget_min, item.budget_max)
   const offers = item.offers || []
   // Both end states. Neither can be acted on further, by either side.
@@ -73,6 +81,20 @@ function RequestCard({ item, onOffer, onAccept, onDone, onWithdraw, isMine, busy
             <p className="mt-2 text-sm text-gray-300">{item.description}</p>
           )}
 
+          <div className="mt-3 text-sm text-gray-300">
+            {scheduleStart && scheduleEnd ? (
+              <div className="space-y-1">
+                <p className="font-medium">{t('help_schedule_title')}</p>
+                <p className="flex flex-wrap gap-x-2 gap-y-1 break-words">
+                  <time dateTime={item.schedule_start}>{scheduleStart}</time>
+                  <span aria-hidden="true">–</span>
+                  <time dateTime={item.schedule_end}>{scheduleEnd}</time>
+                </p>
+                <p className="text-xs text-gray-400">{t('help_schedule_local')}</p>
+              </div>
+            ) : <p className="text-gray-400">{t('help_schedule_flexible')}</p>}
+          </div>
+
           <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
             {budget && <span className="font-semibold text-accent">{budget}</span>}
             <span>
@@ -81,7 +103,7 @@ function RequestCard({ item, onOffer, onAccept, onDone, onWithdraw, isMine, busy
             {/* Released only once an offer is accepted — see the server's
                 serializer. Until then a public listing would be a phone
                 number waiting to be scraped. */}
-            {item.contact && (
+            {participant && item.contact && (
               <span className="text-gray-300">{item.contact}</span>
             )}
           </div>
@@ -116,10 +138,30 @@ function RequestCard({ item, onOffer, onAccept, onDone, onWithdraw, isMine, busy
             </p>
           )}
 
+          {timeline.length > 0 && (
+            <section className="mt-4 border-t border-line pt-3" aria-label={t('help_timeline')}>
+              <h3 className="text-sm font-medium text-white">{t('help_timeline')}</h3>
+              <p className="mt-1 text-xs text-gray-400">{t('help_timeline_private')}</p>
+              <ol className="mt-2 space-y-2 border-l border-line pl-3">
+                {timeline.map((entry, index) => (
+                  <li key={`${entry.event}:${entry.at}:${index}`} className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                    <span className="text-gray-200">{t(`help_event_${entry.event}`)}</span>
+                    <time className="break-words text-gray-400" dateTime={entry.at}>{localHelpTime(entry.at, lang)}</time>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
           <div className="mt-3 flex flex-wrap gap-2">
-            {!isMine && item.status === 'open' && (
+            {viewerId && !isMine && item.status === 'open' && (
               <Button size="sm" variant="outline" onClick={() => onOffer(item)}>
                 {t('help_offer')}
+              </Button>
+            )}
+            {isWorker && item.status === 'accepted' && !started && (
+              <Button size="sm" onClick={() => onStart(item.id)} loading={busy === `start:${item.id}`}>
+                {t('help_start_work')}
               </Button>
             )}
             {isMine && !closed && (
@@ -151,8 +193,14 @@ function RequestCard({ item, onOffer, onAccept, onDone, onWithdraw, isMine, busy
 }
 
 export default function Help() {
+  const { user, token } = useAuth()
+  // Remount immediately on an account change: effect-only clearing would
+  // expose the previous account's private rows for one render.
+  return <HelpBoard key={`${user?.id || 'public'}:${token || ''}`} user={user} />
+}
+
+function HelpBoard({ user }) {
   const { t } = useI18n()
-  const { user } = useAuth()
   const { push: toast } = useToast()
 
   const [rows, setRows] = useState([])
@@ -165,42 +213,57 @@ export default function Help() {
   const [busy, setBusy] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [offerFor, setOfferFor] = useState(null)
+  const requestId = useRef(0)
+  const mounted = useRef(true)
+  const browseCoords = useRef(null)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false; requestId.current += 1 }
+  }, [])
 
   const load = useCallback(async () => {
+    if (!mounted.current) return
+    const sequence = ++requestId.current
+    const current = () => mounted.current && requestId.current === sequence
     setLoading(true)
     try {
       // getBrowseLocation never rejects — it falls back to a default area
       // rather than leaving a browse screen with nothing to render. It
       // returns [lng, lat], GeoJSON order, which is the opposite of what
       // the query string wants.
-      let at = coords
+      let at = browseCoords.current
       if (!at) {
         const { coords: lngLat } = await getBrowseLocation()
+        if (!current()) return
         at = { lng: lngLat[0], lat: lngLat[1] }
+        browseCoords.current = at
         setCoords(at)
       }
       const { data } = await api.get('/api/help/near', {
         params: { lat: at.lat, lng: at.lng, ...(kind ? { kind } : {}) },
       })
-      setRows(data || [])
+      if (!current()) return
       if (user) {
         const { data: own } = await api.get('/api/help/mine')
-        setMine(own)
+        if (!current()) return
+        setMine(own || { posted: [], offered: [] })
       }
+      setRows(data || [])
     } catch (err) {
-      toast({ variant: 'error', title: t('help_load_error'), body: apiError(err) })
+      if (current()) toast({ variant: 'error', title: t('help_load_error'), body: apiError(err) })
     } finally {
-      setLoading(false)
+      if (current()) setLoading(false)
     }
-  }, [coords, kind, user, toast, t])
+  }, [kind, user, toast, t])
 
   useEffect(() => {
     void load()
+    return () => { requestId.current += 1 }
   }, [load])
 
   const posted = user ? mine.posted || [] : []
   const offered = user ? mine.offered || [] : []
-  const myIds = new Set(posted.map((r) => r.id))
   const activeScope = !user && scope === 'mine' ? 'all' : scope
   const filtered = filterHelpRequests({ nearby: rows, posted, offered, query, kind, scope: activeScope })
   const hasFilters = Boolean(query.trim() || kind || activeScope !== 'all')
@@ -215,12 +278,13 @@ export default function Help() {
     setBusy(`${id}:${workerId}`)
     try {
       await api.patch(`/api/help/${id}/accept`, null, { params: { worker_id: workerId } })
+      if (!mounted.current) return
       toast({ variant: 'success', title: t('help_accepted') })
       await load()
     } catch (err) {
-      toast({ variant: 'error', title: apiError(err) })
+      if (mounted.current) toast({ variant: 'error', title: apiError(err) })
     } finally {
-      setBusy('')
+      if (mounted.current) setBusy('')
     }
   }
 
@@ -228,11 +292,26 @@ export default function Help() {
     setBusy(`done:${id}`)
     try {
       await api.patch(`/api/help/${id}/done`)
+      if (!mounted.current) return
       await load()
     } catch (err) {
-      toast({ variant: 'error', title: apiError(err) })
+      if (mounted.current) toast({ variant: 'error', title: apiError(err) })
     } finally {
-      setBusy('')
+      if (mounted.current) setBusy('')
+    }
+  }
+
+  const startWork = async (id) => {
+    setBusy(`start:${id}`)
+    try {
+      await api.patch(`/api/help/${id}/start`)
+      if (!mounted.current) return
+      toast({ variant: 'success', title: t('help_started') })
+      await load()
+    } catch (err) {
+      if (mounted.current) toast({ variant: 'error', title: apiError(err) })
+    } finally {
+      if (mounted.current) setBusy('')
     }
   }
 
@@ -245,6 +324,7 @@ export default function Help() {
     setBusy(`withdraw:${id}`)
     try {
       const { data } = await api.delete(`/api/help/${id}`)
+      if (!mounted.current) return
       toast({
         variant: 'success',
         title:
@@ -254,9 +334,9 @@ export default function Help() {
       })
       await load()
     } catch (err) {
-      toast({ variant: 'error', title: apiError(err) })
+      if (mounted.current) toast({ variant: 'error', title: apiError(err) })
     } finally {
-      setBusy('')
+      if (mounted.current) setBusy('')
     }
   }
 
@@ -398,10 +478,11 @@ export default function Help() {
               <RequestCard
                 key={item.id}
                 item={item}
-                isMine={myIds.has(item.id)}
+                viewerId={user?.id}
                 busy={busy}
                 onOffer={setOfferFor}
                 onAccept={accept}
+                onStart={startWork}
                 onDone={markDone}
                 onWithdraw={withdraw}
               />
@@ -413,7 +494,7 @@ export default function Help() {
   )
 }
 
-function RequestForm({ coords, onDone }) {
+export function RequestForm({ coords, onDone }) {
   const { t } = useI18n()
   const { push: toast } = useToast()
   const [form, setForm] = useState({
@@ -423,11 +504,17 @@ function RequestForm({ coords, onDone }) {
     budget_min: '',
     budget_max: '',
     contact: '',
+    schedule_start: '',
+    schedule_end: '',
   })
   const [saving, setSaving] = useState(false)
+  const [scheduleError, setScheduleError] = useState('')
 
   const submit = async (e) => {
     e.preventDefault()
+    const schedule = helpSchedule(form.schedule_start, form.schedule_end, { local: true })
+    setScheduleError(schedule.error || '')
+    if (schedule.error) return
     if (!coords) {
       toast({ variant: 'error', title: t('help_need_location') })
       return
@@ -442,6 +529,7 @@ function RequestForm({ coords, onDone }) {
         budget_min: Number(form.budget_min) || 0,
         budget_max: Number(form.budget_max) || 0,
         contact: form.contact,
+        ...schedule,
       })
       toast({ variant: 'success', title: t('help_posted') })
       await onDone()
@@ -531,6 +619,31 @@ function RequestForm({ coords, onDone }) {
           />
         </div>
         <p className="mt-1.5 text-xs text-gray-600">{t('help_budget_hint')}</p>
+      </fieldset>
+
+      <fieldset aria-describedby="help-schedule-hint">
+        <legend className="mb-1.5 text-sm text-gray-300">{t('help_schedule_title')}</legend>
+        <p id="help-schedule-hint" className="mb-3 text-xs text-gray-400">{t('help_schedule_hint')}</p>
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          {['start', 'end'].map((edge) => (
+            <div key={edge} className="min-w-0">
+              <label htmlFor={`help-schedule-${edge}`} className="mb-1.5 block text-sm text-gray-300">
+                {t(`help_schedule_${edge}`)}
+              </label>
+              <input
+                id={`help-schedule-${edge}`}
+                type="datetime-local"
+                step={60}
+                className={`${field} min-h-11 min-w-0`}
+                value={form[`schedule_${edge}`]}
+                onChange={(e) => { setForm({ ...form, [`schedule_${edge}`]: e.target.value }); setScheduleError('') }}
+                aria-describedby={`help-schedule-hint${scheduleError ? ' help-schedule-error' : ''}`}
+                aria-invalid={Boolean(scheduleError)}
+              />
+            </div>
+          ))}
+        </div>
+        {scheduleError && <p id="help-schedule-error" role="alert" className="mt-2 text-sm text-red-300">{t(scheduleError)}</p>}
       </fieldset>
 
       <div>

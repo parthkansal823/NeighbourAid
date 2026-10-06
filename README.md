@@ -21,12 +21,18 @@ support—have their own board.
   paid-help requests and live WebSocket updates.
 - Volunteer-feed search and All/Open/My accepted views. Active critical alerts
   stay visible even when a filter would otherwise hide them.
+- Optional preferred visit windows for paid help, shown in each device's local
+  time. Requesters and their accepted worker see a private work timeline; the
+  worker can record a start and the requester can close the job. These are
+  recorded actions, not a booking guarantee, live tracking or payment processing.
 - An 11-language interface and a device-local offline report queue. Account
   reports wait for the app to reopen with the original account and a reachable
   server. Anonymous reports can also use best-effort browser Background Sync
   where supported; saving a report is not confirmation of delivery.
 - Optional local AI, browser Web Push, inbound WhatsApp and outbound webhooks.
   Each needs its own configuration; none is required to start the app.
+  Local models have bounded admission and strict text-output checks; an AI
+  timeout or failed address/weather lookup keeps the fallback available.
 - Android release notices with a download button. Installation still needs the
   phone owner's confirmation.
 
@@ -96,6 +102,10 @@ npm run demo:deploy
 
 It deploys independently of the real app and needs no backend, tunnel or API
 credential. The demo is also built in CI.
+
+The default fictional volunteer is **Ananya Parth**. Real and demo entries
+share the same app and Leaflet styles. Map tiles still require an internet
+connection; the demo does not include offline map downloads.
 
 ## Android APKs and updates
 

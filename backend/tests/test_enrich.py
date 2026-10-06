@@ -22,19 +22,25 @@ async def test_enrichment_persists_and_rebroadcasts(monkeypatch):
                         AsyncMock(return_value="Sector 22, Chandigarh, 160022"))
     monkeypatch.setattr(enrich, "current_weather", AsyncMock(return_value={"code": 0}))
     monkeypatch.setattr(enrich, "supports_category", lambda *_: False)
+    monkeypatch.setattr(enrich, "llm_enabled", lambda: False)
+    monkeypatch.setattr(enrich, "vision_enabled", lambda: False)
     broadcast = AsyncMock()
     monkeypatch.setattr(enrich.manager, "broadcast_nearby", broadcast)
 
     db = MagicMock()
     db.alerts.update_one = AsyncMock()
     # _serialize needs reporter_id; everything else it defaults.
-    db.alerts.find_one = AsyncMock(return_value={
+    initial = {
         "_id": "507f1f77bcf86cd799439011",
         "reporter_id": "507f1f77bcf86cd799439012",
         "category": "medical",
         "location": {"type": "Point", "coordinates": [76.7794, 30.7333]},
-        "address": "Sector 22, Chandigarh, 160022",
-    })
+        "address": None,
+        "verified_score": 8,
+    }
+    db.alerts.find_one = AsyncMock(side_effect=[initial, {
+        **initial, "address": "Sector 22, Chandigarh, 160022",
+    }])
 
     await enrich_alert(db, "507f1f77bcf86cd799439011", 30.7333, 76.7794,
                        "medical", witnesses=1, corroborating_count=0,
@@ -49,24 +55,34 @@ async def test_enrichment_persists_and_rebroadcasts(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_only_updates_alerts_still_missing_an_address(monkeypatch):
-    """A resolve or a witness confirmation can land while we are waiting, and
-    blindly overwriting verified_score would discard it."""
+    """Every enrichment batch compares its input fields before writing."""
     from app.services import enrich
 
     monkeypatch.setattr(enrich, "reverse_geocode", AsyncMock(return_value="X"))
     monkeypatch.setattr(enrich, "current_weather", AsyncMock(return_value=None))
     monkeypatch.setattr(enrich, "supports_category", lambda *_: False)
+    monkeypatch.setattr(enrich, "llm_enabled", lambda: False)
+    monkeypatch.setattr(enrich, "vision_enabled", lambda: False)
     monkeypatch.setattr(enrich.manager, "broadcast_nearby", AsyncMock())
 
     db = MagicMock()
     db.alerts.update_one = AsyncMock()
-    db.alerts.find_one = AsyncMock(return_value=None)
+    db.alerts.find_one = AsyncMock(return_value={
+        "address": None, "verified_score": 38, "witnesses": 4,
+        "description": "Current report", "headline": "Current headline",
+        "urgency": "HIGH", "status": "open",
+    })
 
     await enrich_alert(db, "abc", 1.0, 1.0, "medical",
                        witnesses=1, corroborating_count=0, photo_evidence_score=0)
 
     query = db.alerts.update_one.await_args.args[0]
     assert query["address"] is None, "must only fill in alerts that lack an address"
+    assert query["verified_score"] == 38
+    assert query["witnesses"] == 4
+    assert query["description"] == "Current report"
+    assert query["urgency"] == "HIGH"
+    assert query["status"] == "open"
 
 
 @pytest.mark.asyncio
@@ -78,13 +94,17 @@ async def test_a_failing_geocoder_never_raises(monkeypatch):
     monkeypatch.setattr(enrich, "reverse_geocode",
                         AsyncMock(side_effect=RuntimeError("nominatim down")))
     monkeypatch.setattr(enrich, "current_weather", AsyncMock(return_value=None))
+    monkeypatch.setattr(enrich, "llm_enabled", lambda: False)
+    monkeypatch.setattr(enrich, "vision_enabled", lambda: False)
     db = MagicMock()
     db.alerts.update_one = AsyncMock()
+    db.alerts.find_one = AsyncMock(return_value={"address": None, "verified_score": 8})
 
     await enrich_alert(db, "abc", 1.0, 1.0, "medical",
                        witnesses=1, corroborating_count=0, photo_evidence_score=0)
 
     db.alerts.update_one.assert_not_awaited()
+    enrich.reverse_geocode.assert_awaited_once()
 
 
 @pytest.mark.asyncio

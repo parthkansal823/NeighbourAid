@@ -1,7 +1,9 @@
 import axios from 'axios'
 import api from '../utils/api'
+import { helpSchedule, recordedTime } from '../utils/helpSchedule'
 
 const DEMO_USER_ID = 'demo-volunteer-1'
+const DEMO_USER_NAME = 'Ananya Parth'
 const DEMO_COORDS = [77.209, 28.6139] // [lng, lat] — central Delhi
 const now = () => new Date().toISOString()
 const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString()
@@ -105,20 +107,29 @@ function seedState() {
     budget_min: 250 + index * 50,
     budget_max: 500 + index * 80,
     location: location(77.18 + index * 0.012, 28.55 + index * 0.012),
-    requester_id: index === 0 ? DEMO_USER_ID : `demo-requester-${index}`,
-    requester_name: index === 0 ? 'Aarav Mehta' : `Demo neighbour ${index + 1}`,
+    requester_id: [0, 7].includes(index) ? DEMO_USER_ID : `demo-requester-${index}`,
+    requester_name: [0, 7].includes(index) ? DEMO_USER_NAME : `Demo neighbour ${index + 1}`,
     contact: index === 0 ? '' : null,
-    status: index === 7 ? 'done' : 'open',
-    offer_count: index % 3,
-    offers: index === 0 ? [{ worker_id: 'demo-worker-2', worker_name: 'Kavya Rao', price: 550, note: 'Can visit after 6 pm.' }] : [],
+    status: index === 7 ? 'done' : index === 1 ? 'accepted' : index === 9 ? 'cancelled' : 'open',
+    accepted_worker_id: index === 1 ? DEMO_USER_ID : index === 7 ? 'demo-worker-2' : null,
+    offer_count: [0, 1, 7, 9].includes(index) ? 1 : 0,
+    offers: index === 0 || index === 7
+      ? [{ worker_id: 'demo-worker-2', worker_name: 'Kavya Rao', price: 550, note: 'Sample afternoon visit.' }]
+      : [1, 9].includes(index) ? [{ worker_id: DEMO_USER_ID, worker_name: DEMO_USER_NAME, price: 500, note: 'Fictional quote.' }] : [],
     created_at: minutesAgo(30 + index * 14),
-    expires_at: hoursFromNow(48),
+    expires_at: [0, 5].includes(index) ? hoursFromNow(index === 5 ? 27 : 6) : hoursFromNow(24 * 14),
+    schedule_start: [0, 1, 5].includes(index) ? hoursFromNow(index === 5 ? 25 : 4 + index * 4) : null,
+    schedule_end: [0, 1, 5].includes(index) ? hoursFromNow(index === 5 ? 27 : 6 + index * 4) : null,
+    accepted_at: index === 1 ? minutesAgo(8) : index === 7 ? minutesAgo(100) : null,
+    work_started_at: index === 7 ? minutesAgo(70) : null,
+    done_at: index === 7 ? minutesAgo(20) : null,
+    cancelled_at: index === 9 ? minutesAgo(10) : null,
   }))
 
   return {
     user: {
       id: DEMO_USER_ID,
-      name: 'Aarav Mehta',
+      name: DEMO_USER_NAME,
       email: 'aarav.demo@example.invalid',
       role: 'volunteer',
       location: location(...DEMO_COORDS),
@@ -157,7 +168,7 @@ function seedState() {
     updates: {
       'demo-alert-01': [
         { id: 'demo-update-01', author_name: 'Demo neighbour A', author_role: 'reporter', body: 'Fictional update: family is with the resident while help is arranged.', created_at: minutesAgo(3) },
-        { id: 'demo-update-02', author_name: 'Aarav Mehta', author_role: 'volunteer', body: 'Fictional update: volunteer is reviewing nearby support options.', created_at: minutesAgo(1) },
+        { id: 'demo-update-02', author_name: DEMO_USER_NAME, author_role: 'volunteer', body: 'Fictional update: volunteer is reviewing nearby support options.', created_at: minutesAgo(1) },
       ],
     },
   }
@@ -193,7 +204,23 @@ function helpRequestFor(item, viewerId = null) {
   const row = { ...item }
   const isOwner = viewerId !== null && item.requester_id === viewerId
   const isAcceptedWorker = viewerId !== null && item.accepted_worker_id === viewerId
-  if (!isOwner && !isAcceptedWorker) delete row.contact
+  if (!isOwner && !isAcceptedWorker) {
+    delete row.contact
+    delete row.timeline
+    for (const key of ['accepted_at', 'work_started_at', 'done_at', 'cancelled_at']) delete row[key]
+  } else {
+    row.timeline = [
+      ['posted', item.created_at], ['accepted', item.accepted_at],
+      ['started', item.work_started_at], ['done', item.done_at], ['cancelled', item.cancelled_at],
+    ].filter(([, at]) => recordedTime(at)).map(([event, at]) => ({ event, at: recordedTime(at).toISOString() }))
+    for (const key of ['accepted_at', 'work_started_at', 'done_at', 'cancelled_at']) {
+      if (Object.hasOwn(row, key)) row[key] = recordedTime(row[key])?.toISOString() || null
+    }
+  }
+  for (const key of ['schedule_start', 'schedule_end']) {
+    if (Object.hasOwn(row, key)) row[key] = recordedTime(row[key])?.toISOString() || null
+  }
+  row.offer_count = (item.offers || []).length
   if (!isOwner) delete row.offers
   return row
 }
@@ -207,6 +234,14 @@ export function createDemoAdapter(state = seedState()) {
     const method = (config.method || 'get').toLowerCase()
     const path = routePath(config.url)
     const body = bodyOf(config)
+    const viewerId = state.user === null ? null : state.user?.id || DEMO_USER_ID
+    const failHelp = (detail, status = 409) => Promise.reject(new axios.AxiosError(
+      detail, status >= 500 ? 'ERR_BAD_RESPONSE' : 'ERR_BAD_REQUEST', config, null,
+      { data: { detail }, status, statusText: 'Error', headers: {}, config },
+    ))
+    // Hand-authored old rows may lack expiry; do not invent one. Every
+    // seeded/new row has a real expiry, and expired jobs cannot be acted on.
+    const activeHelp = (item) => !item.expires_at || new Date(item.expires_at).getTime() > Date.now()
 
     if (path === '/health') return response(config, { status: 'demo-online', mode: 'fictional' })
     if (path === '/api/stats/') {
@@ -234,13 +269,14 @@ export function createDemoAdapter(state = seedState()) {
     if (path === '/api/help/near') {
       const kind = config.params?.kind
       return response(config, state.help
-        .filter((item) => item.status === 'open' && (!kind || item.kind === kind))
+        .filter((item) => item.status === 'open' && activeHelp(item) && (!kind || item.kind === kind))
         .map((item) => helpRequestFor(item)))
     }
     if (path === '/api/help/mine') {
+      if (!viewerId) return failHelp('Sign in to see your demo requests.', 401)
       return response(config, {
-        posted: state.help.filter((item) => item.requester_id === DEMO_USER_ID).map((item) => helpRequestFor(item, DEMO_USER_ID)),
-        offered: state.help.filter((item) => (item.offers || []).some((offer) => offer.worker_id === DEMO_USER_ID)).map((item) => helpRequestFor(item, DEMO_USER_ID)),
+        posted: state.help.filter((item) => item.requester_id === viewerId).map((item) => helpRequestFor(item, viewerId)),
+        offered: state.help.filter((item) => (item.offers || []).some((offer) => offer.worker_id === viewerId)).map((item) => helpRequestFor(item, viewerId)),
       })
     }
     if (path === '/api/geo/reverse') return response(config, { address: 'Fictional demo location · New Delhi' })
@@ -276,20 +312,71 @@ export function createDemoAdapter(state = seedState()) {
       return response(config, item, 201)
     }
 
-    const helpMatch = path.match(/^\/api\/help\/([^/]+)(?:\/(offers|accept|done))?$/)
+    const helpMatch = path.match(/^\/api\/help\/([^/]+)(?:\/(offers|accept|start|done))?$/)
     if (helpMatch) {
       const [, id, action] = helpMatch
       const item = state.help.find((candidate) => candidate.id === id)
-      if (!item) return response(config, { detail: 'Demo help request not found' }, 404)
-      if (method === 'post' && action === 'offers') { const offer = { worker_id: DEMO_USER_ID, worker_name: state.user.name, price: Number(body.price) || 0, note: body.note || '' }; item.offers = [...(item.offers || []), offer]; item.offer_count = item.offers.length; return response(config, offer, 201) }
-      if (method === 'patch' && action === 'accept') { item.status = 'accepted'; item.accepted_worker_id = config.params?.worker_id; item.contact = 'Demo contact released for walkthrough'; return response(config, helpRequestFor(item, DEMO_USER_ID)) }
-      if (method === 'patch' && action === 'done') { item.status = 'done'; return response(config, item) }
-      if (method === 'delete' && !action) { state.help = state.help.filter((candidate) => candidate.id !== id); return response(config, { status: 'deleted' }) }
+      if (!item) return failHelp('Demo help request not found', 404)
+      if (!viewerId) return failHelp('Sign in to change a demo request.', 401)
+      const owner = item.requester_id === viewerId
+      if (method === 'post' && action === 'offers') {
+        if (owner) return failHelp('You cannot offer on your own request.', 400)
+        if (item.status !== 'open' || !activeHelp(item)) return failHelp('This request is no longer open.')
+        if (!Number.isInteger(body.price) || body.price < 0 || body.price > 1_000_000) return failHelp('Enter a valid quoted price.', 422)
+        const offer = { worker_id: viewerId, worker_name: state.user?.name || 'Demo worker', price: body.price, note: String(body.note || '').trim(), created_at: now() }
+        item.offers = [...(item.offers || []).filter((candidate) => candidate.worker_id !== viewerId), offer]
+        item.offer_count = item.offers.length
+        return response(config, helpRequestFor(item, viewerId), 201)
+      }
+      if (method === 'patch' && action === 'accept') {
+        if (!owner) return failHelp('Only the requester can accept an offer.', 403)
+        if (item.status !== 'open' || !activeHelp(item)) return failHelp('This request is no longer open.')
+        const selected = (item.offers || []).find((offer) => offer.worker_id === config.params?.worker_id)
+        if (!selected) return failHelp('Offer not found.', 404)
+        item.status = 'accepted'
+        item.accepted_worker_id = selected.worker_id
+        item.accepted_at = now()
+        item.expires_at = hoursFromNow(24 * 14)
+        return response(config, helpRequestFor(item, viewerId))
+      }
+      if (method === 'patch' && action === 'start') {
+        if (item.accepted_worker_id !== viewerId) return failHelp('Only the accepted worker can start work.', 403)
+        if (item.status !== 'accepted' || !activeHelp(item)) return failHelp('Work cannot be started on this request.')
+        if (!item.work_started_at) item.work_started_at = now()
+        return response(config, helpRequestFor(item, viewerId))
+      }
+      if (method === 'patch' && action === 'done') {
+        if (!owner) return failHelp('Only the requester can mark work done.', 403)
+        if (item.status === 'done' && activeHelp(item)) return response(config, helpRequestFor(item, viewerId))
+        if (!['open', 'accepted'].includes(item.status) || !activeHelp(item)) return failHelp('This request cannot be marked done.')
+        item.status = 'done'
+        item.done_at = now()
+        item.expires_at = hoursFromNow(24 * 14)
+        return response(config, helpRequestFor(item, viewerId))
+      }
+      if (method === 'delete' && !action) {
+        if (!owner) return failHelp('Only the requester can withdraw a request.', 403)
+        if (!['open', 'accepted'].includes(item.status)) return failHelp('This request is already closed.')
+        if (item.status === 'open' && !item.accepted_worker_id && !(item.offers || []).length) {
+          state.help = state.help.filter((candidate) => candidate.id !== id)
+          return response(config, { status: 'deleted' })
+        }
+        item.status = 'cancelled'
+        item.cancelled_at = now()
+        item.expires_at = hoursFromNow(24 * 14)
+        return response(config, helpRequestFor(item, viewerId))
+      }
     }
     if (path === '/api/help/' && method === 'post') {
-      const item = { id: `demo-help-${Date.now()}`, ...body, location: body.location || location(...DEMO_COORDS), requester_id: DEMO_USER_ID, requester_name: state.user.name, offer_count: 0, offers: [], status: 'open', created_at: now(), expires_at: hoursFromNow(24 * 14) }
+      if (!viewerId) return failHelp('Sign in to post a demo request.', 401)
+      const schedule = helpSchedule(body.schedule_start, body.schedule_end)
+      if (schedule.error) return failHelp('Choose a future preferred window of up to 24 hours, ending within 14 days.', 422)
+      const title = String(body.title || '').trim()
+      if (title.length < 4 || title.length > 120) return failHelp('Use a title of 4–120 characters.', 422)
+      const item = { id: `demo-help-${Date.now()}-${state.help.length}`, ...body, ...schedule, title, location: body.location || location(...DEMO_COORDS), requester_id: viewerId, requester_name: state.user?.name || 'Demo neighbour', offer_count: 0, offers: [], accepted_worker_id: null, accepted_at: null, work_started_at: null, done_at: null, cancelled_at: null, status: 'open', created_at: now(), expires_at: schedule.schedule_end || hoursFromNow(24 * 14) }
+      delete item.timeline
       state.help.unshift(item)
-      return response(config, item, 201)
+      return response(config, helpRequestFor(item, viewerId), 201)
     }
 
     if (path === '/api/safety/' && method === 'post') {
@@ -328,10 +415,14 @@ function installDemoLocation() {
   }
 }
 
+export function bootstrapDemoSession() {
+  localStorage.setItem('token', fakeToken())
+  localStorage.setItem('name', DEMO_USER_NAME)
+}
+
 /** Install the isolated static-demo environment before React renders. */
 export function installDemoApi() {
-  localStorage.setItem('token', fakeToken())
-  localStorage.setItem('name', 'Aarav Mehta')
+  bootstrapDemoSession()
   const adapter = createDemoAdapter()
   api.defaults.adapter = adapter
   axios.defaults.adapter = adapter
