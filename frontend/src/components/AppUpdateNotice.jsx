@@ -6,7 +6,7 @@ import { latestAppUpdate } from '../utils/appUpdate'
 import { useI18n } from '../utils/i18n'
 import { listenForUpdateTap, notifyAppUpdate } from '../utils/updateNotification'
 import AndroidUpdateAction from './AndroidUpdateAction'
-import { ArrowRight, Download, RefreshCw, ShieldCheck, X } from './icons'
+import { ArrowRight, RefreshCw, ShieldCheck, X } from './icons'
 
 const CHECK_INTERVAL = 4 * 60 * 60 * 1000
 const DISMISSED_KEY = 'neighbouraid-dismissed-release'
@@ -122,7 +122,7 @@ export default function AppUpdateNotice() {
       <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="app-update-prompt-title" aria-describedby="app-update-prompt-description" tabIndex="-1" className="app-update-prompt">
         <div className="app-update-prompt-topline">
           <span className="app-update-prompt-kicker"><span className="app-update-prompt-pulse" aria-hidden /><span>NeighbourAid</span></span>
-          <button type="button" onClick={dismiss} className="tap app-update-prompt-close" aria-label={t('app_update_later')} title={t('app_update_later')}><X className="h-5 w-5" aria-hidden /></button>
+          <button type="button" onClick={dismiss} className="tap app-update-prompt-close" aria-label="Close update prompt" title={t('app_update_later')}><X className="h-5 w-5" aria-hidden /></button>
         </div>
 
         <div className="app-update-prompt-main">
@@ -146,7 +146,7 @@ export default function AppUpdateNotice() {
 
         <div className="app-update-prompt-footer">
           <Link to="/app-updates" onClick={() => setUpdate(null)} className="tap app-update-prompt-details">
-            <span><Download className="h-4 w-4" aria-hidden /> View update details</span>
+            <span><RefreshCw className="h-4 w-4" aria-hidden /> View update details</span>
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>
           <button type="button" onClick={dismiss} className="tap app-update-prompt-later">{t('app_update_later')}</button>

@@ -7,8 +7,10 @@ import { GEOLOCATION_SUPPORTED, GEO_UNSUPPORTED_MESSAGE } from '../utils/geo'
 import { useToast } from '../components/Toast'
 import { useNotifications } from '../hooks/useNotifications'
 import { ttsLocaleFor, useVoiceAlert } from '../hooks/useVoiceAlert'
+import { haptic } from '../utils/haptics'
 import { useI18n } from '../utils/i18n'
 import AlertCard from '../components/AlertCard'
+import NotificationReadiness from '../components/NotificationReadiness'
 import { SkeletonAlertList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import api from '../utils/api'
@@ -16,7 +18,6 @@ import { apiError } from '../utils/error'
 import { filterVolunteerAlerts, isMyAcceptedAlert } from '../utils/volunteerFilters'
 import {
   AlertTriangle,
-  Bell,
   MapPin,
   ShieldCheck,
   Volume2,
@@ -72,6 +73,7 @@ export default function VolunteerFeed() {
   // at first render that there is nothing to load and what to say about it.
   const [loading, setLoading] = useState(GEOLOCATION_SUPPORTED)
   const [pushBusy, setPushBusy] = useState(false)
+  const [pushResult, setPushResult] = useState('idle')
   const [error, setError] = useState('')
   const [geoError, setGeoError] = useState(
     GEOLOCATION_SUPPORTED ? '' : GEO_UNSUPPORTED_MESSAGE
@@ -196,6 +198,8 @@ export default function VolunteerFeed() {
       })
       if (isNew && incoming.status === 'open') {
         playPing()
+        if (incoming.urgency === 'CRITICAL') haptic([35, 60, 70])
+        else if (incoming.urgency === 'HIGH') haptic(22)
         // Hands-free TTS for CRITICAL only — anything lower is too noisy.
         if (incoming.urgency === 'CRITICAL') {
           // Spoken as minutes, not kilometres. Someone hearing this is
@@ -254,21 +258,38 @@ export default function VolunteerFeed() {
     return () => navigator.serviceWorker.removeEventListener('message', onMsg)
   }, [navigate])
 
-  const notifEnabled = notif.permission === 'granted'
-
   const enablePush = async () => {
     setPushBusy(true)
+    setPushResult('idle')
     try {
       const result = await notif.subscribe()
       if (result === 'denied') {
+        setPushResult('denied')
         toast({ variant: 'error', title: t('vol_push_denied') })
       } else if (result === 'not-configured') {
+        setPushResult('not-configured')
         // This deployment has no VAPID keys. Saying so beats a generic
         // failure, because nothing the volunteer does will fix it.
         toast({ variant: 'error', title: t('vol_push_unavailable') })
       } else if (result !== 'subscribed') {
+        setPushResult('failed')
         toast({ variant: 'error', title: t('vol_push_failed') })
+      } else {
+        setPushResult('ready')
+        toast({ variant: 'success', title: 'Background alerts are ready', body: 'This device can now receive matched alerts when NeighbourAid is closed.' })
       }
+    } finally {
+      setPushBusy(false)
+    }
+  }
+
+  const disablePush = async () => {
+    if (!notif.unsubscribe) return
+    setPushBusy(true)
+    try {
+      await notif.unsubscribe()
+      setPushResult('idle')
+      toast({ variant: 'info', title: 'Background alerts turned off', body: 'Live alerts will still appear while NeighbourAid is open.' })
     } finally {
       setPushBusy(false)
     }
@@ -332,37 +353,16 @@ export default function VolunteerFeed() {
         </div>
       )}
 
-      {/* Offered whenever push is possible and not yet on. Keying this on
-          `permission === 'default'` alone was not enough once push existed:
-          "permission granted but never subscribed" is a real state, and it
-          is the one where a volunteer believes they are covered and is not. */}
-      {notif.pushSupported && !notif.pushEnabled && notif.permission !== 'denied' && (
-        <div className="surface-card px-4 py-3 mb-6 flex flex-col sm:flex-row sm:items-center gap-3 reveal-up stagger-1">
-          <div className="text-sm text-gray-300 flex-1">
-            {t('vol_enable_push')}
-          </div>
-          <button
-            onClick={enablePush}
-            disabled={pushBusy}
-            className="tap text-xs bg-accent hover:bg-orange-400 active:bg-orange-600 text-gray-950 px-3 rounded-lg transition-colors duration-200 press-in whitespace-nowrap self-start sm:self-auto inline-flex items-center gap-1.5 disabled:opacity-60"
-          >
-            <Bell className="h-3.5 w-3.5" aria-hidden />
-            {pushBusy ? t('vol_enabling') : t('vol_enable')}
-          </button>
-        </div>
-      )}
-      {notif.pushEnabled && (
-        <button
-          type="button"
-          onClick={notif.unsubscribe}
-          className="text-[11px] text-gray-600 mb-2 hover:text-gray-400 transition-colors"
-        >
-          {t('vol_push_on')}
-        </button>
-      )}
-      {!notif.pushSupported && notifEnabled && (
-        <div className="text-[11px] text-gray-600 mb-2">{t('vol_notif_on')}</div>
-      )}
+      <NotificationReadiness
+        connected={connected}
+        permission={notif.permission}
+        pushSupported={notif.pushSupported}
+        pushEnabled={notif.pushEnabled}
+        busy={pushBusy}
+        result={pushResult}
+        onEnable={enablePush}
+        onDisable={disablePush}
+      />
 
       {voiceAlert.supported && (
         <button

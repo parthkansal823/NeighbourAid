@@ -9,6 +9,9 @@ const { isNativeApp, latestAppUpdate } = vi.hoisted(() => ({ isNativeApp: vi.fn(
 vi.mock('../utils/runtime', () => ({ isNativeApp }))
 vi.mock('../utils/appUpdate', () => ({ latestAppUpdate }))
 vi.mock('../utils/androidUpdate', () => ({ UPDATE_CHECK_EVENT: 'neighbouraid:check-update', UPDATE_RESULT_EVENT: 'neighbouraid:update-result' }))
+vi.mock('./AndroidUpdateAction', () => ({
+  default: () => <button type="button" data-update-primary>Update now</button>,
+}))
 vi.mock('../utils/updateNotification', () => ({
   enableUpdateNotifications: vi.fn().mockResolvedValue(true),
   listenForUpdateTap: vi.fn().mockResolvedValue(null),
@@ -28,7 +31,7 @@ beforeEach(() => {
 })
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks() })
 
-describe('nonblocking app update notice', () => {
+describe('app update prompt', () => {
   it('does not check for APKs on the website', () => {
     isNativeApp.mockReturnValue(false)
     renderNotice()
@@ -36,25 +39,26 @@ describe('nonblocking app update notice', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('offers a compact route into the dedicated in-app update screen', async () => {
+  it('opens a focused update screen as soon as a release is found', async () => {
     renderNotice()
-    expect(await screen.findByRole('link')).toHaveAttribute('href', '/app-updates')
-    expect(screen.getByRole('status')).toHaveTextContent('build-12')
+    expect(await screen.findByRole('dialog')).toHaveTextContent('build-12')
+    expect(screen.getByRole('link', { name: /view update details/i })).toHaveAttribute('href', '/app-updates')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Update now' })).toHaveFocus())
   })
 
   it('dismisses this release but still shows a future one', async () => {
     const view = renderNotice()
     await userEvent.click(await screen.findByRole('button', { name: 'Later' }))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(localStorage.getItem('neighbouraid-dismissed-release')).toBe('12')
     view.unmount()
     const same = renderNotice()
     await waitFor(() => expect(latestAppUpdate).toHaveBeenCalledTimes(2))
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     same.unmount()
     latestAppUpdate.mockResolvedValue({ ...update, versionCode: 13, versionName: 'build-13' })
     renderNotice()
-    expect(await screen.findByRole('status')).toHaveTextContent('build-13')
+    expect(await screen.findByRole('dialog')).toHaveTextContent('build-13')
   })
 
   it('waits offline and checks when the phone reconnects', async () => {
@@ -63,22 +67,22 @@ describe('nonblocking app update notice', () => {
     expect(latestAppUpdate).not.toHaveBeenCalled()
     online.mockReturnValue(true)
     act(() => window.dispatchEvent(new Event('online')))
-    expect(await screen.findByRole('status')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 
   it('fails quietly and retries on a later foreground event', async () => {
     latestAppUpdate.mockRejectedValueOnce(new Error('offline'))
     renderNotice()
     await act(async () => {})
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     act(() => document.dispatchEvent(new Event('visibilitychange')))
-    expect(await screen.findByRole('status')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
     expect(latestAppUpdate).toHaveBeenCalledTimes(2)
   })
 
   it('throttles repeated foreground events after a successful check', async () => {
     renderNotice()
-    await screen.findByRole('status')
+    await screen.findByRole('dialog')
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'))
       window.dispatchEvent(new Event('online'))
@@ -90,9 +94,16 @@ describe('nonblocking app update notice', () => {
     localStorage.setItem('neighbouraid-dismissed-release', '12')
     renderNotice()
     await act(async () => {})
-    expect(screen.queryByRole('link', { name: /a new version is ready/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     act(() => window.dispatchEvent(new Event('neighbouraid:check-update')))
-    expect(await screen.findByRole('link', { name: /a new version is ready/i })).toHaveAttribute('href', '/app-updates')
+    expect(await screen.findByRole('dialog')).toHaveTextContent('build-12')
     expect(latestAppUpdate).toHaveBeenCalledTimes(2)
+  })
+
+  it('lets someone leave the prompt with Escape', async () => {
+    renderNotice()
+    await screen.findByRole('dialog')
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

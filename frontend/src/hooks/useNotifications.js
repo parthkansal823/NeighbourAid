@@ -36,6 +36,10 @@ export function useNotifications() {
     'serviceWorker' in navigator &&
     'PushManager' in window
 
+  const refreshPermission = useCallback(() => {
+    setPermission(typeof Notification !== 'undefined' ? Notification.permission : 'unsupported')
+  }, [])
+
   useEffect(() => {
     // No `setPermission('unsupported')` here — the useState initializer above
     // already resolves that case, so this was a redundant synchronous setState
@@ -55,6 +59,20 @@ export function useNotifications() {
         .catch(() => setSwReady(false))
     }
   }, [])
+
+  // Permission may change while a person is in browser/phone settings. A
+  // foreground check keeps the readiness control honest when they return.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'hidden') refreshPermission()
+    }
+    window.addEventListener('focus', refreshPermission)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', refreshPermission)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [refreshPermission])
 
   const request = useCallback(async () => {
     if (typeof Notification === 'undefined') return 'unsupported'
