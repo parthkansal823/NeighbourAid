@@ -31,7 +31,7 @@ feedparser>=6.0.11
 #   py-vapid  — the RFC 8292 auth JWT (Vapid02; Vapid01 is the expired draft)
 #   http-ece  — RFC 8291 aes128gcm payload encryption
 # Nothing cryptographic is hand-rolled; only the POST is ours.
-py-vapid>=1.9.0
+py-vapid>=1.9.4
 http-ece>=1.2.0
 
 # Quiet hours (app/services/availability.py) compare local time with
