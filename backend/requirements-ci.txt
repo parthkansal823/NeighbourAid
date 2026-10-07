@@ -1,6 +1,6 @@
 # Keep CI tooling stable while runtime dependencies retain their patch floors.
 # Install together with requirements.txt; this file is not a production dependency.
-ruff==0.16.8
+ruff==0.16.10
 pytest-cov==7.1.0
 pip-audit==2.10.1
 # Python 3.11 venvs can seed a vulnerable legacy setuptools; audit tooling too.
