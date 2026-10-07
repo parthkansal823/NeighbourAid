@@ -60,4 +60,15 @@ describe('NotificationReadiness', () => {
     expect(screen.getByRole('heading', { name: 'Live alerts are active in this app' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enable' })).not.toBeInTheDocument()
   })
+  it('keeps a reconnecting live feed distinct from enabled background notifications', () => {
+    renderReadiness({ connected: false, pushEnabled: true })
+    expect(screen.getByRole('heading', { name: 'Background alerts are ready' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Reconnecting')
+  })
+
+  it('disables notification changes while the explicit request is pending', () => {
+    renderReadiness({ busy: true })
+    expect(screen.getByRole('button', { name: 'Enabling…' })).toBeDisabled()
+    expect(screen.getByRole('region')).toHaveAttribute('aria-busy', 'true')
+  })
 })

@@ -56,34 +56,34 @@ export function RequestCard({ item, onOffer, onAccept, onStart, onDone, onWithdr
   const closed = item.status === 'done' || item.status === 'cancelled'
 
   return (
-    <li className="surface-card alert-enter p-4">
+    <li className="surface-card min-w-0 p-4 sm:p-5">
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 shrink-0 rounded-xl bg-surface-2 p-2 text-accent">
+        <span className="mt-0.5 shrink-0 rounded-lg bg-surface-2 p-2 text-app-muted">
           <HelpIcon kind={item.kind} className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-semibold text-white">{item.title}</h2>
+            <h2 className="font-semibold text-app-ink leading-snug wrap-break-word">{item.title}</h2>
             {item.status !== 'open' && (
               <span
-                className={`rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider ${
+                className={`rounded-full border px-2 py-1 text-xs ${
                   item.status === 'cancelled'
-                    ? 'border-red-500/40 text-red-300'
-                    : 'border-line text-gray-400'
+                    ? 'app-feedback-error'
+                    : 'border-line text-app-muted'
                 }`}
               >
                 {t(`help_status_${item.status}`)}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs uppercase tracking-wider text-gray-500">
+          <p className="mt-1 text-xs capitalize text-app-muted">
             {item.kind}
           </p>
           {item.description && (
-            <p className="mt-2 text-sm text-gray-300">{item.description}</p>
+            <p className="mt-3 text-sm text-app-ink leading-relaxed wrap-break-word">{item.description}</p>
           )}
 
-          <div className="mt-3 text-sm text-gray-300">
+          <div className="mt-3 text-sm text-app-ink leading-relaxed">
             {scheduleStart && scheduleEnd ? (
               <div className="space-y-1">
                 <p className="font-medium">{t('help_schedule_title')}</p>
@@ -92,13 +92,13 @@ export function RequestCard({ item, onOffer, onAccept, onStart, onDone, onWithdr
                   <span aria-hidden="true">–</span>
                   <time dateTime={item.schedule_end}>{scheduleEnd}</time>
                 </p>
-                <p className="text-xs text-gray-400">{t('help_schedule_local')}</p>
+                <p className="text-xs text-app-muted">{t('help_schedule_local')}</p>
               </div>
-            ) : <p className="text-gray-400">{t('help_schedule_flexible')}</p>}
+            ) : <p className="text-app-muted">{t('help_schedule_flexible')}</p>}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-400">
-            {budget && <span className="font-semibold text-accent">{budget}</span>}
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-app-muted">
+            {budget && <span className="font-semibold text-app-ink">{budget}</span>}
             <span>
               {item.offer_count} {t('help_offers')}
             </span>
@@ -106,19 +106,19 @@ export function RequestCard({ item, onOffer, onAccept, onStart, onDone, onWithdr
                 serializer. Until then a public listing would be a phone
                 number waiting to be scraped. */}
             {participant && item.contact && (
-              <span className="text-gray-300">{item.contact}</span>
+              <span className="text-app-ink wrap-break-word">{item.contact}</span>
             )}
           </div>
 
           {isMine && offers.length > 0 && item.status === 'open' && (
             <ul className="mt-3 space-y-2 border-t border-line pt-3">
               {offers.map((o) => (
-                <li key={o.worker_id} className="flex items-center gap-2">
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-200">
+                <li key={o.worker_id} className="flex flex-wrap items-center gap-2">
+                  <span className="min-w-0 flex-1 basis-32 text-sm text-app-ink wrap-break-word">
                     {o.worker_name}
-                    {o.note && <span className="text-gray-500"> · {o.note}</span>}
+                    {o.note && <span className="block mt-1 text-app-muted">{o.note}</span>}
                   </span>
-                  <span className="shrink-0 font-semibold text-accent">₹{o.price}</span>
+                  <span className="shrink-0 font-semibold text-app-ink">₹{o.price}</span>
                   <Button
                     size="sm"
                     onClick={() => onAccept(item.id, o.worker_id)}
@@ -135,20 +135,20 @@ export function RequestCard({ item, onOffer, onAccept, onStart, onDone, onWithdr
               a worker who quoted and rearranged an afternoon gets told, in
               the same place the job used to be. */}
           {!isMine && item.status === 'cancelled' && (
-            <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-sm text-red-200">
+            <p className="app-feedback-error mt-3 rounded-xl px-3 py-3 text-sm leading-relaxed">
               {t('help_cancelled_note')}
             </p>
           )}
 
           {timeline.length > 0 && (
             <section className="mt-4 border-t border-line pt-3" aria-label={t('help_timeline')}>
-              <h3 className="text-sm font-medium text-white">{t('help_timeline')}</h3>
-              <p className="mt-1 text-xs text-gray-400">{t('help_timeline_private')}</p>
+              <h3 className="text-sm font-semibold text-app-ink">{t('help_timeline')}</h3>
+              <p className="mt-1 text-xs text-app-muted leading-relaxed">{t('help_timeline_private')}</p>
               <ol className="mt-2 space-y-2 border-l border-line pl-3">
                 {timeline.map((entry, index) => (
                   <li key={`${entry.event}:${entry.at}:${index}`} className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-                    <span className="text-gray-200">{t(`help_event_${entry.event}`)}</span>
-                    <time className="break-words text-gray-400" dateTime={entry.at}>{localHelpTime(entry.at, lang)}</time>
+                    <span className="text-app-ink">{t(`help_event_${entry.event}`)}</span>
+                    <time className="break-words text-app-muted" dateTime={entry.at}>{localHelpTime(entry.at, lang)}</time>
                   </li>
                 ))}
               </ol>
@@ -182,7 +182,7 @@ export function RequestCard({ item, onOffer, onAccept, onStart, onDone, onWithdr
                 variant="ghost"
                 onClick={() => onWithdraw(item.id)}
                 loading={busy === `withdraw:${item.id}`}
-                className="text-red-300 hover:text-red-200"
+                className="text-app-muted"
               >
                 {t('help_withdraw')}
               </Button>
@@ -343,42 +343,42 @@ function HelpBoard({ user }) {
   }
 
   return (
-    <main className="page-panel mx-auto max-w-3xl px-4 py-8 sm:px-6">
+    <main className="page-panel mx-auto max-w-3xl px-4 py-6 sm:py-8 sm:px-6">
       <header className="mb-5">
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
-          <Handshake className="h-6 w-6 text-accent" aria-hidden />
+        <h1 className="flex items-start gap-2 text-2xl font-semibold tracking-tight text-app-ink">
+          <Handshake className="h-6 w-6 shrink-0 mt-1 text-app-muted" aria-hidden />
           {t('help_title')}
         </h1>
-        <p className="mt-1 text-sm text-gray-500">{t('help_subtitle')}</p>
+        <p className="mt-2 text-sm text-app-muted leading-relaxed">{t('help_subtitle')}</p>
       </header>
 
       <div role="search" aria-label={t('help_search')} className="mb-4 space-y-4">
         <div>
-          <label htmlFor="help-search" className="mb-1.5 block text-sm text-gray-300">
+          <label htmlFor="help-search" className="app-form-label">
             {t('help_search')}
           </label>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-app-muted" aria-hidden />
             <input
               id="help-search"
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t('help_search_placeholder')}
-              className="w-full rounded-xl border border-line bg-surface-1 py-3 pl-12 pr-4 text-white placeholder:text-gray-400 focus:border-accent"
+              className="app-field w-full pl-12"
               aria-controls="help-results"
             />
           </div>
         </div>
 
         <fieldset>
-          <legend className="mb-2 text-sm text-gray-300">{t('help_filter_view')}</legend>
+          <legend className="app-form-label">{t('help_filter_view')}</legend>
           <div className="flex flex-wrap gap-2">
             {['all', 'open', ...(user ? ['mine'] : [])].map((view) => (
               <button
                 key={view}
                 type="button"
-                className="chip"
+                className="app-choice-button px-3 text-sm"
                 aria-pressed={activeScope === view}
                 aria-controls="help-results"
                 onClick={() => setScope(view)}
@@ -390,11 +390,11 @@ function HelpBoard({ user }) {
         </fieldset>
 
         <fieldset>
-          <legend className="mb-2 text-sm text-gray-300">{t('help_kind')}</legend>
+          <legend className="app-form-label">{t('help_kind')}</legend>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              className="chip"
+              className="app-choice-button px-3 text-sm"
               aria-pressed={kind === ''}
               aria-controls="help-results"
               onClick={() => setKind('')}
@@ -405,12 +405,12 @@ function HelpBoard({ user }) {
               <button
                 key={k}
                 type="button"
-                className="chip"
+                className="app-choice-button px-3 text-sm capitalize"
                 aria-pressed={kind === k}
                 aria-controls="help-results"
                 onClick={() => setKind(k)}
               >
-                <HelpIcon kind={k} className="h-4 w-4" />
+                <HelpIcon kind={k} className="h-4 w-4 shrink-0" aria-hidden />
                 {k}
               </button>
             ))}
@@ -418,7 +418,7 @@ function HelpBoard({ user }) {
         </fieldset>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-gray-400">
+          <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-app-muted">
             {!loading && <>{t('help_results')}: {filtered.length}</>}
           </p>
           <Button size="sm" variant="ghost" onClick={clearFilters} disabled={!hasFilters}>
@@ -546,13 +546,12 @@ export function RequestForm({ coords, onDone }) {
     }
   }
 
-  const field =
-    'w-full rounded-xl border border-line bg-surface-1 px-4 py-3 text-white placeholder:text-gray-600 focus:border-accent focus:outline-none'
+  const field = 'app-field w-full'
 
   return (
-    <form onSubmit={submit} className="surface-card mb-4 space-y-3 p-4">
+    <form onSubmit={submit} className="surface-card min-w-0 mb-4 space-y-4 p-4 sm:p-5">
       <div>
-        <label htmlFor="help-kind" className="mb-1.5 block text-sm text-gray-400">
+        <label htmlFor="help-kind" className="app-form-label">
           {t('help_kind')}
         </label>
         <select
@@ -570,7 +569,7 @@ export function RequestForm({ coords, onDone }) {
       </div>
 
       <div>
-        <label htmlFor="help-title" className="mb-1.5 block text-sm text-gray-400">
+        <label htmlFor="help-title" className="app-form-label">
           {t('help_what')}
         </label>
         <input
@@ -586,7 +585,7 @@ export function RequestForm({ coords, onDone }) {
       </div>
 
       <div>
-        <label htmlFor="help-desc" className="mb-1.5 block text-sm text-gray-400">
+        <label htmlFor="help-desc" className="app-form-label">
           {t('help_details')}
         </label>
         <textarea
@@ -598,44 +597,51 @@ export function RequestForm({ coords, onDone }) {
           onChange={(e) => setForm({ ...form, description: e.target.value })}
         />
         <div className="mt-3"><VoiceInput onText={text => setForm(old => ({ ...old, description: joinVoiceDraft(old.description, text) }))} /></div>
-        {form.description.length > 1000 && <p role="alert" className="mt-2 text-sm text-orange-300">{t('help_details')}: max 1,000 characters</p>}
+        {form.description.length > 1000 && <p role="alert" className="app-feedback-error mt-2 rounded-xl p-3 text-sm">{t('help_details')}: max 1,000 characters</p>}
       </div>
 
       <fieldset>
-        <legend className="mb-1.5 block text-sm text-gray-400">
+        <legend className="app-form-label">
           {t('help_budget')}
         </legend>
-        <div className="flex items-center gap-2">
-          <input
-            type="number"
-            min={0}
-            className={field}
-            value={form.budget_min}
-            onChange={(e) => setForm({ ...form, budget_min: e.target.value })}
-            placeholder="₹ min"
-            aria-label={t('help_budget_min')}
-          />
-          <span className="text-gray-600">–</span>
-          <input
-            type="number"
-            min={0}
-            className={field}
-            value={form.budget_max}
-            onChange={(e) => setForm({ ...form, budget_max: e.target.value })}
-            placeholder="₹ max"
-            aria-label={t('help_budget_max')}
-          />
+        <div className="grid grid-cols-2 min-w-0 gap-3">
+          <div className="min-w-0">
+            <label htmlFor="help-budget-min" className="app-form-label">{t('help_budget_min')}</label>
+            <input
+              id="help-budget-min"
+              type="number"
+              min={0}
+              className={field}
+              value={form.budget_min}
+              onChange={(e) => setForm({ ...form, budget_min: e.target.value })}
+              placeholder="₹ min"
+              aria-label={t('help_budget_min')}
+            />
+          </div>
+          <div className="min-w-0">
+            <label htmlFor="help-budget-max" className="app-form-label">{t('help_budget_max')}</label>
+            <input
+              id="help-budget-max"
+              type="number"
+              min={0}
+              className={field}
+              value={form.budget_max}
+              onChange={(e) => setForm({ ...form, budget_max: e.target.value })}
+              placeholder="₹ max"
+              aria-label={t('help_budget_max')}
+            />
+          </div>
         </div>
-        <p className="mt-1.5 text-xs text-gray-600">{t('help_budget_hint')}</p>
+        <p className="mt-2 text-xs text-app-muted leading-relaxed">{t('help_budget_hint')}</p>
       </fieldset>
 
       <fieldset aria-describedby="help-schedule-hint">
-        <legend className="mb-1.5 text-sm text-gray-300">{t('help_schedule_title')}</legend>
-        <p id="help-schedule-hint" className="mb-3 text-xs text-gray-400">{t('help_schedule_hint')}</p>
+        <legend className="app-form-label">{t('help_schedule_title')}</legend>
+        <p id="help-schedule-hint" className="mb-3 text-xs text-app-muted leading-relaxed">{t('help_schedule_hint')}</p>
         <div className="grid min-w-0 gap-3 sm:grid-cols-2">
           {['start', 'end'].map((edge) => (
             <div key={edge} className="min-w-0">
-              <label htmlFor={`help-schedule-${edge}`} className="mb-1.5 block text-sm text-gray-300">
+              <label htmlFor={`help-schedule-${edge}`} className="app-form-label">
                 {t(`help_schedule_${edge}`)}
               </label>
               <input
@@ -651,11 +657,11 @@ export function RequestForm({ coords, onDone }) {
             </div>
           ))}
         </div>
-        {scheduleError && <p id="help-schedule-error" role="alert" className="mt-2 text-sm text-red-300">{t(scheduleError)}</p>}
+        {scheduleError && <p id="help-schedule-error" role="alert" className="app-feedback-error mt-2 rounded-xl p-3 text-sm">{t(scheduleError)}</p>}
       </fieldset>
 
       <div>
-        <label htmlFor="help-contact" className="mb-1.5 block text-sm text-gray-400">
+        <label htmlFor="help-contact" className="app-form-label">
           {t('help_contact')}
         </label>
         <input
@@ -668,7 +674,7 @@ export function RequestForm({ coords, onDone }) {
         />
         {/* Stated plainly because the alternative is someone assuming the
             worst and leaving it blank, which makes the listing useless. */}
-        <p className="mt-1.5 text-xs text-gray-600">{t('help_contact_hint')}</p>
+        <p className="mt-2 text-xs text-app-muted leading-relaxed">{t('help_contact_hint')}</p>
       </div>
 
       <Button type="submit" loading={saving} full>
@@ -702,26 +708,25 @@ function OfferForm({ request, onClose, onDone }) {
     }
   }
 
-  const field =
-    'w-full rounded-xl border border-line bg-surface-1 px-4 py-3 text-white placeholder:text-gray-600 focus:border-accent focus:outline-none'
+  const field = 'app-field w-full'
 
   return (
-    <form onSubmit={submit} className="surface-card mb-4 space-y-3 p-4">
+    <form onSubmit={submit} className="surface-card min-w-0 mb-4 space-y-4 p-4 sm:p-5">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-semibold text-white">
+        <h2 className="min-w-0 font-semibold text-app-ink wrap-break-word">
           {t('help_your_offer')} · {request.title}
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="tap press-in inline-flex items-center justify-center rounded-lg text-gray-400 hover:text-white"
+          className="app-secondary-button h-12 w-12 shrink-0"
           aria-label={t('help_cancel')}
         >
           <X className="h-4 w-4" aria-hidden />
         </button>
       </div>
       <div>
-        <label htmlFor="offer-price" className="mb-1.5 block text-sm text-gray-400">
+        <label htmlFor="offer-price" className="app-form-label">
           {t('help_your_price')}
         </label>
         <input
@@ -736,7 +741,7 @@ function OfferForm({ request, onClose, onDone }) {
         />
       </div>
       <div>
-        <label htmlFor="offer-note" className="mb-1.5 block text-sm text-gray-400">
+        <label htmlFor="offer-note" className="app-form-label">
           {t('help_when')}
         </label>
         <input

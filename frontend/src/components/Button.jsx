@@ -32,11 +32,11 @@ import { Spinner } from './icons'
 // Flat fills. Hover moves one step lighter, active one step darker — the
 // same two-step pattern for all six so a new variant is obvious to add.
 const VARIANTS = {
-  primary: 'bg-accent hover:bg-orange-400 active:bg-orange-600 text-gray-950',
-  danger: 'bg-critical hover:bg-red-400 active:bg-red-600 text-white',
-  success: 'bg-low hover:bg-green-400 active:bg-green-600 text-gray-950',
+  primary: 'app-primary-button',
+  danger: 'app-danger-button',
+  success: 'bg-low hover:bg-green-400 active:bg-green-600 text-[#111827]',
   secondary:
-    'bg-surface-2 hover:bg-[#242c3c] active:bg-surface-1 text-white border border-line',
+    'app-secondary-button',
   ghost: 'bg-transparent hover:bg-surface-1 text-gray-300 hover:text-white',
   outline:
     'bg-transparent border border-line hover:border-accent text-gray-200 hover:text-white',

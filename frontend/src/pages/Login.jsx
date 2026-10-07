@@ -29,24 +29,16 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-page relative min-h-screen flex items-center justify-center px-4 py-8 overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-xl rounded-full bg-orange-500/10 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-24 right-1/4 h-56 w-72 rounded-full bg-blue-500/10 blur-3xl"
-      />
-      <div className="relative surface-card p-6 sm:p-8 w-full max-w-md reveal-up">
-        <div className="mb-6 sm:mb-8">
-          <BrandLogo size={64} className="mb-4" alt="NeighbourAid" />
-          <h1 className="text-2xl font-bold text-white mb-2">{t('login_title')}</h1>
-          <p className="text-gray-400 text-sm">{t('login_subtitle')}</p>
+    <div className="auth-page app-auth-page flex items-start justify-center px-4 py-6 sm:py-10">
+      <div className="app-auth-panel w-full max-w-md">
+        <div className="mb-6">
+          <BrandLogo size={40} className="mb-5" alt="NeighbourAid" />
+          <h1 className="text-2xl font-semibold text-app-ink tracking-tight mb-2">{t('login_title')}</h1>
+          <p className="text-app-muted text-sm leading-relaxed">{t('login_subtitle')}</p>
         </div>
 
         {error && (
-          <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
+          <div role="alert" className="app-feedback-error text-sm rounded-xl px-4 py-3 mb-6 flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
             <span>{error}</span>
           </div>
@@ -62,7 +54,7 @@ export default function Login() {
               and have no way to know which one was the password. Tapping the
               label also did nothing. Both are fixed by the association alone.
             */}
-            <label htmlFor="login-email" className="block text-sm text-gray-400 mb-1.5">{t('login_email')}</label>
+            <label htmlFor="login-email" className="app-form-label">{t('login_email')}</label>
             <input
               id="login-email"
               type="email"
@@ -71,12 +63,12 @@ export default function Login() {
               inputMode="email"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 text-base placeholder:text-gray-600"
+              className="app-field w-full"
               placeholder="you@example.com"
             />
           </div>
           <div>
-            <label htmlFor="login-password" className="block text-sm text-gray-400 mb-1.5">{t('login_password')}</label>
+            <label htmlFor="login-password" className="app-form-label">{t('login_password')}</label>
             <input
               id="login-password"
               type="password"
@@ -84,14 +76,15 @@ export default function Login() {
               autoComplete="current-password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 text-base placeholder:text-gray-600"
+              className="app-field w-full"
               placeholder="••••••••"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full tap bg-accent hover:bg-orange-400 active:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-gray-950 font-semibold py-3 rounded-xl transition-colors duration-200 press-in overflow-hidden"
+            aria-busy={loading}
+            className="app-primary-button w-full"
           >
             <span className="relative inline-flex items-center justify-center gap-2">
               {loading && (
@@ -105,9 +98,9 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-center text-gray-500 text-sm mt-6">
+        <p className="text-center text-app-muted text-sm leading-relaxed mt-6">
           {t('login_no_account')}{' '}
-          <Link to="/register" className="text-orange-400 hover:text-orange-300 underline-offset-2 hover:underline transition-colors">
+          <Link to="/register" className="text-app-ink font-semibold underline underline-offset-4">
             {t('login_register_here')}
           </Link>
         </p>

@@ -67,7 +67,7 @@ export default function MapDashboard() {
   const watchIdRef = useRef(null)
   const [expanded, setExpanded] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [smallScreen, setSmallScreen] = useState(() => window.matchMedia('(max-width: 639px)').matches)
+  const [smallScreen, setSmallScreen] = useState(() => window.matchMedia('(max-width: 1023px)').matches)
   const toolbarRef = useRef(null)
   const mapPageRef = useRef(null)
   const expandButtonRef = useRef(null)
@@ -75,7 +75,7 @@ export default function MapDashboard() {
   const compact = isNativeApp() || smallScreen || expanded
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 639px)')
+    const media = window.matchMedia('(max-width: 1023px)')
     const change = () => setSmallScreen(media.matches)
     media.addEventListener('change', change)
     return () => media.removeEventListener('change', change)
@@ -262,104 +262,101 @@ export default function MapDashboard() {
 
   return (
     <div ref={mapPageRef} className={`map-page relative flex flex-col h-[calc(100vh-57px)]${compact ? ' map-compact' : ''}${expanded ? ' map-expanded' : ''}`} style={{ '--map-controls-height': `${controlsHeight}px` }}>
-      <div ref={toolbarRef} className="map-toolbar glass border-b border-gray-800 px-3 sm:px-6 py-2 sm:py-3 space-y-2">
+      <div ref={toolbarRef} className="map-toolbar border-b border-line bg-surface-1 px-3 sm:px-6 py-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <h1 className="text-white font-semibold text-sm sm:text-base inline-flex items-center gap-2">
+          <h1 className="text-app-ink font-semibold text-base inline-flex items-center gap-2">
             <MapIcon className="h-4 w-4" aria-hidden />
             {t(compact ? 'nav_map' : 'map_title')}
           </h1>
-          {compact && <button type="button" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen} aria-controls="map-urgency-filters map-category-filters" className="tap ml-auto inline-flex items-center gap-1 rounded-lg border border-line px-2 text-xs text-gray-200">
-            {t('map_filters')}{(urgencyFilter !== 'ALL' || categoryFilter !== 'all') && <span className="h-1.5 w-1.5 rounded-full bg-orange-400" aria-hidden />}
+          {compact && <button type="button" onClick={() => setFiltersOpen((value) => !value)} aria-expanded={filtersOpen} aria-controls="map-filter-panel" className="app-secondary-button ml-auto">
+            {t('map_filters')}{(urgencyFilter !== 'ALL' || categoryFilter !== 'all') && <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />}
             <ChevronDown className={`h-4 w-4${filtersOpen ? ' rotate-180' : ''}`} aria-hidden />
           </button>}
-          <button ref={expandButtonRef} type="button" onClick={() => setExpanded((value) => !value)} aria-pressed={expanded} aria-label={t(expanded ? 'map_exit_fullscreen' : 'map_fullscreen')} title={t(expanded ? 'map_exit_fullscreen' : 'map_fullscreen')} className="tap inline-flex shrink-0 items-center justify-center rounded-lg border border-line text-gray-200">
+          <button ref={expandButtonRef} type="button" onClick={() => setExpanded((value) => !value)} aria-pressed={expanded} aria-label={t(expanded ? 'map_exit_fullscreen' : 'map_fullscreen')} title={t(expanded ? 'map_exit_fullscreen' : 'map_fullscreen')} className="app-secondary-button shrink-0">
             {expanded ? <Minimize2 className="h-4 w-4" aria-hidden /> : <Maximize2 className="h-4 w-4" aria-hidden />}
           </button>
-          {(!compact || filtersOpen) && <div id="map-urgency-filters" role="group" aria-label="Urgency" className="map-filters flex gap-1.5 flex-wrap">
-            {URGENCY_FILTERS.map((f) => (
-              <button
-                key={f}
-                onClick={() => setUrgencyFilter(f)}
-                aria-pressed={urgencyFilter === f}
-                className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-colors duration-200 ${
-                  urgencyFilter === f
-                    ? 'border-orange-500 bg-orange-500/15 text-orange-200'
-                    : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
-                }`}
-              >
-                {f === 'ALL' ? t('map_all') : f}
-                {f !== 'ALL' && urgencyCounts[f] ? (
-                  <span className="ml-1 text-gray-500 tabular-nums">({urgencyCounts[f]})</span>
-                ) : null}
-              </button>
-            ))}
-          </div>}
-          <span className="text-gray-500 text-[11px] sm:text-xs ml-auto w-full sm:w-auto order-last sm:order-0">
+          <span role="status" className={`text-xs leading-relaxed w-full ${error ? 'text-[var(--app-danger)]' : 'text-app-muted'}`}>
             {loading
               ? t('map_loading')
               : error
               ? error
               : (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--app-success)]" aria-hidden />
                   <span className="tabular-nums">{visible.length}</span>{' '}
-                  {visible.length !== 1 ? t('map_active_alerts_many') : t('map_active_alerts_one')}{' '}
-                  · {t('map_refresh_note')}
+                  {visible.length !== 1 ? t('map_active_alerts_many') : t('map_active_alerts_one')}
+                  {!compact && <span>· {t('map_refresh_note')}</span>}
                 </span>
               )}
           </span>
         </div>
 
-        {(!compact || filtersOpen) && <div id="map-category-filters" role="group" aria-label={t('post_category')} className="map-filters flex gap-1.5 flex-wrap">
+        {(!compact || filtersOpen) && <div id="map-filter-panel" className="space-y-2">
+          <div id="map-urgency-filters" role="group" aria-label={t('map_urgency_legend')} className="map-filters flex gap-2 flex-wrap">
+            {URGENCY_FILTERS.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setUrgencyFilter(f)}
+                aria-pressed={urgencyFilter === f}
+                className="app-choice-button capitalize"
+              >
+                {f === 'ALL' ? t('map_all').toLocaleLowerCase() : f.toLowerCase()}
+                {f !== 'ALL' && urgencyCounts[f] ? (
+                  <span className="text-app-muted tabular-nums">({urgencyCounts[f]})</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+
+          <div id="map-category-filters" role="group" aria-label={t('post_category')} className="map-filters flex gap-2 flex-wrap">
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
+              type="button"
               onClick={() => setCategoryFilter(cat)}
               aria-pressed={categoryFilter === cat}
-              className={`text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full border transition-colors duration-200 ${
-                categoryFilter === cat
-                  ? 'border-blue-500 bg-blue-500/15 text-blue-200'
-                  : 'border-gray-700 text-gray-500 hover:border-blue-500/40 hover:text-gray-300'
-              }`}
+              className="app-choice-button capitalize"
             >
-              {cat === 'all' ? t('map_all') : t(`cat_${cat}`)}
+              {cat === 'all' ? t('map_all').toLocaleLowerCase() : t(`cat_${cat}`)}
               {cat !== 'all' && categoryCounts[cat] ? (
-                <span className="ml-1 text-gray-500 tabular-nums">({categoryCounts[cat]})</span>
+                <span className="text-app-muted tabular-nums">({categoryCounts[cat]})</span>
               ) : null}
             </button>
           ))}
+          </div>
         </div>}
 
-        <div className="flex items-center justify-between gap-2 text-[11px] text-gray-500">
-          <span className="truncate flex items-center gap-1.5">
-            <span className="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0" />
-            <span className="truncate tabular-nums inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />{locStatus}</span>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-app-muted">
+          <span title={locStatus} className="min-w-0 flex-1 basis-32 flex items-center gap-1.5">
+            <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="truncate tabular-nums">{locStatus}</span>
           </span>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2">
             {destination && (
               <button
+                type="button"
                 onClick={clearDestination}
-                className="text-xs border border-orange-700/60 bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 hover:text-orange-200 px-2 py-0.5 rounded-md transition-colors duration-200"
+                className="app-secondary-button"
                 title="Clear destination"
               >
                 <><X className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />Clear route</>
               </button>
             )}
-            <button
+            {(!compact || filtersOpen) && <button
+              type="button"
               onClick={() => setShowHeat((v) => !v)}
-              className={`text-xs border px-2 py-0.5 rounded-md transition-colors duration-200 ${
-                showHeat
-                  ? 'border-orange-500 bg-orange-500/15 text-orange-200'
-                  : 'border-gray-700 text-gray-300 hover:border-orange-500/40'
-              }`}
+              aria-pressed={showHeat}
+              className="app-choice-button"
               title="Toggle 72-hour heatmap overlay"
             >
               <><Flame className="h-3.5 w-3.5 inline-block mr-1 -mt-0.5" aria-hidden />{showHeat ? 'Heat on' : 'Heat'}</>
-            </button>
+            </button>}
             <button
+              type="button"
               onClick={recenterNow}
               disabled={locating}
-              className="text-xs border border-gray-700 hover:border-blue-500/60 hover:text-white text-gray-300 px-2 py-0.5 rounded-md transition-colors duration-200 disabled:opacity-50"
+              className="app-secondary-button shrink-0"
               title={t('map_recenter')}
               aria-label={t('map_recenter')}
             >

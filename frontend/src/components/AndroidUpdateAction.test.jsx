@@ -47,9 +47,16 @@ describe('direct Android update', () => {
     mocks.status.mockResolvedValue({ state: 'paused', percent: 36, versionCode: 42 })
     renderAction()
     expect(await screen.findByRole('progressbar')).toHaveAttribute('value', '36')
+    expect(screen.getByRole('button', { name: 'Cancel download' })).toHaveClass('app-secondary-button')
     await userEvent.click(screen.getByRole('button', { name: 'Cancel download' }))
     expect(mocks.cancel).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: 'Update now' })).toBeInTheDocument()
+  })
+  it.each([[135, 100], [-25, 0]])('keeps out-of-range download progress readable (%s%%)', async (reported, displayed) => {
+    mocks.status.mockResolvedValue({ state: 'downloading', percent: reported, versionCode: 42 })
+    renderAction()
+    expect(await screen.findByRole('progressbar')).toHaveAttribute('value', String(displayed))
+    expect(screen.getByRole('status')).toHaveTextContent(`${displayed}%`)
   })
   it('guides the permission step and lets the user retry installation', async () => {
     mocks.status.mockResolvedValue({ state: 'ready', versionCode: 42 })

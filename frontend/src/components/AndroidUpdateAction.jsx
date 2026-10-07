@@ -73,13 +73,14 @@ export default function AndroidUpdateAction({ update, autoFocus = false }) {
   }
   const pending = ['downloading', 'paused'].includes(download.state)
   const ready = ['ready', 'permission', 'installer'].includes(download.state)
-  return <div className="min-w-0 max-w-md text-sm">
-    {pending && <><p role="status" className="mb-1 text-xs text-gray-300">{copy[download.state]} {Math.max(0, Math.min(100, Number(download.percent) || 0))}%</p><progress className="mb-2 w-full accent-orange-500" value={download.percent || 0} max="100" aria-label={copy.downloading} /></>}
-    {ready && <p role="status" className="mb-2 text-xs leading-relaxed text-gray-300">{copy[download.state]}</p>}
-    {error && <p role="alert" className="mb-2 text-xs leading-relaxed text-orange-300">{copy[error]}</p>}
-    <button type="button" data-update-primary={autoFocus || undefined} autoFocus={autoFocus} disabled={busy} onClick={pending ? cancel : ready ? install : start} className="tap app-update-action-button rounded-lg bg-orange-500 px-3 font-medium text-black disabled:opacity-50">
+  const percent = Math.max(0, Math.min(100, Number(download.percent) || 0))
+  return <div className="w-full min-w-0 text-sm" aria-busy={busy}>
+    {pending && <><p role="status" className="mb-2 text-sm leading-relaxed text-app-muted">{copy[download.state]} {percent}%</p><progress className="mb-3 w-full accent-accent" value={percent} max="100" aria-label={copy.downloading} /></>}
+    {ready && <p role="status" className="mb-3 text-sm leading-relaxed text-app-muted">{copy[download.state]}</p>}
+    {error && <p role="alert" className="mb-3 rounded-xl border border-line bg-surface-2 p-3 text-sm leading-relaxed text-app-ink">{copy[error]}</p>}
+    <button type="button" data-update-primary={autoFocus || undefined} autoFocus={autoFocus} disabled={busy} onClick={pending ? cancel : ready ? install : start} className={`tap app-update-action-button ${pending ? 'app-secondary-button' : 'app-primary-button'} w-full`}>
       {busy ? copy.opening : pending ? copy.cancel : ready ? copy.install : download.state === 'failed' ? copy.retry : copy.update}
     </button>
-    {!pending && !ready && <p className="mt-1 text-xs text-gray-400">{copy.confirmation}</p>}
+    {!pending && !ready && <p className="mt-3 text-xs leading-relaxed text-app-muted">{copy.confirmation}</p>}
   </div>
 }

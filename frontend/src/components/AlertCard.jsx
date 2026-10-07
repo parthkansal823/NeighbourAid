@@ -58,19 +58,19 @@ const URGENCY_BAR = {
 }
 
 const URGENCY_BADGE = {
-  CRITICAL: 'bg-critical text-white',
-  HIGH: 'bg-high text-gray-950',
-  MEDIUM: 'bg-medium text-gray-950',
-  LOW: 'bg-low text-gray-950',
+  CRITICAL: 'bg-red-700 text-[#fff]',
+  HIGH: 'bg-high text-[#172033]',
+  MEDIUM: 'bg-medium text-[#172033]',
+  LOW: 'bg-low text-[#172033]',
 }
 
 // Category icons live in components/icons.jsx so the card, the map pins and
 // the volunteer feed can't drift apart.
 
 function scoreBand(score, t) {
-  if (score >= 70) return { label: t('card_high_conf'), color: 'text-emerald-400', bar: 'bg-emerald-500' }
-  if (score >= 40) return { label: t('card_corroborated'), color: 'text-amber-400', bar: 'bg-amber-500' }
-  return { label: t('card_unverified'), color: 'text-gray-400', bar: 'bg-gray-500' }
+  if (score >= 70) return { label: t('card_high_conf'), color: 'text-app-ink', bar: 'bg-emerald-600' }
+  if (score >= 40) return { label: t('card_corroborated'), color: 'text-app-ink', bar: 'bg-amber-600' }
+  return { label: t('card_unverified'), color: 'text-app-muted', bar: 'bg-gray-500' }
 }
 
 // Very light script-based language detection — good enough to decide
@@ -140,16 +140,16 @@ function TranslatableText({ text, sourceLang }) {
 
   return (
     <div>
-      <p className="text-gray-200 text-sm whitespace-pre-wrap wrap-break-word">{display}</p>
+      <p className="text-[15px] leading-relaxed text-app-ink whitespace-pre-wrap wrap-break-word">{display}</p>
       {canTranslate && (
         <button
           type="button"
           onClick={toggle}
           disabled={loading}
-          className="text-[11px] text-blue-300 hover:text-blue-200 mt-1 disabled:opacity-50 inline-flex items-center gap-1"
+          className="tap mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-xs font-medium text-app-muted disabled:opacity-50"
           title={showing ? 'Show original' : `Translate to ${lang.toUpperCase()}`}
         >
-          <Globe className="h-3 w-3" aria-hidden />
+          <Globe className="h-4 w-4 shrink-0" aria-hidden />
           {loading
             ? 'translating…'
             : showing
@@ -193,7 +193,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
         type="button"
         onClick={fetchIfNeeded}
         disabled={loading}
-        className="mb-3 w-full text-xs bg-gray-900/60 hover:bg-gray-900 border border-gray-700 text-gray-300 rounded-lg py-2 transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-1.5"
+        className="tap app-secondary-button mb-3 w-full"
       >
         <ImageIcon className="h-3.5 w-3.5" aria-hidden />
         {loading
@@ -204,7 +204,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
   }
 
   if (error) {
-    return <p className="text-xs text-red-400 mb-3">{error}</p>
+    return <p role="alert" className="text-sm text-app-ink mb-3">{error}</p>
   }
 
   if (photos.length === 0) return null
@@ -217,7 +217,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
             key={i}
             type="button"
             onClick={() => setOpen(i)}
-            className="aspect-square rounded-lg overflow-hidden border border-gray-700 bg-gray-800 group relative"
+            className="aspect-square rounded-xl overflow-hidden border border-line bg-surface-2 group relative"
             aria-label={`Open photo ${i + 1}`}
           >
             <img
@@ -244,7 +244,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
           />
           <button
             onClick={() => setOpen(null)}
-            className="absolute top-4 right-4 bg-black/70 hover:bg-black text-white w-10 h-10 rounded-full flex items-center justify-center"
+            className="absolute top-4 right-4 bg-black/70 hover:bg-black text-[#fff] w-12 h-12 rounded-full flex items-center justify-center"
             aria-label="Close"
           >
             <X className="h-5 w-5" aria-hidden />
@@ -256,7 +256,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
                   e.stopPropagation()
                   setOpen((i) => (i - 1 + photos.length) % photos.length)
                 }}
-                className="absolute left-4 bg-black/70 hover:bg-black text-white w-10 h-10 rounded-full"
+                className="absolute left-4 bg-black/70 hover:bg-black text-[#fff] w-12 h-12 rounded-full"
                 aria-label="Previous"
               >
                 ‹
@@ -266,7 +266,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
                   e.stopPropagation()
                   setOpen((i) => (i + 1) % photos.length)
                 }}
-                className="absolute right-4 bg-black/70 hover:bg-black text-white w-10 h-10 rounded-full"
+                className="absolute right-4 bg-black/70 hover:bg-black text-[#fff] w-12 h-12 rounded-full"
                 aria-label="Next"
               >
                 ›
@@ -309,7 +309,7 @@ function EtaStrip({ alert, onUpdate, canEdit }) {
   if (alert.eta_minutes == null && !canEdit) return null
 
   return (
-    <div className="mt-2 mb-3 bg-blue-950/40 border border-blue-800 rounded-lg px-3 py-2 text-xs text-blue-200 flex items-center gap-2 flex-wrap">
+    <div className="mt-2 mb-3 bg-surface-2 rounded-xl px-3 py-3 text-sm text-app-ink flex items-center gap-2 flex-wrap">
       <Car className="h-4 w-4 shrink-0" aria-hidden />
       {editing ? (
         <>
@@ -319,13 +319,14 @@ function EtaStrip({ alert, onUpdate, canEdit }) {
             max={240}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className="bg-gray-900 border border-blue-700 text-blue-100 w-20 px-2 py-1 rounded-md text-xs"
+            className="app-field w-24 px-2 py-1"
+            aria-label="ETA in minutes"
           />
           <span>minutes</span>
           <button
             onClick={submit}
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded-md text-xs disabled:opacity-60"
+            className="tap app-primary-button"
           >
             {saving ? '…' : 'Save'}
           </button>
@@ -334,20 +335,20 @@ function EtaStrip({ alert, onUpdate, canEdit }) {
               setEditing(false)
               setError('')
             }}
-            className="text-blue-300 hover:text-white px-2 py-1 text-xs"
+            className="tap app-secondary-button"
           >
             Cancel
           </button>
-          {error && <span className="text-red-300 text-[11px] w-full">{error}</span>}
+          {error && <span role="alert" className="text-app-ink text-sm w-full">{error}</span>}
         </>
       ) : (
         <>
           {alert.eta_minutes != null ? (
             <span>
-              ETA: <strong className="text-blue-100">{alert.eta_minutes} min</strong>
+              ETA: <strong>{alert.eta_minutes} min</strong>
             </span>
           ) : (
-            <span className="text-blue-300">No ETA posted yet</span>
+            <span className="text-app-muted">No ETA posted yet</span>
           )}
           {canEdit && (
             <button
@@ -355,7 +356,7 @@ function EtaStrip({ alert, onUpdate, canEdit }) {
                 setValue(String(alert.eta_minutes ?? ''))
                 setEditing(true)
               }}
-              className="ml-auto text-xs underline hover:text-white"
+              className="tap app-secondary-button ml-auto"
             >
               {alert.eta_minutes != null ? 'Update' : 'Set ETA'}
             </button>
@@ -405,23 +406,23 @@ function MatchingResources({ alertId, category }) {
   if (!rows.length) return null
 
   return (
-    <div className="mt-3 rounded-lg border border-teal-500/30 bg-teal-500/5 px-3 py-2">
-      <p className="text-[10px] font-semibold uppercase tracking-widest text-teal-300">
+    <div className="mt-4 border-t border-line pt-4">
+      <p className="text-sm font-semibold text-app-ink">
         {t('match_title')}
       </p>
       <ul className="mt-1.5 space-y-1">
         {rows.map((r) => (
-          <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
-            <span className="min-w-0 truncate text-gray-200">
+          <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className="min-w-0 flex-1 break-words text-app-ink">
               {r.name}
-              <span className="ml-1.5 text-[11px] uppercase tracking-wider text-teal-400/80">
+              <span className="mt-0.5 block text-xs text-app-muted">
                 {t(`res_kind_${r.kind}`) ?? r.kind}
               </span>
             </span>
             {r.contact && (
               <a
                 href={`tel:${r.contact}`}
-                className="tap shrink-0 rounded-full bg-teal-600 px-2.5 text-[11px] text-white transition-colors hover:bg-teal-500"
+                className="tap app-secondary-button shrink-0"
               >
                 {t('responder_call')}
               </a>
@@ -567,9 +568,7 @@ export default function AlertCard({ alert, onUpdate }) {
 
   return (
     <div
-      className={`surface-card alert-enter relative overflow-hidden p-4 pl-5 sm:p-5 sm:pl-6 ${
-        isSkillMatch ? 'ring-1 ring-accent/50' : ''
-      }`}
+      className="alert-card surface-card relative min-w-0 overflow-hidden p-4 pl-5 sm:p-5 sm:pl-6"
     >
       {/* The urgency bar. aria-hidden because the badge below states the
           urgency in words — this is the same information for the eye, and
@@ -583,42 +582,50 @@ export default function AlertCard({ alert, onUpdate }) {
           not real, and someone scanning a feed at speed has to register
           that before anything else on the card. */}
       {alert.is_drill && (
-        <div className="mb-2 flex items-center gap-2 rounded-lg border border-blue-500/50 bg-blue-500/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-blue-300">
+        <div className="mb-3 flex items-center gap-2 rounded-lg border border-blue-500/50 bg-surface-2 px-3 py-2 text-sm font-semibold text-app-ink">
           <span aria-hidden>▲</span>
           <span>{t('drill_badge')}</span>
         </div>
       )}
       {isSkillMatch && (
-        <div className="mb-2 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-accent-soft text-accent border border-accent/40 px-2 py-0.5 rounded-full">
-          <Sparkles className="h-3 w-3 animate-pulse" aria-hidden /> Matches your skills
+        <div className="mb-2 mr-2 inline-flex items-center gap-1.5 text-xs font-medium text-app-muted">
+          <Sparkles className="h-4 w-4" aria-hidden /> Matches your skills
         </div>
       )}
       {alert.is_anonymous && (
-        <div className="mb-2 ml-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-widest bg-gray-800/80 text-gray-300 border border-gray-700 px-2 py-0.5 rounded-full">
-          <UserRoundX className="h-3 w-3" aria-hidden /> Anonymous tip
+        <div className="mb-2 inline-flex items-center gap-1.5 text-xs font-medium text-app-muted">
+          <UserRoundX className="h-4 w-4" aria-hidden /> Anonymous tip
         </div>
       )}
       <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           <CategoryIcon
             category={alert.category}
-            className="h-5 w-5 shrink-0 transition-transform duration-200 hover:scale-110"
+            className="h-5 w-5 shrink-0 text-app-muted"
           />
-          <span className="font-semibold capitalize text-white truncate">
+          <span className="font-semibold capitalize text-app-ink wrap-break-word">
             {t(`cat_${alert.category}`) ?? alert.category}
           </span>
         </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${URGENCY_BADGE[alert.urgency]} ${alert.urgency === 'CRITICAL' ? 'glow-red' : ''}`}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-xs font-semibold px-2 py-1 rounded-md ${URGENCY_BADGE[alert.urgency]}`}>
             {alert.urgency}
           </span>
+        </div>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-app-muted">
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 font-medium capitalize text-app-ink">
+          <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${alert.status === 'open' ? 'bg-blue-500' : alert.status === 'accepted' ? 'bg-purple-500' : 'bg-gray-500'}`} />
+          {alert.status}
+        </span>
           {/* Minutes, with the distance as the secondary figure. "4.2 km"
               tells a volunteer nothing about whether they are the right
               person to go — a 4.2 km walk is 78 minutes. "78 min" is the
               number they can act on. See backend services/dispatch.py. */}
           {typeof alert.your_eta_minutes === 'number' ? (
             <span
-              className="text-[11px] text-gray-300 bg-surface-2 border border-line px-2 py-0.5 rounded-full tabular-nums"
+              className="tabular-nums"
               title={
                 typeof alert.your_distance_km === 'number'
                   ? `${alert.your_distance_km.toFixed(1)} km away`
@@ -629,13 +636,12 @@ export default function AlertCard({ alert, onUpdate }) {
             </span>
           ) : (
             typeof alert.your_distance_km === 'number' && (
-              <span className="text-[11px] text-gray-400 bg-surface-2 border border-line px-2 py-0.5 rounded-full">
+              <span className="tabular-nums">
                 {alert.your_distance_km.toFixed(1)} km
               </span>
             )
           )}
-          <span className="text-xs text-gray-400 whitespace-nowrap tabular-nums">{createdAgo}</span>
-        </div>
+          <span className="tabular-nums">{createdAgo}</span>
       </div>
 
       <div className="mb-3">
@@ -662,18 +668,18 @@ export default function AlertCard({ alert, onUpdate }) {
       />
 
       {alert.address && (
-        <p className="text-gray-500 text-xs mb-3 flex items-start gap-1">
-          <MapPin className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
-          <span className="line-clamp-2">{alert.address}</span>
+        <p className="text-app-muted text-sm leading-relaxed mb-3 flex items-start gap-2">
+          <MapPin className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
+          <span className="min-w-0 wrap-break-word">{alert.address}</span>
         </p>
       )}
 
       <EtaStrip alert={alert} onUpdate={onUpdate} canEdit={canSetEta} />
 
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-[11px] mb-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-app-muted mb-3">
         {alert.photo_evidence_score > 0 && (
           <span
-            className="bg-emerald-900/50 border border-emerald-700 text-emerald-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1.5"
             title={t('evidence_attachment')}
           >
             <ImageIcon className="h-3 w-3" aria-hidden />
@@ -682,7 +688,7 @@ export default function AlertCard({ alert, onUpdate }) {
         )}
         {alert.vulnerability && (
           <span
-            className="bg-pink-900/50 border border-pink-700 text-pink-200 px-2 py-0.5 rounded-full capitalize inline-flex items-center gap-1"
+            className="capitalize inline-flex items-center gap-1.5"
           >
             <Dna className="h-3 w-3" aria-hidden />
             {alert.vulnerability}
@@ -690,11 +696,7 @@ export default function AlertCard({ alert, onUpdate }) {
         )}
         {alert.time_sensitivity && (
           <span
-            className={`border px-2 py-0.5 rounded-full capitalize inline-flex items-center gap-1 ${
-              alert.time_sensitivity === 'immediate'
-                ? 'bg-red-900/50 border-red-700 text-red-200'
-                : 'bg-gray-900/60 border-gray-800 text-gray-300'
-            }`}
+            className="capitalize inline-flex items-center gap-1.5"
           >
             <Clock className="h-3 w-3" aria-hidden />
             {alert.time_sensitivity}
@@ -702,14 +704,14 @@ export default function AlertCard({ alert, onUpdate }) {
         )}
         {alert.language && alert.language !== 'en' && (
           <span
-            className="bg-blue-900/40 border border-blue-800 text-blue-200 px-2 py-0.5 rounded-full uppercase"
+            className="uppercase"
           >
             {alert.language}
           </span>
         )}
         {alert.triggers?.length ? (
           <span
-            className="bg-gray-900/60 border border-gray-800 text-gray-400 px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+            className="max-w-full wrap-break-word inline-flex items-center gap-1.5"
           >
             <Tag className="h-3 w-3" aria-hidden />
             {alert.triggers.join(', ')}
@@ -717,19 +719,19 @@ export default function AlertCard({ alert, onUpdate }) {
         ) : null}
       </div>
 
-      <div className="bg-gray-900/60 border border-gray-800 rounded-lg px-3 py-2 mb-3 backdrop-blur-xs">
+      <div className="bg-surface-2 rounded-xl px-3 py-3 mb-4">
         <div className="flex items-center justify-between text-xs mb-1.5">
           <span className={`font-semibold ${band.color}`}>{band.label}</span>
-          <span className="text-gray-500 tabular-nums">{score}/100</span>
+          <span className="text-app-muted tabular-nums">{score}/100</span>
         </div>
-        <div className="w-full h-1.5 bg-gray-800/80 rounded-full overflow-hidden">
+        <div className="w-full h-1.5 bg-line rounded-full overflow-hidden">
           <div
-            className={`h-full ${band.bar} transition-[width] duration-700 ease-out`}
+            className={`h-full ${band.bar}`}
             style={{ width: `${score}%` }}
           />
         </div>
         <EvidenceSummary alert={alert} />
-        <div className="flex flex-wrap gap-3 mt-2 text-[11px] text-gray-400">
+        <div className="flex flex-wrap gap-x-3 gap-y-2 mt-3 text-xs text-app-muted">
           <span className="inline-flex items-center gap-1">
             <Users className="h-3 w-3" aria-hidden />
             {witnesses} {witnesses !== 1 ? t('card_witness_many') : t('card_witness_one')}
@@ -747,7 +749,7 @@ export default function AlertCard({ alert, onUpdate }) {
             </span>
           ) : null}
           {alert.flags > 0 && (
-            <span className="text-red-300 inline-flex items-center gap-1" title="Flagged by community">
+            <span className="inline-flex items-center gap-1" title="Flagged by community">
               <Flag className="h-3 w-3" aria-hidden />
               {alert.flags}
             </span>
@@ -755,66 +757,39 @@ export default function AlertCard({ alert, onUpdate }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 capitalize border ${
-            alert.status === 'open'
-              ? 'bg-blue-900/60 text-blue-300 border-blue-800/60'
-              : alert.status === 'accepted'
-              ? 'bg-purple-900/60 text-purple-300 border-purple-800/60'
-              : 'bg-gray-800/80 text-gray-400 border-gray-700/60'
-          }`}
-        >
-          <span
-            className={`inline-block w-1.5 h-1.5 rounded-full ${
-              alert.status === 'open'
-                ? 'bg-blue-400 animate-pulse'
-                : alert.status === 'accepted'
-                ? 'bg-purple-400 animate-pulse'
-                : 'bg-gray-500'
-            }`}
-          />
-          {alert.status}
-        </span>
-
-        <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-end">
+      <div className="alert-card-actions border-t border-line pt-3">
+        <div className="flex w-full items-center gap-2 flex-wrap">
           {user && (
             <button
               type="button"
               onClick={() => setShowUpdates((v) => !v)}
               aria-expanded={showUpdates}
               aria-controls={updatesPanelId}
-              className={`tap inline-flex items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${
-                showUpdates
-                  ? 'border-orange-500/60 bg-orange-500/10 text-orange-200'
-                  : 'border-line bg-surface-2 text-gray-200 hover:border-orange-500/50 hover:text-white'
-              }`}
+              className={`tap app-secondary-button${showUpdates ? ' bg-surface-2' : ''}`}
             >
               <MessageCircle className="h-4 w-4" aria-hidden />
               <span>{t('card_updates')}</span>
-              {updatesLoaded && <span className="rounded-full bg-black/25 px-1.5 py-0.5 text-[10px] tabular-nums">{updates.length}</span>}
+              {updatesLoaded && <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-xs tabular-nums">{updates.length}</span>}
             </button>
           )}
           <ShareAlert alert={alert} />
           <Link
             to={mapsUrl}
-            className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition-colors hover:bg-gray-800/60 inline-flex items-center gap-1"
+            className="tap app-secondary-button"
             title="Open in NeighbourAid map"
           >
             <Compass className="h-3.5 w-3.5" aria-hidden />
             {t('card_directions')}
           </Link>
           {/*
-            Styled brighter than the surrounding links because for a
-            responding volunteer this is the action, not a detail. rel
-            includes noopener: target=_blank without it hands the opened page
-            a reference back to this window.
+            rel includes noopener: target=_blank without it hands the opened
+            page a reference back to this window.
           */}
           <a
             href={navigateUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-emerald-300 hover:text-emerald-200 px-2 py-1 rounded-lg transition-colors hover:bg-emerald-500/10 inline-flex items-center gap-1"
+            className="tap app-secondary-button"
             title={t('card_navigate_tip')}
           >
             <Navigation className="h-3.5 w-3.5" aria-hidden />
@@ -824,7 +799,7 @@ export default function AlertCard({ alert, onUpdate }) {
             <button
               onClick={flag}
               disabled={loading === 'flag'}
-              className="text-xs text-gray-500 hover:text-red-400 px-2 py-1 rounded-lg transition-colors inline-flex items-center gap-1"
+              className="tap app-secondary-button"
               title="Flag as fake or spam"
             >
               <Flag className="h-3.5 w-3.5" aria-hidden />
@@ -833,8 +808,8 @@ export default function AlertCard({ alert, onUpdate }) {
           )}
           {user && !isOwn && alert.status !== 'resolved' && (
             <Button
-              size="sm"
-              variant="outline"
+              size="md"
+              variant="secondary"
               onClick={witness}
               loading={loading === 'witness'}
               title={t('card_see_too_tip')}
@@ -844,19 +819,21 @@ export default function AlertCard({ alert, onUpdate }) {
           )}
           {user?.role === 'volunteer' && alert.status === 'open' && (
             <Button
-              size="sm"
+              size="md"
               onClick={accept}
               loading={loading === 'accept'}
+              className="w-full sm:w-auto"
             >
               {t('card_accept')}
             </Button>
           )}
           {isAcceptedByMe && alert.status === 'accepted' && (
             <Button
-              size="sm"
+              size="md"
               variant="success"
               onClick={resolve}
               loading={loading === 'resolve'}
+              className="w-full sm:w-auto"
             >
               {t('card_resolve')}
             </Button>
@@ -867,32 +844,30 @@ export default function AlertCard({ alert, onUpdate }) {
       <MatchingResources alertId={alert.id} category={alert.category} />
 
       {showUpdates && (
-        <section id={updatesPanelId} aria-label={t('card_updates')} className="mt-4 rounded-2xl border border-line bg-black/20 p-3 sm:p-4">
+        <section id={updatesPanelId} aria-label={t('card_updates')} className="mt-4 border-t border-line pt-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500/10 text-orange-300">
-                <MessageCircle className="h-4 w-4" aria-hidden />
-              </div>
-              <h3 className="text-sm font-semibold text-white">{t('card_updates')}</h3>
+              <MessageCircle className="h-4 w-4 shrink-0 text-app-muted" aria-hidden />
+              <h3 className="text-sm font-semibold text-app-ink">{t('card_updates')}</h3>
             </div>
             <button
               type="button"
               onClick={() => { void fetchUpdates() }}
               disabled={loadingUpdates}
-              className="tap inline-flex shrink-0 items-center justify-center rounded-xl text-gray-300 transition-colors hover:bg-surface-2 hover:text-white disabled:opacity-50"
+              className="tap app-secondary-button h-11 w-11 shrink-0"
               aria-label={t('card_updates')}
             >
               <RefreshCw className={`h-4 w-4 ${loadingUpdates ? 'animate-spin' : ''}`} aria-hidden />
             </button>
           </div>
           {loadingUpdates ? (
-            <p role="status" className="py-2 text-xs text-gray-400">{t('card_loading_updates')}</p>
+            <p role="status" className="py-2 text-sm text-app-muted">{t('card_loading_updates')}</p>
           ) : updatesError ? (
-            <div role="alert" className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs leading-relaxed text-red-200">
+            <div role="alert" className="rounded-xl bg-surface-2 px-3 py-3 text-sm leading-relaxed text-app-ink">
               {updatesError}
             </div>
           ) : latestFirstUpdates.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-line px-3 py-3 text-xs leading-relaxed text-gray-400">{t('card_no_updates')}</p>
+            <p className="py-3 text-sm leading-relaxed text-app-muted">{t('card_no_updates')}</p>
           ) : (
             <ol className="ml-2 space-y-3 border-l border-line pl-4" aria-live="polite">
               {latestFirstUpdates.map((u, index) => (
@@ -912,27 +887,27 @@ export default function AlertCard({ alert, onUpdate }) {
                 rows={3}
                 aria-invalid={Boolean(updateError)}
                 aria-describedby={`${updateComposerId}-count${updateError ? ` ${updateComposerId}-error` : ''}`}
-                className="min-h-24 w-full resize-y rounded-xl border border-line bg-gray-950 px-3 py-2.5 text-sm leading-relaxed text-gray-100 placeholder:text-gray-500 focus:outline-hidden focus:border-orange-500"
+                className="app-field min-h-24 w-full resize-y px-3 py-2.5 leading-relaxed"
               />
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <output id={`${updateComposerId}-count`} className="text-xs tabular-nums text-gray-500">{newUpdate.length}/500</output>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                <output id={`${updateComposerId}-count`} className="text-xs tabular-nums text-app-muted">{newUpdate.length}/500</output>
                 <button
                   type="submit"
                   disabled={!canPostUpdate}
                   aria-busy={loading === 'post'}
-                  className="tap inline-flex items-center justify-center gap-1.5 rounded-xl bg-orange-500 px-4 text-sm font-semibold text-black transition-colors hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="tap app-primary-button"
                 >
                   <Send className="h-4 w-4" aria-hidden />
                   <span>{loading === 'post' ? '…' : t('card_send')}</span>
                 </button>
               </div>
-              {updateError && <p id={`${updateComposerId}-error`} role="alert" className="mt-2 text-xs leading-relaxed text-red-300">{updateError}</p>}
+              {updateError && <p id={`${updateComposerId}-error`} role="alert" className="mt-2 text-sm leading-relaxed text-app-ink">{updateError}</p>}
             </form>
           )}
         </section>
       )}
 
-      {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+      {error && <p role="alert" className="rounded-xl bg-surface-2 p-3 text-app-ink text-sm mt-3">{error}</p>}
     </div>
   )
 }
@@ -941,12 +916,12 @@ function UpdateRow({ update, latest }) {
   const updateAgo = useTimeAgo(update.created_at)
   return (
     <li className="relative text-xs">
-      <span aria-hidden className={`absolute -left-[1.34rem] top-3 h-2.5 w-2.5 rounded-full border-2 border-surface-1 ${latest ? 'bg-orange-400' : 'bg-gray-600'}`} />
-      <article className="rounded-xl border border-line bg-gray-950 px-3 py-2.5">
-        <div className="mb-1.5 flex items-start justify-between gap-2 text-gray-500">
+      <span aria-hidden className={`absolute -left-[1.34rem] top-3 h-2.5 w-2.5 rounded-full border-2 border-surface-1 ${latest ? 'bg-app-ink' : 'bg-app-muted'}`} />
+      <article className="rounded-xl bg-surface-2 px-3 py-3">
+        <div className="mb-2 flex flex-wrap items-start justify-between gap-2 text-app-muted">
           <div className="min-w-0">
-            <span className="block truncate font-medium text-gray-200">{update.author_name}</span>
-            {update.author_role && <span className="mt-0.5 inline-flex rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] capitalize text-gray-400">{update.author_role}</span>}
+            <span className="block wrap-break-word font-medium text-app-ink">{update.author_name}</span>
+            {update.author_role && <span className="mt-0.5 block text-xs capitalize text-app-muted">{update.author_role}</span>}
           </div>
           <span className="shrink-0 whitespace-nowrap pt-0.5">{updateAgo}</span>
         </div>

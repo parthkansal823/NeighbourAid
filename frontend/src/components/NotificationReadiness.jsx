@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { Bell, BellRing, CheckCircle2, Info, ShieldCheck } from './icons'
 import { useI18n } from '../utils/i18n'
 
@@ -56,6 +57,7 @@ export default function NotificationReadiness({
   onDisable,
 }) {
   const { t } = useI18n()
+  const titleId = useId()
   const state = result === 'unsubscribe-failed'
     ? 'stopFailed'
     : pushEnabled || result === 'ready'
@@ -73,27 +75,28 @@ export default function NotificationReadiness({
   const canEnable = pushSupported && !pushEnabled && permission !== 'denied'
 
   return (
-    <section className={`notification-readiness notification-readiness--${state}`} aria-labelledby="notification-readiness-title">
+    <section className={`notification-readiness notification-readiness--${state}`} aria-labelledby={titleId} aria-busy={busy}>
       <div className="notification-readiness-header">
         <span className="notification-readiness-icon" aria-hidden><Icon className="h-5 w-5" /></span>
         <div className="min-w-0 flex-1">
-          <div className="notification-readiness-status" aria-live="polite">
-            <span className={`notification-readiness-dot${connected ? ' is-connected' : ''}`} aria-hidden />
-            {connected ? 'Live connection' : 'Reconnecting'}
-          </div>
-          <h2 id="notification-readiness-title" className="notification-readiness-title">{title}</h2>
+          <h2 id={titleId} className="notification-readiness-title text-app-ink">{title}</h2>
         </div>
       </div>
 
       <p className="notification-readiness-copy">{state === 'blocked' ? t('vol_push_denied') : state === 'setup' ? t('vol_push_unavailable') : state === 'failed' ? t('vol_push_failed') : body}</p>
 
+      <p className="notification-readiness-status mt-3" role="status">
+        <span className={`notification-readiness-dot${connected ? ' is-connected' : ''}`} aria-hidden />
+        {connected ? 'Live connection' : 'Reconnecting'}
+      </p>
+
       {pushEnabled && (
-        <button type="button" onClick={onDisable} disabled={busy} className="tap notification-readiness-secondary">
+        <button type="button" onClick={onDisable} disabled={busy} className="tap app-secondary-button notification-readiness-secondary w-full sm:w-auto">
           {busy ? 'Turning off…' : 'Turn off background alerts'}
         </button>
       )}
       {canEnable && (
-        <button type="button" onClick={onEnable} disabled={busy} className="tap notification-readiness-primary">
+        <button type="button" onClick={onEnable} disabled={busy} className="tap app-primary-button notification-readiness-primary w-full sm:w-auto">
           <BellRing className="h-4 w-4" aria-hidden />
           {busy ? t('vol_enabling') : result === 'failed' ? 'Try again' : t('vol_enable')}
         </button>

@@ -49,7 +49,8 @@ describe('<Button />', () => {
     const primary = screen.getByRole('button').className
 
     expect(danger).not.toEqual(primary)
-    expect(danger).toMatch(/critical|red/)
+    expect(danger).toContain('app-danger-button')
+    expect(primary).toContain('app-primary-button')
   })
 
   it('every size clears the 44px tap floor', () => {

@@ -1,13 +1,13 @@
 @import 'tailwindcss';
 
-/* Installed app only. Web (including phone browsers and demo) keeps its UI. */
+/* One compact shell for Android and narrow web screens. */
 .native-app {
   --app-safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
   --app-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   --app-safe-left: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
   --app-safe-right: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
-  --app-header-height: calc(4rem + var(--app-safe-top));
-  --app-nav-height: calc(4.5rem + var(--app-safe-bottom));
+  --app-header-height: calc(3.5rem + var(--app-safe-top));
+  --app-nav-height: calc(4rem + var(--app-safe-bottom));
   min-height: 100dvh;
   background: var(--color-surface);
   color-scheme: inherit;
@@ -16,9 +16,9 @@
 .native-app .app-header > div { padding-left: max(.75rem, var(--app-safe-left)); padding-right: max(.75rem, var(--app-safe-right)); }
 .native-app .app-content { padding-bottom: calc(var(--app-nav-height) + 1rem); }
 .native-app .app-content { padding-left: var(--app-safe-left); padding-right: var(--app-safe-right); }
-.native-app .app-content h1 { font-size: clamp(1.5rem, 5vw, 1.875rem); line-height: 1.25; }
+.native-app .app-content h1 { font-size: clamp(1.375rem, 4vw, 1.625rem); line-height: 1.3; }
 .native-app .app-content :is(input, select, textarea):not([type='checkbox']):not([type='radio']) { font-size: 16px; min-height: 48px; background-color: var(--color-surface-1); border-color: var(--color-line); }
-.native-app .app-content :is(h1, h2, h3, p, dd) { overflow-wrap: anywhere; }
+.native-app .app-content :is(h1, h2, h3, p, dd) { overflow-wrap: break-word; }
 .native-app .mobile-nav[hidden] { display: none; }
 .native-app .mobile-nav { padding-left: max(.5rem, var(--app-safe-left)); padding-right: max(.5rem, var(--app-safe-right)); padding-bottom: var(--app-safe-bottom); }
 .native-app .page-panel { padding-top: 1.5rem; }
@@ -80,7 +80,8 @@
 .native-app .map-expanded::before { content: ''; position: absolute; inset-inline: 0; top: 0; height: var(--app-safe-top); background: var(--color-surface); z-index: 1000; pointer-events: none; }
 
 @theme {
-  --color-critical: #ef4444;
+  --font-sans: 'Roboto', 'Segoe UI', system-ui, sans-serif;
+  --color-critical: #dc2626;
   --color-high: #f97316;
   --color-medium: #eab308;
   --color-low: #22c55e;
@@ -144,14 +145,19 @@
    surface instead of a dark page with a pale body behind it. */
 :root {
   color-scheme: light;
-  --app-ink: #172033;
-  --app-muted: #526176;
-  --app-glass: rgb(244 247 251 / 0.94);
+  --app-ink: #18212b;
+  --app-muted: #596879;
+  --app-on-accent: #ffffff;
+  --app-danger: #b42318;
+  --app-success: #166534;
+  --app-warning: #854d0e;
+  --app-info: #1d4ed8;
+  --app-glass: rgb(245 247 250 / 0.97);
   --app-shadow-float: 0 16px 48px -12px rgb(31 45 61 / 0.18);
-  --color-surface: #f4f7fb;
+  --color-surface: #f5f7fa;
   --color-surface-1: #ffffff;
-  --color-surface-2: #eaf0f6;
-  --color-line: #d8e1ea;
+  --color-surface-2: #edf1f5;
+  --color-line: #dce2e9;
   --color-accent: #c45116;
   --color-accent-soft: #c451161a;
   --color-gray-950: #f4f7fb;
@@ -159,7 +165,7 @@
   --color-gray-800: #e3eaf1;
   --color-gray-700: #cbd5e1;
   --color-gray-600: #94a3b8;
-  --color-gray-500: #64748b;
+  --color-gray-500: #596879;
   --color-gray-400: #4b5b70;
   --color-gray-300: #334155;
   --color-gray-200: #d8e1ea;
@@ -169,15 +175,20 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --app-ink: #f8fafc;
-    --app-muted: #9ca3af;
-    --app-glass: rgb(16 16 16 / 0.94);
+    --app-ink: #f2f5f8;
+    --app-muted: #a6b3c2;
+    --app-on-accent: #18212b;
+    --app-danger: #fca5a5;
+    --app-success: #86efac;
+    --app-warning: #fcd34d;
+    --app-info: #93c5fd;
+    --app-glass: rgb(18 24 32 / 0.97);
     --app-shadow-float: 0 16px 48px -12px rgb(0 0 0 / 0.65);
-    --color-surface: #101010;
-    --color-surface-1: #171717;
-    --color-surface-2: #222222;
-    --color-line: #343434;
-    --color-accent: #f97316;
+    --color-surface: #121820;
+    --color-surface-1: #1b2430;
+    --color-surface-2: #273240;
+    --color-line: #364353;
+    --color-accent: #fb923c;
     --color-accent-soft: #f973161f;
     --color-gray-950: oklch(13% .028 261.692);
     --color-gray-900: oklch(21% .034 264.665);
@@ -194,15 +205,20 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --app-ink: #f8fafc;
-  --app-muted: #9ca3af;
-  --app-glass: rgb(16 16 16 / 0.94);
+  --app-ink: #f2f5f8;
+  --app-muted: #a6b3c2;
+  --app-on-accent: #18212b;
+  --app-danger: #fca5a5;
+  --app-success: #86efac;
+  --app-warning: #fcd34d;
+  --app-info: #93c5fd;
+  --app-glass: rgb(18 24 32 / 0.97);
   --app-shadow-float: 0 16px 48px -12px rgb(0 0 0 / 0.65);
-  --color-surface: #101010;
-  --color-surface-1: #171717;
-  --color-surface-2: #222222;
-  --color-line: #343434;
-  --color-accent: #f97316;
+  --color-surface: #121820;
+  --color-surface-1: #1b2430;
+  --color-surface-2: #273240;
+  --color-line: #364353;
+  --color-accent: #fb923c;
   --color-accent-soft: #f973161f;
   --color-gray-950: oklch(13% .028 261.692);
   --color-gray-900: oklch(21% .034 264.665);
@@ -214,6 +230,74 @@
   --color-gray-300: oklch(87.2% .01 258.338);
   --color-gray-200: oklch(92.8% .006 264.531);
   --color-gray-100: oklch(96.7% .003 264.542);
+}
+
+@theme inline {
+  --color-app-ink: var(--app-ink);
+  --color-app-muted: var(--app-muted);
+}
+
+/* Semantic controls: a field, a choice, and an action mean the same thing
+   on every route. Their text never depends on an inverted grey palette. */
+.app-field {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: .75rem .875rem;
+  border: 1px solid var(--color-line);
+  border-radius: .75rem;
+  color: var(--app-ink);
+  background: var(--color-surface-1);
+  font-size: 1rem;
+  line-height: 1.5;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+.app-field::placeholder { color: var(--app-muted); opacity: .85; }
+.app-field:focus { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.app-field:disabled { opacity: .65; }
+.app-form-label { display: block; margin-bottom: .5rem; color: var(--app-ink); font-size: .875rem; font-weight: 500; }
+.app-primary-button, .app-secondary-button, .app-danger-button, .app-choice-button {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 3rem;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  padding: .75rem 1rem;
+  border: 1px solid transparent;
+  border-radius: .75rem;
+  font-size: .9375rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: break-word;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+.app-primary-button { background: var(--color-accent); color: var(--app-on-accent); }
+.app-danger-button { background: #b42318; color: #fff; }
+.app-primary-button:hover, .app-danger-button:hover { filter: brightness(.94); }
+.app-primary-button:active, .app-danger-button:active { filter: brightness(.88); }
+.app-secondary-button, .app-choice-button { border-color: var(--color-line); background: var(--color-surface-1); color: var(--app-ink); }
+.app-secondary-button:hover, .app-choice-button:hover { background: var(--color-surface-2); }
+.app-choice-button[aria-pressed='true'] { border-color: var(--app-ink); background: var(--color-surface-2); }
+:is(.app-primary-button, .app-secondary-button, .app-danger-button, .app-choice-button):disabled { cursor: not-allowed; opacity: .55; }
+.app-feedback-error, .app-feedback-success {
+  padding: .875rem 1rem;
+  border: 1px solid currentColor;
+  border-radius: .75rem;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+.app-feedback-error { color: var(--app-danger); background: color-mix(in srgb, var(--app-danger) 5%, var(--color-surface-1)); }
+.app-feedback-success { color: var(--app-success); background: color-mix(in srgb, var(--app-success) 5%, var(--color-surface-1)); }
+.app-auth-page { display: flex; min-height: calc(100dvh - 5rem); justify-content: center; align-items: flex-start; padding: 2rem 1rem; }
+.app-auth-panel { width: 100%; max-width: 28rem; padding: 1.5rem; border: 1px solid var(--color-line); border-radius: 1rem; background: var(--color-surface-1); }
+.native-app .app-auth-page { min-height: calc(100dvh - var(--app-header-height) - var(--app-nav-height)); }
+.native-app .app-auth-panel { padding: .25rem 0; border: 0; border-radius: 0; background: transparent; }
+@media (max-width: 639px) {
+  .app-auth-page { padding: 1.5rem 1rem; }
+  .app-auth-panel { padding: .25rem 0; border: 0; border-radius: 0; background: transparent; }
 }
 
 /* ---- A new alert arriving --------------------------------------------
@@ -706,34 +790,50 @@
   animation: toast-out 0.22s ease-in;
 }
 
-/* Light mode has semantic ink rather than inverted dark-mode text. The
-   project predates the theme system and uses text-white liberally for page
-   headings, so this small compatibility bridge makes every existing screen
-   legible while preserving white labels on high-signal action buttons. */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme='dark']) .text-white { color: var(--app-ink); }
-  :root:not([data-theme='dark']) .bg-black { background-color: var(--color-surface); }
-  :root:not([data-theme='dark']) :is(.bg-red-500, .bg-red-600, .bg-orange-500, .bg-orange-600, .bg-green-600, .bg-teal-600, .bg-blue-600, .bg-purple-600, [class*='bg-black/']).text-white { color: #fff; }
+/* Legacy utilities are split by purpose. Inverting the grey *variable*
+   changed both borders and text: descriptions became pale-on-pale, and
+   text-gray-950 became white on orange. Keep surface tokens separate. */
+.text-white, .text-gray-100, .text-gray-200 { color: var(--app-ink); }
+.text-gray-400, .text-gray-500, .text-gray-600 { color: var(--app-muted); }
+.text-gray-950 { color: #111827; }
+:is(.text-red-200, .text-red-300, .text-red-400) { color: var(--app-danger); }
+:is(.text-orange-200, .text-orange-300, .text-orange-400) { color: var(--color-accent); }
+:is(.text-amber-200, .text-amber-300, .text-amber-400, .text-yellow-300, .text-yellow-400) { color: var(--app-warning); }
+:is(.text-green-300, .text-green-400, .text-emerald-300, .text-emerald-400) { color: var(--app-success); }
+:is(.text-blue-200, .text-blue-300, .text-blue-400) { color: var(--app-info); }
+:is(.bg-critical, .bg-red-500, .bg-red-600, .bg-red-700).text-white { color: #fff; background-color: #b42318; }
+:is(.bg-orange-500, .bg-orange-600, .bg-high, .bg-medium, .bg-low, .bg-green-500, .bg-yellow-500).text-white { color: #111827; }
+:is(.bg-blue-600, .bg-green-600, .bg-teal-600, .bg-purple-600, [class*='bg-black/']).text-white { color: #fff; }
+:is(input, textarea)::placeholder { color: var(--app-muted); opacity: .8; }
+:is(.web-content, .app-content) [class*='bg-red-950/'] { background: color-mix(in srgb, var(--app-danger) 7%, var(--color-surface-1)); border-color: color-mix(in srgb, var(--app-danger) 45%, var(--color-line)); }
+:is(.web-content, .app-content) [class*='bg-amber-950/'] { background: color-mix(in srgb, var(--app-warning) 7%, var(--color-surface-1)); border-color: color-mix(in srgb, var(--app-warning) 40%, var(--color-line)); }
+:is(.web-content, .app-content) [class*='bg-blue-950/'] { background: color-mix(in srgb, var(--app-info) 7%, var(--color-surface-1)); border-color: color-mix(in srgb, var(--app-info) 40%, var(--color-line)); }
+.text-amber-200\/80, .text-amber-300\/80, .text-amber-300\/90, .text-amber-400\/90 { color: var(--app-warning); }
+.report-help-actions > button { min-height: 2.75rem; color: var(--app-ink); background: var(--color-surface-1); border-color: var(--color-line); }
+.report-voice-actions > button { flex: 1 1 10rem; }
+.report-form-panel { min-width: 0; }
+@media (min-width: 640px) {
+  .report-form-panel { padding: 1.5rem; border: 1px solid var(--color-line); border-radius: 1rem; background: var(--color-surface-1); }
 }
-
-:root[data-theme='light'] .text-white { color: var(--app-ink); }
-:root[data-theme='light'] .bg-black { background-color: var(--color-surface); }
-:root[data-theme='light'] :is(.bg-red-500, .bg-red-600, .bg-orange-500, .bg-orange-600, .bg-green-600, .bg-teal-600, .bg-blue-600, .bg-purple-600, [class*='bg-black/']).text-white { color: #fff; }
+.map-toolbar :is(.app-secondary-button, .app-choice-button) { min-height: 2.75rem; padding: .5rem .75rem; font-size: .8125rem; }
+.map-compact .map-toolbar { max-height: min(50%, 19rem); }
 
 /* Shared app-shell rhythm. These deliberately work for a Capacitor WebView
    and a phone browser so both feel like one product, not two layouts. */
 .native-app .app-header {
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: var(--color-surface);
 }
 
 .native-app .mobile-nav {
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
-  box-shadow: 0 -10px 28px rgb(15 23 42 / 0.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: var(--color-surface-1);
 }
+
+.native-emergency-button { color: var(--app-danger); }
+.native-emergency-button:hover { background: color-mix(in srgb, var(--app-danger) 7%, var(--color-surface)); }
+.native-tab > svg { width: 3rem; height: 1.75rem; padding: .25rem .875rem; border-radius: 999px; }
+.native-tab-active > svg, .native-tab-action > svg { background: var(--color-accent-soft); }
+.native-tab-active { font-weight: 600; }
+.native-more-menu { max-width: 40rem; margin-left: auto; }
 
 .native-app .page-panel,
 .native-app .app-updates-page {
@@ -765,7 +865,7 @@
 }
 
 .app-update-hero {
-  background: linear-gradient(135deg, var(--color-accent-soft), transparent 65%);
+  background: transparent;
   border-bottom: 1px solid var(--color-line);
 }
 
@@ -805,12 +905,12 @@
 }
 
 .app-primary-action {
-  color: #fff;
+  color: var(--app-on-accent);
   background: var(--color-accent);
   transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-spring);
 }
 
-.app-primary-action:hover { background: color-mix(in srgb, var(--color-accent) 86%, white); }
+.app-primary-action:hover { filter: brightness(.94); }
 .app-primary-action:active { transform: scale(.98); }
 
 .app-update-nudge { transition: background-color var(--duration-fast) var(--ease-out); }
@@ -827,10 +927,7 @@
   min-height: 100dvh;
   overflow: auto;
   color: var(--app-ink);
-  background:
-    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 28rem),
-    radial-gradient(circle at 8% 92%, color-mix(in srgb, var(--color-brand) 10%, transparent), transparent 24rem),
-    var(--color-surface);
+  background: var(--color-surface);
 }
 
 .app-update-prompt {
@@ -849,25 +946,13 @@
 }
 
 .app-update-prompt::after {
-  position: absolute;
-  z-index: -1;
-  top: 13%;
-  left: 50%;
-  width: min(80vw, 32rem);
-  aspect-ratio: 1;
-  content: '';
-  pointer-events: none;
-  border-radius: 999px;
-  opacity: .52;
-  filter: blur(36px);
-  transform: translateX(-50%);
-  background: color-mix(in srgb, var(--color-accent-soft) 75%, transparent);
+  content: none;
 }
 
 .app-update-prompt-topline,
 .app-update-prompt-footer {
   display: flex;
-  width: min(100%, 34rem);
+  width: min(100%, 30rem);
   margin-right: auto;
   margin-left: auto;
   align-items: center;
@@ -886,12 +971,7 @@
 }
 
 .app-update-prompt-pulse {
-  width: .5rem;
-  height: .5rem;
-  border-radius: 999px;
-  background: var(--color-accent);
-  box-shadow: 0 0 0 .28rem color-mix(in srgb, var(--color-accent) 20%, transparent);
-  animation: app-update-pulse 2.4s var(--ease-out) infinite;
+  display: none;
 }
 
 .app-update-prompt-close {
@@ -915,37 +995,36 @@
 
 .app-update-prompt-main {
   display: flex;
-  width: min(100%, 34rem);
+  width: min(100%, 30rem);
   margin: auto;
-  padding: 2.5rem 0;
+  padding: 2rem 0;
   flex-direction: column;
   align-items: flex-start;
 }
 
 .app-update-prompt-icon {
   display: inline-flex;
-  width: 5rem;
-  height: 5rem;
-  margin-bottom: 1.75rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: 1rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid color-mix(in srgb, var(--color-accent) 34%, transparent);
-  border-radius: 1.5rem;
+  border: 0;
+  border-radius: .75rem;
   color: var(--color-accent);
   background: color-mix(in srgb, var(--color-accent-soft) 86%, transparent);
-  box-shadow: 0 1.125rem 2.5rem -1.5rem color-mix(in srgb, var(--color-accent) 52%, transparent);
 }
 
 .app-update-prompt-eyebrow { color: var(--color-accent); }
 
 .app-update-prompt-title {
-  max-width: 12ch;
+  max-width: 100%;
   margin: .75rem 0 0;
   color: var(--app-ink);
-  font-size: clamp(2rem, 8vw, 3.25rem);
-  font-weight: 760;
-  line-height: .98;
-  letter-spacing: -.055em;
+  font-size: clamp(1.5rem, 5vw, 1.875rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -.025em;
 }
 
 .app-update-prompt-copy {
@@ -962,8 +1041,9 @@
   margin-top: 1.5rem;
   padding: .875rem 1rem;
   align-items: center;
+  justify-content: space-between;
   gap: .5rem;
-  overflow: hidden;
+  flex-wrap: wrap;
   border: 1px solid var(--color-line);
   border-radius: 1rem;
   color: var(--app-muted);
@@ -972,7 +1052,7 @@
 }
 
 .app-update-prompt-version-label { color: var(--app-muted); }
-.app-update-prompt-version strong { overflow: hidden; color: var(--app-ink); text-overflow: ellipsis; white-space: nowrap; }
+.app-update-prompt-version strong { min-width: 0; color: var(--app-ink); overflow-wrap: anywhere; }
 
 .app-update-prompt-action {
   width: 100%;
@@ -981,19 +1061,18 @@
 
 .app-update-prompt-action > div { max-width: none; }
 
-.app-update-prompt-action .app-update-action-button {
+.app-update-prompt-action .app-update-action-button.app-primary-button {
   display: inline-flex;
   width: 100%;
-  min-height: 3.25rem;
+  min-height: 3rem;
   align-items: center;
   justify-content: center;
-  border-radius: 1rem;
-  color: #fff;
+  border-radius: .75rem;
+  color: var(--app-on-accent);
   background: var(--color-accent);
-  box-shadow: 0 .875rem 1.75rem -1.15rem color-mix(in srgb, var(--color-accent) 70%, transparent);
 }
 
-.app-update-prompt-action .app-update-action-button:hover { background: color-mix(in srgb, var(--color-accent) 86%, white); }
+.app-update-prompt-action .app-update-action-button.app-primary-button:hover { filter: brightness(.94); }
 
 .app-update-prompt-assurance {
   margin: .875rem auto 0;
@@ -1005,6 +1084,7 @@
 
 .app-update-prompt-footer {
   gap: .75rem;
+  flex-wrap: wrap;
   padding-top: .5rem;
 }
 
@@ -1041,8 +1121,8 @@
 
 @media (max-height: 42rem) {
   .app-update-prompt-main { padding: 1.25rem 0; }
-  .app-update-prompt-icon { width: 4rem; height: 4rem; margin-bottom: 1rem; border-radius: 1.25rem; }
-  .app-update-prompt-title { font-size: clamp(1.85rem, 7vw, 2.5rem); }
+  .app-update-prompt-icon { width: 2.5rem; height: 2.5rem; margin-bottom: .75rem; border-radius: .75rem; }
+  .app-update-prompt-title { font-size: 1.5rem; }
   .app-update-prompt-copy { margin-top: .65rem; }
   .app-update-prompt-version { margin-top: 1rem; }
 }
@@ -1058,10 +1138,9 @@
   margin-bottom: 1.5rem;
   padding: 1rem;
   border: 1px solid var(--color-line);
-  border-radius: 1.125rem;
+  border-radius: .75rem;
   color: var(--app-ink);
   background: color-mix(in srgb, var(--color-surface-1) 92%, transparent);
-  box-shadow: 0 .875rem 2rem -1.8rem var(--app-shadow-float);
 }
 
 .notification-readiness--ready {
@@ -1147,12 +1226,11 @@
 }
 
 .notification-readiness-primary {
-  color: #fff;
+  color: var(--app-on-accent);
   background: var(--color-accent);
-  box-shadow: 0 .75rem 1.5rem -1.1rem color-mix(in srgb, var(--color-accent) 72%, transparent);
 }
 
-.notification-readiness-primary:hover { background: color-mix(in srgb, var(--color-accent) 86%, white); }
+.notification-readiness-primary:hover { filter: brightness(.94); }
 .notification-readiness-primary:active { transform: scale(.98); }
 
 .notification-readiness-secondary {
@@ -1177,17 +1255,11 @@
 }
 
 .native-home-intro::before {
-  content: '';
-  display: block;
-  width: 2.25rem;
-  height: .25rem;
-  margin-bottom: .875rem;
-  border-radius: 999px;
-  background: var(--color-accent);
+  content: none;
 }
 
 .native-home-actions > a:first-child {
-  box-shadow: 0 10px 22px -12px color-mix(in srgb, currentColor 35%, transparent);
+  box-shadow: none;
 }
 
 .native-home-callout,

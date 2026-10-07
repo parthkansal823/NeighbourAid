@@ -6,13 +6,13 @@ import { latestAppUpdate } from '../utils/appUpdate'
 import { useI18n } from '../utils/i18n'
 import { listenForUpdateTap, notifyAppUpdate } from '../utils/updateNotification'
 import AndroidUpdateAction from './AndroidUpdateAction'
-import { ArrowRight, RefreshCw, ShieldCheck, X } from './icons'
+import { RefreshCw, X } from './icons'
 
 const CHECK_INTERVAL = 4 * 60 * 60 * 1000
 const DISMISSED_KEY = 'neighbouraid-dismissed-release'
 
 export default function AppUpdateNotice() {
-  const { t } = useI18n()
+  const { lang, t } = useI18n()
   const [update, setUpdate] = useState(null)
   const dialogRef = useRef(null)
   const dismiss = useCallback(() => {
@@ -121,33 +121,28 @@ export default function AppUpdateNotice() {
     <div className="app-update-prompt-layer" role="presentation">
       <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="app-update-prompt-title" aria-describedby="app-update-prompt-description" tabIndex="-1" className="app-update-prompt">
         <div className="app-update-prompt-topline">
-          <span className="app-update-prompt-kicker"><span className="app-update-prompt-pulse" aria-hidden /><span>NeighbourAid</span></span>
-          <button type="button" onClick={dismiss} className="tap app-update-prompt-close" aria-label="Close update prompt" title={t('app_update_later')}><X className="h-5 w-5" aria-hidden /></button>
+          <span className="text-sm font-semibold text-app-ink">NeighbourAid</span>
+          <button type="button" onClick={dismiss} className="tap app-update-prompt-close" aria-label={lang === 'hi' ? 'अपडेट स्क्रीन बंद करें' : 'Close update prompt'} title={t('app_update_later')}><X className="h-5 w-5" aria-hidden /></button>
         </div>
 
         <div className="app-update-prompt-main">
-          <div className="app-update-prompt-icon" aria-hidden><RefreshCw className="h-8 w-8" /></div>
-          <p className="app-update-prompt-eyebrow"><ShieldCheck className="h-4 w-4" aria-hidden /> Verified app release</p>
+          <div className="app-update-prompt-icon" aria-hidden><RefreshCw className="h-5 w-5" /></div>
           <h1 id="app-update-prompt-title" className="app-update-prompt-title">{t('app_update_title')}</h1>
           <p id="app-update-prompt-description" className="app-update-prompt-copy">{t('app_update_body').replace('{version}', update.versionName)}</p>
 
-          <div className="app-update-prompt-version" aria-label={`New version ${update.versionName}`}>
-            <span className="app-update-prompt-version-label">New version</span>
+          <div className="app-update-prompt-version">
+            <span className="app-update-prompt-version-label">{lang === 'hi' ? 'नया संस्करण' : 'New version'}</span>
             <strong>{update.versionName}</strong>
-            <span>•</span>
-            <span>Signed release</span>
           </div>
 
           <div className="app-update-prompt-action">
             <AndroidUpdateAction update={update} autoFocus />
           </div>
-          <p className="app-update-prompt-assurance">The download stays in NeighbourAid. Android will always ask you before installation.</p>
         </div>
 
         <div className="app-update-prompt-footer">
-          <Link to="/app-updates" onClick={() => setUpdate(null)} className="tap app-update-prompt-details">
-            <span><RefreshCw className="h-4 w-4" aria-hidden /> View update details</span>
-            <ArrowRight className="h-4 w-4" aria-hidden />
+          <Link to="/app-updates" onClick={() => setUpdate(null)} className="tap app-update-prompt-details" aria-label={lang === 'hi' ? 'अपडेट की जानकारी देखें' : 'View update details'}>
+            {t('app_update_details')}
           </Link>
           <button type="button" onClick={dismiss} className="tap app-update-prompt-later">{t('app_update_later')}</button>
         </div>

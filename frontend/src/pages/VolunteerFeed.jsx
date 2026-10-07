@@ -322,37 +322,30 @@ export default function VolunteerFeed() {
 
   return (
     <div className="page-panel max-w-2xl mx-auto px-4 py-6 sm:py-8">
-      <div className="flex items-center justify-between mb-5 sm:mb-6 gap-3 reveal-up">
+      <div className="flex flex-wrap items-center justify-between mb-5 sm:mb-6 gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">{t('vol_title')}</h1>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1">{t('vol_subtitle')}</p>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-app-ink">{t('vol_title')}</h1>
+          <p className="text-app-muted text-sm leading-relaxed mt-2">{t('vol_subtitle')}</p>
         </div>
         <div
-          className={`flex items-center gap-2 shrink-0 px-2.5 py-1 rounded-full border transition-colors ${
-            connected
-              ? 'border-emerald-700/60 bg-emerald-950/40'
-              : 'border-gray-700 bg-gray-900/60'
-          }`}
+          className="flex items-center gap-2 py-1 text-app-muted"
           aria-live="polite"
         >
           <span className="relative flex h-2 w-2" aria-hidden>
-            {connected && (
-              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-            )}
             <span
               className={`relative inline-flex rounded-full h-2 w-2 ${
-                connected ? 'bg-emerald-400' : 'bg-gray-500'
+                connected ? 'bg-emerald-500' : 'bg-gray-500'
               }`}
             />
           </span>
-          <span className={`text-xs capitalize ${connected ? 'text-emerald-300' : 'text-gray-400'}`}>
+          <span className="text-xs capitalize">
             {connected ? t('vol_live') : status}
           </span>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
+        <div role="alert" className="bg-surface-2 border border-line text-app-ink text-sm rounded-xl px-4 py-3 mb-6 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>
@@ -373,11 +366,8 @@ export default function VolunteerFeed() {
         <button
           type="button"
           onClick={() => voiceAlert.setEnabled((v) => !v)}
-          className={`text-[11px] mb-4 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border transition-colors duration-200 ${
-            voiceAlert.enabled
-              ? 'border-blue-700 bg-blue-950/40 text-blue-300'
-              : 'border-gray-700 text-gray-500 hover:text-gray-300 hover:border-blue-500/40'
-          }`}
+          className="tap app-secondary-button mb-4"
+          aria-pressed={voiceAlert.enabled}
           title="Read out CRITICAL alerts via your device's voice"
         >
           {voiceAlert.enabled ? (
@@ -400,9 +390,9 @@ export default function VolunteerFeed() {
       ) : (
         <>
           <div role="search" aria-label={t('vol_search')} className="mb-6 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,12rem)]">
               <div className="min-w-0">
-                <label htmlFor="volunteer-search" className="mb-1.5 block text-sm text-gray-300">
+                <label htmlFor="volunteer-search" className="mb-1.5 block text-sm font-medium text-app-ink">
                   {t('vol_search')}
                 </label>
                 <input
@@ -413,11 +403,11 @@ export default function VolunteerFeed() {
                   placeholder={t('vol_search_placeholder')}
                   aria-controls="volunteer-results"
                   aria-describedby="volunteer-critical-note"
-                  className="tap w-full rounded-lg border border-line bg-black px-3 py-2 text-base text-white placeholder:text-gray-400 focus:border-accent"
+                  className="app-field w-full px-3 py-2"
                 />
               </div>
               <div className="min-w-0">
-                <label htmlFor="volunteer-view" className="mb-1.5 block text-sm text-gray-300">
+                <label htmlFor="volunteer-view" className="mb-1.5 block text-sm font-medium text-app-ink">
                   {t('vol_filter_view')}
                 </label>
                 <select
@@ -426,7 +416,7 @@ export default function VolunteerFeed() {
                   onChange={(e) => setScope(e.target.value)}
                   aria-controls="volunteer-results"
                   aria-describedby="volunteer-critical-note"
-                  className="tap w-full rounded-lg border border-line bg-black px-3 py-2 text-base text-white focus:border-accent sm:max-w-60"
+                  className="app-field w-full px-3 py-2"
                 >
                   {['all', 'open', 'mine'].map((view) => (
                     <option key={view} value={view}>{t(`vol_filter_${view}`)}</option>
@@ -434,19 +424,19 @@ export default function VolunteerFeed() {
                 </select>
               </div>
             </div>
-            <p id="volunteer-critical-note" className="flex items-center gap-2 text-sm text-orange-400">
+            <p id="volunteer-critical-note" className="flex items-center gap-2 text-xs leading-relaxed text-app-muted">
               <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
               {t('vol_critical_visible')}
             </p>
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-              <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-gray-300 tabular-nums">
+              <p role="status" aria-live="polite" aria-atomic="true" className="text-sm text-app-muted tabular-nums">
                 {t('vol_results').replace('{shown}', visibleAlerts.length).replace('{total}', availableAlerts.length)}
               </p>
               <button
                 type="button"
                 onClick={clearFilters}
                 disabled={!hasFilters}
-                className="tap rounded-lg px-3 text-sm text-orange-400 hover:bg-white/5 disabled:text-gray-500"
+                className="tap app-secondary-button"
               >
                 {t('vol_clear_filters')}
               </button>
@@ -460,7 +450,7 @@ export default function VolunteerFeed() {
 
             {criticalInProgress.length > 0 && (
               <section className="mb-8">
-                <h2 className="text-sm font-semibold text-orange-400 mb-3">
+                <h2 className="text-base font-semibold text-app-ink mb-3">
                   {t('vol_critical_in_progress')} — <span className="tabular-nums">{criticalInProgress.length}</span>
                 </h2>
                 <div className="space-y-3">
@@ -472,8 +462,8 @@ export default function VolunteerFeed() {
             )}
 
             {(openAlerts.length > 0 || !hasFilters) && (
-              <section className="mb-8 reveal-up stagger-2">
-                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3">
+              <section className="mb-8">
+                <h2 className="text-base font-semibold text-app-ink mb-3">
                   {t('vol_open')} — <span className="tabular-nums">{openAlerts.length}</span>
                 </h2>
                 {openAlerts.length === 0 ? (
@@ -493,8 +483,8 @@ export default function VolunteerFeed() {
             )}
 
             {acceptedAlerts.length > 0 && (
-              <section className="reveal-up stagger-3">
-                <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3">
+              <section>
+                <h2 className="text-base font-semibold text-app-ink mb-3">
                   {t('vol_active')} — <span className="tabular-nums">{acceptedAlerts.length}</span>
                 </h2>
                 <div className="space-y-3">

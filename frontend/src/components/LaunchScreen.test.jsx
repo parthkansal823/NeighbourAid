@@ -23,6 +23,16 @@ describe('LaunchScreen', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
+  it('replaces the boot splash without drawing duplicate branding', () => {
+    const splash = document.createElement('div')
+    splash.id = 'boot-splash'
+    splash.textContent = 'NeighbourAid'
+    document.body.append(splash)
+    render(<LaunchScreen />)
+    expect(document.getElementById('boot-splash')).toBeNull()
+    expect(screen.getAllByText('NeighbourAid')).toHaveLength(1)
+  })
+
   it('lets a keyboard user skip the transition with Escape', () => {
     render(<LaunchScreen />)
     fireEvent.keyDown(window, { key: 'Escape' })

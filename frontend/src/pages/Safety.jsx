@@ -12,11 +12,11 @@ import DoctorReviewPanel from '../components/DoctorReviewPanel'
 import { useTimeAgo } from '../hooks/useTimeAgo'
 
 const STATUS_STYLE = {
-  safe: 'bg-green-900/50 text-green-300 border-green-700/70',
-  need_help: 'bg-red-900/50 text-red-300 border-red-700/70',
+  safe: 'app-feedback-success',
+  need_help: 'app-feedback-error',
 }
 
-function CheckinRow({ checkin, index = 0 }) {
+function CheckinRow({ checkin }) {
   const ago = useTimeAgo(checkin.created_at)
   const lat = checkin.location?.coordinates?.[1]
   const lng = checkin.location?.coordinates?.[0]
@@ -24,20 +24,19 @@ function CheckinRow({ checkin, index = 0 }) {
 
   return (
     <li
-      className={`border rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 transition-colors duration-200 reveal-up ${STATUS_STYLE[checkin.status]}`}
-      style={{ animationDelay: `${index * 50}ms` }}
+      className={`rounded-xl px-3 sm:px-4 py-3 ${STATUS_STYLE[checkin.status]}`}
     >
-      <div className="flex items-center justify-between text-sm gap-2">
-        <span className="font-semibold truncate">
-          {checkin.status === 'safe' ? 'Safe' : 'Needs help'} . {checkin.user_name}
+      <div className="flex flex-wrap items-start justify-between text-sm gap-2">
+        <span className="font-semibold min-w-0 wrap-break-word">
+          {checkin.status === 'safe' ? 'Safe' : 'Needs help'}: {checkin.user_name}
         </span>
-        <span className="text-xs text-gray-400 shrink-0 tabular-nums">{ago}</span>
+        <span className="text-xs text-app-muted shrink-0 tabular-nums">{ago}</span>
       </div>
       {checkin.note && <p className="text-sm mt-1 wrap-break-word">{checkin.note}</p>}
       {directions && (
         <Link
           to={directions}
-          className="inline-flex mt-2 text-xs text-blue-200 hover:text-white underline-offset-2 hover:underline"
+          className="inline-flex min-h-11 items-center mt-1 text-sm text-app-ink underline underline-offset-4"
         >
           Open on map
         </Link>
@@ -166,11 +165,11 @@ export default function Safety() {
 
   return (
     <div className="page-panel max-w-2xl mx-auto px-4 py-6 sm:py-8">
-      <div className="mb-5 sm:mb-6 reveal-up">
+      <div className="mb-5 sm:mb-6">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">{t('safety_title')}</h1>
-            <p className="text-gray-400 text-sm mt-1">{t('safety_subtitle')}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-app-ink">{t('safety_title')}</h1>
+            <p className="text-app-muted text-sm leading-relaxed mt-2">{t('safety_subtitle')}</p>
           </div>
           <button
             type="button"
@@ -178,7 +177,8 @@ export default function Safety() {
               setRefreshing(true)
               void load()
             }}
-            className="text-xs border border-gray-700 hover:border-orange-500/50 text-gray-300 hover:text-white px-3 py-1.5 rounded-lg transition-colors duration-200"
+            disabled={loading || refreshing}
+            className="app-secondary-button text-sm px-3"
           >
             {refreshing ? 'Refreshing...' : 'Refresh'}
           </button>
@@ -188,7 +188,7 @@ export default function Safety() {
       <div className="mb-6"><FirstAidButton /></div>
       <DoctorReviewPanel />
       {usingFallbackArea && (
-        <div className="bg-amber-950/60 border border-amber-800/70 text-amber-300 text-xs rounded-lg px-4 py-2.5 mb-4 flex items-start gap-2">
+        <div role="status" className="border border-line bg-surface-1 text-app-muted text-sm leading-relaxed rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
           <MapPin className="h-4 w-4 shrink-0 mt-px" aria-hidden />
           <span>
             Showing a default area — we could not read your location. Enable
@@ -198,30 +198,30 @@ export default function Safety() {
       )}
 
       {error && (
-        <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
+        <div role="alert" className="app-feedback-error text-sm rounded-xl px-4 py-3 mb-6 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>
       )}
 
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6 reveal-up stagger-1">
-        <SummaryCard label="Nearby" value={list.length} accent="text-orange-300" />
-        <SummaryCard label="Need help" value={helpCount} accent="text-red-300" />
-        <SummaryCard label="Marked safe" value={safeCount} accent="text-emerald-300" />
-        <SummaryCard label="Visible now" value={visible.length} accent="text-blue-300" />
+      <section className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 border-y border-line py-4 mb-6">
+        <SummaryCard label="Nearby" value={list.length} />
+        <SummaryCard label="Need help" value={helpCount} />
+        <SummaryCard label="Marked safe" value={safeCount} />
+        <SummaryCard label="Visible now" value={visible.length} />
       </section>
 
       {helpCount > 0 && (
-        <div className="bg-red-950/40 border border-red-800 text-red-200 rounded-xl px-4 py-3 mb-6 reveal-up">
+        <div className="app-feedback-error rounded-xl px-4 py-3 mb-6">
           <div className="font-semibold">{helpCount} nearby check-in{helpCount !== 1 ? 's' : ''} need help right now.</div>
-          <div className="text-sm text-red-300 mt-1">
+          <div className="text-sm text-app-muted leading-relaxed mt-2">
             Open the map or resource board if you are coordinating a response.
           </div>
-          <div className="flex gap-3 mt-2 text-sm">
-            <Link to="/map" className="text-white underline-offset-2 hover:underline">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-sm">
+            <Link to="/map" className="inline-flex min-h-11 items-center text-app-ink underline underline-offset-4">
               Open map
             </Link>
-            <Link to="/resources" className="text-white underline-offset-2 hover:underline">
+            <Link to="/resources" className="inline-flex min-h-11 items-center text-app-ink underline underline-offset-4">
               View resources
             </Link>
           </div>
@@ -229,37 +229,39 @@ export default function Safety() {
       )}
 
       {user ? (
-        <section className="surface-card p-4 sm:p-5 mb-6 reveal-up stagger-1">
+        <section className="surface-card p-4 sm:p-5 mb-6">
           <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
+            <h2 className="text-base font-semibold text-app-ink">
               {t('safety_your')}
             </h2>
-            <span className="text-[11px] text-gray-500">
+            <span className="text-xs text-app-muted leading-relaxed">
               Latest check-in wins and expires automatically after 24 hours.
             </span>
           </div>
-          {me ? <MyCheckin me={me} /> : <p className="text-gray-500 text-sm mb-4">{t('safety_no_active')}</p>}
+          {me ? <MyCheckin me={me} /> : <p className="text-app-muted text-sm mb-4">{t('safety_no_active')}</p>}
           <div className="space-y-2">
+            <label htmlFor="safety-note" className="app-form-label">{t('safety_note_ph')}</label>
             <input
+              id="safety-note"
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder={t('safety_note_ph')}
               maxLength={280}
-              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 placeholder:text-gray-600"
+              className="app-field w-full"
             />
             <div className="flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => checkin('safe')}
                 disabled={!coords || !!saving}
-                className="group relative flex-1 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg hover:shadow-emerald-500/40 transition-colors duration-200 overflow-hidden"
+                className="app-secondary-button flex-1"
               >
                 <span className="relative">{saving === 'safe' ? t('safety_saving') : `Safe: ${t('safety_i_am_safe')}`}</span>
               </button>
               <button
                 onClick={() => checkin('need_help')}
                 disabled={!coords || !!saving}
-                className="group relative flex-1 bg-red-500 hover:bg-red-400 active:bg-red-600 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg hover:shadow-red-500/40 transition-colors duration-200 overflow-hidden"
+                className="app-danger-button flex-1"
               >
                 <span className="relative">{saving === 'need_help' ? t('safety_saving') : `Help: ${t('safety_i_need_help')}`}</span>
               </button>
@@ -267,18 +269,18 @@ export default function Safety() {
           </div>
         </section>
       ) : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 sm:p-5 mb-6 text-sm text-gray-400">
-          <a href="/login" className="text-orange-400 hover:text-orange-300 underline-offset-2 hover:underline">
+        <div className="border border-line bg-surface-1 rounded-xl p-4 sm:p-5 mb-6 text-sm text-app-muted leading-relaxed">
+          <Link to="/login" className="inline-flex min-h-11 items-center text-app-ink font-medium underline underline-offset-4">
             {t('safety_sign_in')}
-          </a>{' '}
+          </Link>{' '}
           {t('safety_sign_in_to')}
         </div>
       )}
 
       <section className="surface-card p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
-            {t('safety_nearby')} . <span className="tabular-nums">{visible.length}</span> {t('safety_checkins')}
+          <h2 className="text-base font-semibold text-app-ink">
+            {t('safety_nearby')} <span className="tabular-nums">({visible.length} {t('safety_checkins')})</span>
           </h2>
           <div className="flex flex-wrap gap-1.5">
             {[
@@ -290,11 +292,8 @@ export default function Safety() {
                 key={item.value}
                 type="button"
                 onClick={() => setFilter(item.value)}
-                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors duration-200 ${
-                  filter === item.value
-                    ? 'border-orange-500 bg-orange-500/15 text-orange-200'
-                    : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200'
-                }`}
+                aria-pressed={filter === item.value}
+                className="app-choice-button px-3 text-sm"
               >
                 {item.label}
               </button>
@@ -302,22 +301,24 @@ export default function Safety() {
           </div>
         </div>
 
+        <label htmlFor="safety-search" className="app-form-label">Search check-ins</label>
         <input
+          id="safety-search"
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, note, or status"
-          className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 placeholder:text-gray-600 mb-3"
+          className="app-field w-full mb-4"
         />
 
         {loading ? (
-          <p className="text-gray-500 text-sm">{t('map_loading')}</p>
+          <p role="status" className="text-app-muted text-sm">{t('map_loading')}</p>
         ) : visible.length === 0 ? (
-          <p className="text-gray-500 text-sm">{t('safety_none_yet')}</p>
+          <p className="text-app-muted text-sm leading-relaxed">{t('safety_none_yet')}</p>
         ) : (
           <ul className="space-y-2">
-            {visible.map((checkin, index) => (
-              <CheckinRow key={`${checkin.user_name}-${checkin.created_at}`} checkin={checkin} index={index} />
+            {visible.map((checkin) => (
+              <CheckinRow key={`${checkin.user_name}-${checkin.created_at}`} checkin={checkin} />
             ))}
           </ul>
         )}
@@ -331,14 +332,14 @@ function MyCheckin({ me }) {
   const ago = useTimeAgo(me.created_at)
   return (
     <div className={`border rounded-lg px-3 sm:px-4 py-3 mb-4 ${STATUS_STYLE[me.status]}`}>
-      <div className="flex items-center justify-between text-xs mb-1 gap-2">
-        <span className="font-semibold uppercase truncate">
+      <div className="flex flex-wrap items-center justify-between text-sm mb-1 gap-2">
+        <span className="font-semibold min-w-0 wrap-break-word">
           {me.status === 'safe' ? t('safety_i_am_safe') : t('safety_i_need_help')}
         </span>
-        <span className="text-gray-400 shrink-0">{ago}</span>
+        <span className="text-app-muted text-xs shrink-0">{ago}</span>
       </div>
       {me.note && <p className="text-sm mt-1 wrap-break-word">{me.note}</p>}
-      <p className="text-[11px] text-gray-400 mt-2">
+      <p className="text-xs text-app-muted leading-relaxed mt-2">
         {t('safety_expires')} {new Date(me.expires_at).toLocaleString()}
       </p>
       {me.status === 'need_help' && (
@@ -355,11 +356,11 @@ function MyCheckin({ me }) {
   )
 }
 
-function SummaryCard({ label, value, accent }) {
+function SummaryCard({ label, value }) {
   return (
-    <div className="bg-gray-900/80 border border-gray-800 rounded-xl px-3 py-3">
-      <div className={`text-xl font-semibold tabular-nums ${accent}`}>{value}</div>
-      <div className="text-[11px] uppercase tracking-widest text-gray-500 mt-1">
+    <div className="min-w-0">
+      <div className="text-xl font-semibold tabular-nums text-app-ink">{value}</div>
+      <div className="text-xs text-app-muted leading-relaxed mt-1">
         {label}
       </div>
     </div>

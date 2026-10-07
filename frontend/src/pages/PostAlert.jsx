@@ -30,8 +30,8 @@ import {
   WifiOff,
 } from '../components/icons'
 
-// Order is deliberate: life-threatening first, because this grid is scanned
-// under stress and the top-left button is the one a panicking thumb finds.
+// Order is deliberate: life-threatening categories come first in the native
+// picker, so the common emergency choices do not require a long scroll.
 // Must stay in step with AlertCategory in backend/app/models/alert.py.
 const CATEGORIES = [
   'medical',
@@ -257,32 +257,24 @@ export default function PostAlert() {
   const [lng, lat] = form.location.coordinates
 
   return (
-    <div className="auth-page relative min-h-screen flex items-start sm:items-center justify-center px-4 py-8 sm:py-12 overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-xl rounded-full bg-red-500/10 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-24 right-1/4 h-56 w-72 rounded-full bg-orange-500/10 blur-3xl"
-      />
-      <div className="relative surface-card p-5 sm:p-8 w-full max-w-lg reveal-up">
-        <div className="flex items-center gap-3 mb-2">
-          <Siren className="h-8 w-8 text-red-400 glow-red rounded-full p-0.5" aria-hidden />
-          <h1 className="text-xl sm:text-2xl font-bold text-white">{t('post_title')}</h1>
+    <div className="report-page page-panel mx-auto w-full max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="report-form-panel">
+        <div className="flex items-center gap-2.5 mb-2">
+          <Siren className="h-6 w-6 shrink-0 text-[var(--app-danger)]" aria-hidden />
+          <h1 className="text-xl sm:text-2xl font-bold text-app-ink">{t('post_title')}</h1>
         </div>
-        <p className="text-gray-400 text-sm mb-4 sm:mb-6">
+        <p className="text-app-muted text-sm leading-relaxed mb-5">
           {t('post_subtitle')}
         </p>
 
         {isAnonymous && (
-          <div className="bg-blue-950/60 border border-blue-800 text-blue-200 text-xs rounded-lg px-3 py-2.5 mb-4 flex items-start gap-2">
+          <div className="rounded-xl bg-surface-2 text-app-muted text-sm leading-relaxed px-3 py-3 mb-4 flex items-start gap-2">
             <UserRoundX className="h-4 w-4 shrink-0 mt-px" aria-hidden />
             <span>
               Posting anonymously — no account needed. Volunteers nearby are
               alerted immediately, but they won&apos;t be able to call you back
               for details.{' '}
-              <Link to="/login" className="underline hover:text-white">
+              <Link to="/login" className="font-medium text-app-ink underline underline-offset-2">
                 Sign in
               </Link>{' '}
               to track and update your alert.
@@ -291,55 +283,64 @@ export default function PostAlert() {
         )}
 
         {!online && (
-          <div className="bg-amber-950/70 border border-amber-700 text-amber-300 text-xs rounded-lg px-3 py-2 mb-4 flex items-center gap-2 pop-in">
+          <div role="status" className="rounded-xl bg-surface-2 text-[var(--app-warning)] text-sm leading-relaxed px-3 py-3 mb-4 flex items-start gap-2">
             <WifiOff className="h-4 w-4 shrink-0" aria-hidden />
             <span>Offline — your alert will be queued and sent automatically.</span>
           </div>
         )}
         {pendingCount > 0 && (
-          <div className="bg-blue-950/70 border border-blue-700 text-blue-300 text-xs rounded-lg px-3 py-2 mb-4 tabular-nums">
+          <div role="status" className="rounded-xl bg-surface-2 text-app-muted text-sm px-3 py-3 mb-4 tabular-nums">
             {pendingCount} queued alert{pendingCount !== 1 ? 's' : ''} awaiting connectivity.
           </div>
         )}
 
         {error && (
-          <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
+          <div role="alert" className="app-feedback-error mb-5 flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
             <span>{error}</span>
           </div>
         )}
 
-        <form onSubmit={submit} className="space-y-5 sm:space-y-6">
+        <div className="report-help-actions mb-5">
           <FirstAidButton />
-          <button type="button" className="tap flex w-full items-center justify-center gap-2 rounded-xl border border-orange-500/50 px-4 py-3 font-semibold text-orange-300" onClick={() => { voice.cancel(); setAssistantOpen(true) }}><Mic className="h-5 w-5" aria-hidden />{assistantCopy(lang).title}</button>
+        </div>
+
+        <form onSubmit={submit} className="space-y-6">
           {assistantOpen && <VoiceReportAssistant categories={CATEGORIES} existingDescription={form.description} isAnonymous={isAnonymous} onClose={() => setAssistantOpen(false)} onApply={draft => { setForm(old => ({ ...old, ...draft })); setAssistantOpen(false) }} />}
           <div>
-            <span id="post-category-label" className="block text-sm text-gray-400 mb-2">{t('post_category')}</span>
-            <div role="group" aria-labelledby="post-category-label" className="grid grid-cols-2 min-[400px]:grid-cols-3 gap-2">
+            <label htmlFor="post-category" className="app-form-label">{t('post_category')}</label>
+            <select
+              id="post-category"
+              value={form.category}
+              onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))}
+              className="app-field capitalize"
+            >
               {CATEGORIES.map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  aria-pressed={form.category === cat}
-                  onClick={() => setForm({ ...form, category: cat })}
-                  className={`py-2.5 rounded-lg border capitalize text-sm font-medium transition-colors duration-200 active:scale-95 ${
-                    form.category === cat
-                      ? 'border-orange-500 bg-orange-500/15 text-orange-300'
-                      : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200 hover:bg-gray-800/40'
-                  }`}
-                >
+                <option key={cat} value={cat}>
                   {t(`cat_${cat}`)}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1.5 gap-2 flex-wrap">
-              <label htmlFor="post-description" className="block text-sm text-gray-400">
+              <label htmlFor="post-description" className="app-form-label">
                 {t('post_description')}{' '}
-                <span className="text-gray-600 hidden sm:inline">{t('post_description_hint')}</span>
+                <span className="font-normal text-app-muted hidden sm:inline">{t('post_description_hint')}</span>
               </label>
+            </div>
+            <textarea
+              id="post-description"
+              required
+              rows={5}
+              maxLength={2000}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="app-field resize-y"
+              placeholder={t('post_description_placeholder')}
+            />
+            <div className="report-voice-actions mt-3 flex flex-wrap gap-2">
               {/*
                 Deliberately large. This is the accessibility path for anyone
                 who cannot type quickly or at all, pressed one-handed under
@@ -352,19 +353,22 @@ export default function PostAlert() {
                   disabled={!voice.supported || voice.status === 'stopping' || (voice.native && voice.listening)}
                   aria-pressed={voice.listening}
                   aria-describedby="voice-help"
-                  className={`min-h-11 px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
+                  className={`${
                     voice.listening
-                      ? 'border-red-500 bg-red-500/20 text-red-300 animate-pulse'
-                      : 'border-gray-600 text-gray-200 hover:border-orange-500 hover:text-orange-300 hover:bg-orange-500/5 disabled:opacity-50 disabled:cursor-not-allowed'
+                      ? 'app-danger-button animate-pulse'
+                      : 'app-secondary-button'
                   }`}
                   title={voice.listening ? t('post_voice_tip_stop') : t('post_voice_tip_start')}
                 >
                   {voice.listening ? (
-                    <MicOff className="h-5 w-5 inline-block mr-1.5 -mt-0.5" aria-hidden />
+                    <MicOff className="h-5 w-5 shrink-0" aria-hidden />
                   ) : (
-                    <Mic className="h-5 w-5 inline-block mr-1.5 -mt-0.5" aria-hidden />
+                    <Mic className="h-5 w-5 shrink-0" aria-hidden />
                   )}
                   {voice.status === 'starting' ? voiceText.starting : voice.status === 'stopping' ? voiceText.stopping : voice.listening ? t('post_voice_recording') : t('post_voice_speak')}
+                </button>
+                <button type="button" className="app-secondary-button" onClick={() => { voice.cancel(); setAssistantOpen(true) }}>
+                  <Mic className="h-5 w-5 shrink-0" aria-hidden />{assistantCopy(lang).title}
                 </button>
             </div>
 
@@ -384,34 +388,24 @@ export default function PostAlert() {
 
               An unavailable mic gets a recovery hint rather than disappearing.
             */}
-            <p id="voice-help" className="text-xs leading-relaxed text-gray-400 mb-2">
+            <p id="voice-help" className="text-xs leading-relaxed text-app-muted mt-2">
               {voice.supported ? voiceText.review : voiceErrorMessage(voice.unavailableReason, lang)}
             </p>
             {voice.supported && (
               <p
-                className={`text-[11px] leading-snug mb-1.5 ${
-                  isAnonymous ? 'text-amber-300/90' : 'text-gray-500'
+                className={`text-xs leading-relaxed mt-1.5 ${
+                  isAnonymous ? 'text-[var(--app-warning)]' : 'text-app-muted'
                 }`}
               >
                 {voice.native ? voiceText.privacy : t('post_voice_privacy')}
                 {isAnonymous && <> {t('post_voice_privacy_anon')}</>}
               </p>
             )}
-            <textarea
-              id="post-description"
-              required
-              rows={4}
-              maxLength={2000}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-3 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 resize-none text-base placeholder:text-gray-600"
-              placeholder={t('post_description_placeholder')}
-            />
-            {voice.interim && <p role="status" className="mt-2 rounded-lg border border-line p-2 text-sm text-gray-300">
-              <span className="block text-xs text-gray-400">{voiceText.preview}</span>{voice.interim}
+            {voice.interim && <p role="status" className="mt-2 rounded-lg border border-line p-3 text-sm text-app-ink">
+              <span className="block text-xs text-app-muted">{voiceText.preview}</span>{voice.interim}
             </p>}
             {voice.error && (
-              <p role="alert" className="text-xs text-red-400 mt-1 inline-flex items-center gap-1">
+              <p role="alert" className="text-xs text-[var(--app-danger)] mt-2 flex items-start gap-1.5">
                 <MicOff className="h-3.5 w-3.5" aria-hidden />
                 {voiceErrorMessage(voice.error, lang)}
               </p>
@@ -419,17 +413,17 @@ export default function PostAlert() {
           </div>
 
           <div>
-            <span id="post-photos-label" className="block text-sm text-gray-400 mb-1.5">
+            <span id="post-photos-label" className="app-form-label">
               {t('post_photos_label')}
             </span>
             <div role="group" aria-labelledby="post-photos-label" className="grid grid-cols-3 gap-2 mb-2">
               {photos.map((src, i) => (
-                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-700 bg-gray-800">
+                <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-line bg-surface-2">
                   <img src={src} alt={`upload ${i + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
-                    className="photo-remove absolute top-1 right-1 bg-black/70 hover:bg-black text-white w-6 h-6 rounded-full text-xs leading-none flex items-center justify-center"
+                    className="photo-remove absolute top-1 right-1 bg-black/70 hover:bg-black text-white h-11 w-11 rounded-full text-lg leading-none flex items-center justify-center"
                     aria-label="Remove photo"
                   >
                     ×
@@ -444,18 +438,14 @@ export default function PostAlert() {
                   type="button"
                   onClick={() => setCameraOpen(true)}
                   disabled={photoProcessing}
-                  className={`aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center text-xs transition-colors ${
-                    photoProcessing
-                      ? 'border-gray-700 text-gray-500'
-                      : 'border-gray-700 text-gray-400 hover:border-orange-500 hover:text-orange-400'
-                  }`}
+                  className="aspect-square rounded-xl border border-dashed border-line bg-surface-1 flex flex-col items-center justify-center gap-1 px-2 py-3 text-sm text-app-muted hover:text-app-ink disabled:opacity-55"
                 >
                   <Camera className="h-6 w-6 mb-1" aria-hidden />
                   {photoProcessing ? t('post_photo_processing') : t('post_photo_take')}
                 </button>
               )}
             </div>
-            <p className="text-[11px] text-gray-500">{t('post_photos_hint')}</p>
+            <p className="text-xs leading-relaxed text-app-muted">{t('post_photos_hint')}</p>
           </div>
 
           {cameraOpen && (
@@ -467,8 +457,8 @@ export default function PostAlert() {
           )}
 
           <div>
-            <label htmlFor="post-location" className="block text-sm text-gray-400 mb-1.5">{t('post_location')}</label>
-            <div className="flex gap-2">
+            <label htmlFor="post-location" className="app-form-label">{t('post_location')}</label>
+            <div className="flex flex-wrap gap-2">
               <input
                 id="post-location"
                 readOnly
@@ -479,11 +469,7 @@ export default function PostAlert() {
                       ? t('post_locating')
                       : t('post_location_placeholder')
                 }
-                className={`flex-1 min-w-0 bg-gray-800/80 border rounded-lg px-3 sm:px-4 py-2.5 text-sm transition-colors ${
-                  locationSet
-                    ? 'border-emerald-700/70 ring-1 ring-emerald-700/30 text-gray-300 tabular-nums'
-                    : 'border-amber-700/70 text-amber-300/90'
-                }`}
+                className="app-field flex-1 basis-48 tabular-nums"
               />
               {/*
                 Only shown once the automatic fix has FAILED. Location is
@@ -497,14 +483,14 @@ export default function PostAlert() {
                 <button
                   type="button"
                   onClick={detectLocation}
-                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm transition-colors duration-200 whitespace-nowrap active:scale-95"
+                  className="app-secondary-button flex-1 sm:flex-none"
                 >
                   <MapPin className="h-4 w-4 inline-block mr-1 -mt-0.5" aria-hidden />
                   {t('post_retry_location')}
                 </button>
               )}
               {locLoading && (
-                <span className="px-4 py-2.5 text-sm text-gray-400 whitespace-nowrap inline-flex items-center gap-2">
+                <span className="min-h-12 px-3 text-sm text-app-muted inline-flex items-center gap-2">
                   <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden>
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
                     <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -513,8 +499,8 @@ export default function PostAlert() {
               )}
             </div>
             {locationSet ? (
-              <div className="mt-1 pop-in">
-                <p className="text-[11px] text-emerald-400 inline-flex items-center gap-1">
+              <div className="mt-2">
+                <p className="text-xs text-[var(--app-success)] inline-flex items-center gap-1">
                   <Check className="h-3.5 w-3.5" aria-hidden />
                   {t('post_location_captured')}
                 </p>
@@ -527,14 +513,14 @@ export default function PostAlert() {
                   reassurance, not a requirement.
                 */}
                 {address && (
-                  <p className="text-xs text-gray-300 mt-1 flex items-start gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0 text-gray-500" aria-hidden />
+                  <p className="text-sm leading-relaxed text-app-muted mt-1.5 flex items-start gap-1.5">
+                    <MapPin className="h-4 w-4 mt-0.5 shrink-0" aria-hidden />
                     <span>{address}</span>
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-[11px] text-amber-400/90 mt-1">
+              <p className="text-xs leading-relaxed text-[var(--app-warning)] mt-2">
                 {locLoading ? t('post_locating') : t('post_location_required')}
               </p>
             )}
@@ -543,7 +529,7 @@ export default function PostAlert() {
           {/* Signed-in only. The anonymous endpoint has no drill flag at
               all, so nobody can create uncounted alerts without an account. */}
           {!isAnonymous && (
-            <label className="flex items-start gap-2 rounded-xl border border-line bg-surface-1 px-3 py-2.5 text-sm text-gray-300">
+            <label className="flex items-start gap-3 rounded-xl border border-line bg-surface-1 px-3 py-3 text-sm text-app-ink">
               <input
                 type="checkbox"
                 checked={isDrill}
@@ -552,7 +538,7 @@ export default function PostAlert() {
               />
               <span>
                 {t('drill_label')}
-                <span className="block text-xs text-gray-500">
+                <span className="mt-1 block text-xs leading-relaxed text-app-muted">
                   {t('drill_hint')}
                 </span>
               </span>
@@ -562,7 +548,7 @@ export default function PostAlert() {
           <button
             type="submit"
             disabled={submitting || !locationSet}
-            className="group relative w-full tap bg-critical hover:bg-red-400 active:bg-red-600 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors duration-200 press-in overflow-hidden"
+            className="app-danger-button w-full"
           >
             <span className="relative inline-flex items-center justify-center gap-2">
               {submitting && (

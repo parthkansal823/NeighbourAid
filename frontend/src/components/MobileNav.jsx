@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 
 const itemClass = (native) => ({ isActive }) =>
-  `${native ? 'min-h-16 text-xs leading-tight' : 'text-[11px]'} flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 font-medium transition-colors ${
-    isActive ? (native ? 'bg-accent-soft text-orange-300' : 'text-orange-400') : 'text-gray-400 hover:text-white'
+  `${native ? 'native-tab min-h-16 text-xs leading-tight' : 'text-[11px]'} flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 font-medium transition-colors ${
+    isActive ? (native ? 'native-tab-active text-accent' : 'text-orange-400') : 'text-app-muted hover:text-app-ink'
   }`
 
 /**
@@ -71,7 +71,7 @@ export default function MobileNav({ native = false }) {
       hidden={native && keyboardOpen}
       className={native ? 'mobile-nav fixed inset-x-0 bottom-0 z-[1000] border-t border-line bg-surface px-2 pb-[env(safe-area-inset-bottom)]' : 'fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden'}
     >
-      <div className={native ? 'mx-auto flex min-h-[4.5rem] max-w-xl items-stretch gap-1 py-1' : 'mx-auto flex h-[4.5rem] max-w-lg items-center gap-1'}>
+      <div className={native ? 'mx-auto flex min-h-16 max-w-2xl items-stretch gap-1' : 'mx-auto flex h-[4.5rem] max-w-lg items-center gap-1'}>
         <NavLink to="/" end className={itemClass(native)}>
           <Home className="h-5 w-5" aria-hidden />
           <span>{native ? t('nav_home') : 'Home'}</span>
@@ -83,14 +83,10 @@ export default function MobileNav({ native = false }) {
         <NavLink
           to={action.to}
           className={({ isActive }) =>
-            native ? `flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-xs font-semibold leading-tight transition-colors ${
-              isActive
-                ? 'bg-orange-400 text-black'
-                : 'bg-orange-500 text-black hover:bg-orange-400'
-            }` : `-mt-5 flex min-h-14 min-w-14 shrink-0 flex-col items-center justify-center rounded-2xl border text-[10px] font-semibold shadow-lg shadow-black/35 transition-colors ${isActive ? 'border-orange-300 bg-orange-400 text-black' : 'border-orange-500 bg-orange-500 text-black hover:bg-orange-400'}`
+            native ? `native-tab native-tab-action flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 text-xs font-semibold leading-tight text-accent transition-colors ${isActive ? 'native-tab-active' : ''}` : `-mt-5 flex min-h-14 min-w-14 shrink-0 flex-col items-center justify-center rounded-2xl border text-[10px] font-semibold shadow-lg shadow-black/35 transition-colors ${isActive ? 'border-orange-300 bg-orange-400 text-black' : 'border-orange-500 bg-orange-500 text-black hover:bg-orange-400'}`
           }
         >
-          <action.Icon className="h-5 w-5" aria-hidden />
+          <action.Icon className={native ? 'native-tab-action-icon h-5 w-5' : 'h-5 w-5'} aria-hidden />
           <span className={native ? 'break-words text-center' : 'max-w-16 truncate px-1'}>{action.label}</span>
         </NavLink>
         <NavLink to={secondary.to} className={itemClass(native)}>

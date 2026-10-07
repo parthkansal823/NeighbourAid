@@ -61,29 +61,29 @@ export default function NativeHeader({ onOpenEmergency }) {
   ]
   return (
     <header ref={ref} className="app-header sticky top-0 z-[1100] border-b border-line bg-surface">
-      <div className="flex min-h-16 items-center justify-between gap-1 px-3">
+      <div className="native-header-row mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-2 px-3">
         {screenTitle ? (
           <div className="flex min-w-0 items-center gap-1">
-            <button type="button" onClick={() => { setOpen(false); window.history.length > 1 ? navigate(-1) : navigate('/') }} className="tap inline-flex shrink-0 items-center justify-center rounded-xl text-gray-200 hover:bg-surface-2" aria-label="Go back"><ArrowLeft className="h-5 w-5" aria-hidden /></button>
-            <p className="truncate px-1 text-base font-semibold tracking-tight text-white">{screenTitle}</p>
+            <button type="button" onClick={() => { setOpen(false); window.history.length > 1 ? navigate(-1) : navigate('/') }} className="tap inline-flex shrink-0 items-center justify-center rounded-lg text-app-ink hover:bg-surface-2" aria-label="Go back"><ArrowLeft className="h-5 w-5" aria-hidden /></button>
+            <p className="native-header-title truncate text-base font-semibold text-app-ink">{screenTitle}</p>
           </div>
         ) : (
-          <Link to="/" className="tap flex min-w-0 items-center gap-1.5 rounded-xl font-bold tracking-tight text-white" onClick={() => setOpen(false)}>
-            <BrandLogo size={36} />
-            <span>NeighbourAid</span>
+          <Link to="/" className="tap flex min-w-0 items-center gap-2 rounded-lg text-base font-semibold tracking-tight text-app-ink" onClick={() => setOpen(false)}>
+            <BrandLogo size={28} />
+            <span className="truncate">NeighbourAid</span>
           </Link>
         )}
         <div className="flex shrink-0 items-center gap-1">
-          <button type="button" onClick={() => { setOpen(false); onOpenEmergency() }} className="tap rounded-xl border border-red-500/30 bg-red-500/10 px-2 text-sm font-semibold text-red-300" aria-label={t('dialer_open')}>112</button>
+          <button type="button" onClick={() => { setOpen(false); onOpenEmergency() }} className="native-emergency-button tap rounded-lg px-2 text-sm font-semibold" aria-label={t('dialer_open')}>112</button>
           <LanguageMenu />
-          <button ref={menuButton} type="button" onClick={() => setOpen((value) => !value)} className="tap flex items-center justify-center rounded-xl text-gray-200" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} aria-controls="native-menu">
+          <button ref={menuButton} type="button" onClick={() => setOpen((value) => !value)} className="tap flex items-center justify-center rounded-lg text-app-ink hover:bg-surface-2" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} aria-controls="native-menu">
             {open ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
           </button>
         </div>
       </div>
       {open && <nav id="native-menu" aria-label="More navigation" className="native-more-menu absolute inset-x-0 top-full max-h-[calc(100dvh-10rem)] overflow-y-auto border-b border-line bg-surface p-3 shadow-lg">
-        {links.map(({ to, key }) => <Link key={to} to={to} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-xl px-3 text-sm text-gray-200 hover:bg-surface-2">{t(key)}</Link>)}
-        {user && <button type="button" onClick={() => { logout(); setOpen(false); navigate('/') }} className="flex min-h-12 w-full items-center rounded-xl px-3 text-sm text-gray-300">{t('nav_logout')}</button>}
+        {links.map(({ to, key }) => <Link key={to} to={to} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-lg px-3 text-base text-app-ink hover:bg-surface-2">{t(key)}</Link>)}
+        {user && <button type="button" onClick={() => { logout(); setOpen(false); navigate('/') }} className="flex min-h-12 w-full items-center rounded-lg px-3 text-base text-app-muted">{t('nav_logout')}</button>}
         <NativeUpdateSettings />
       </nav>}
     </header>

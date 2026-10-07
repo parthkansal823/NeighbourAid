@@ -10,9 +10,7 @@
  * answers "what is happening", which is a different question asked in a
  * different mood, and mixing them made both harder to scan.
  *
- * The trust and topic chips were inline ternary chains — eight `? :` arms
- * each, repeated per card. They are lookup tables here, so adding a topic is
- * one line instead of an edit inside an expression.
+ * Publisher and topic metadata stay secondary to the actual headline.
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -38,55 +36,42 @@ import {
  * a plausible-looking false report spreads faster than the correction.
  */
 
-const TOPIC = {
-  fire: 'border-high/40 text-high',
-  flood: 'border-sky-500/40 text-sky-300',
-  earthquake: 'border-purple-500/40 text-purple-300',
-  accident: 'border-critical/40 text-critical',
-  medical: 'border-low/40 text-low',
-  power: 'border-medium/40 text-medium',
-  missing: 'border-pink-500/40 text-pink-300',
-  rescue: 'border-cyan-500/40 text-cyan-300',
-  other: 'border-line text-gray-400',
-}
-
 function NewsCard({ item }) {
   const { t, lang } = useI18n()
-  const topicCls = TOPIC[item.topic] ?? TOPIC.other
   const published = new Date(item.published_at || item.published)
 
   return (
-    <li className="surface-card alert-enter press-in overflow-hidden">
+    <li className="surface-card min-w-0 overflow-hidden">
       <a
         href={item.link}
         target="_blank"
         rel="noreferrer"
-        className="block p-4 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="block p-4 sm:p-5 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <span
-            className="inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs text-gray-300"
+            className="inline-flex items-center gap-1 text-xs text-app-muted"
           >
             {t('news_source_link')}
           </span>
           {item.topic && (
             <span
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${topicCls}`}
+              className="rounded-full bg-surface-2 px-2 py-1 text-xs capitalize text-app-muted"
             >
               {item.topic}
             </span>
           )}
         </div>
 
-        <h2 className="mb-1 font-semibold leading-snug text-white">{item.title}</h2>
+        <h2 className="mb-2 text-base font-semibold leading-snug text-app-ink wrap-break-word">{item.title}</h2>
 
         {item.summary && (
-          <p className="mb-3 line-clamp-2 text-sm text-gray-400">{item.summary}</p>
+          <p className="mb-4 line-clamp-2 text-sm text-app-muted leading-relaxed">{item.summary}</p>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-app-muted">
           <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          <span className="truncate">{item.source}</span>
+          <span className="min-w-0 wrap-break-word">{item.source}</span>
           {!Number.isNaN(published.getTime()) && <time dateTime={published.toISOString()}>{published.toLocaleString(lang)}</time>}
           {/*
             The domain is shown whenever it does NOT match the feed it came
@@ -95,7 +80,7 @@ function NewsCard({ item }) {
             scored lower.
           */}
           {item.domain_match === false && item.domain && (
-            <span className="shrink-0 rounded border border-medium/40 px-1.5 text-[10px] text-medium">
+            <span className="min-w-0 rounded border border-line px-1.5 py-0.5 text-xs text-app-ink wrap-break-word">
               {item.domain}
             </span>
           )}
@@ -134,20 +119,20 @@ export default function News() {
   const visible = source ? items.filter(item => item.source === source) : items
 
   return (
-    <main className="page-panel mx-auto max-w-3xl px-4 py-8 sm:px-6">
+    <main className="page-panel mx-auto max-w-3xl px-4 py-6 sm:py-8 sm:px-6">
       <header className="mb-6 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
-            <Newspaper className="h-6 w-6 text-accent" aria-hidden />
+        <div className="min-w-0">
+          <h1 className="flex items-start gap-2 text-2xl font-semibold tracking-tight text-app-ink">
+            <Newspaper className="h-6 w-6 shrink-0 mt-1 text-app-muted" aria-hidden />
             {t('news_title')}
           </h1>
-          <p className="mt-1 text-sm text-gray-400">{t('news_note')}</p>
+          <p className="mt-2 text-sm text-app-muted leading-relaxed">{t('news_note')}</p>
         </div>
         <button
           type="button"
           onClick={load}
           disabled={loading}
-          className="tap press-in inline-flex items-center justify-center rounded-xl border border-line text-gray-300 hover:bg-surface-2 hover:text-white disabled:opacity-50"
+          className="app-secondary-button h-12 w-12 shrink-0"
           aria-label={t('news_refresh')}
         >
           <RefreshCw
@@ -157,14 +142,14 @@ export default function News() {
         </button>
       </header>
       <OfficialAdvisories />
-      <label className="mb-4 block text-sm text-gray-300">
+      <label className="app-form-label mb-4">
         {t('news_sources')}
-        <select className="tap mt-1 w-full rounded-lg border border-line bg-surface px-3" value={source} onChange={event => setSource(event.target.value)}>
+        <select className="app-field mt-2 w-full" value={source} onChange={event => setSource(event.target.value)}>
           <option value="">{t('news_all_sources')}</option>
           {availableSources.map(name => <option key={name} value={name}>{name}</option>)}
         </select>
       </label>
-      {sources.some(item => !item.available) && <p role="status" className="mb-4 text-sm text-amber-300">{t('news_feed_unavailable')}</p>}
+      {sources.some(item => !item.available) && <p role="status" className="mb-4 text-sm text-app-muted leading-relaxed">{t('news_feed_unavailable')}</p>}
 
       {loading && !items.length ? (
         <ul className="space-y-3" aria-busy="true">

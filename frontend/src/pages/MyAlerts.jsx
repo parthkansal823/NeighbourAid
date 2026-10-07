@@ -18,53 +18,46 @@ import {
 } from '../components/icons'
 
 const URGENCY_BADGE = {
-  CRITICAL: 'bg-red-500 text-white',
-  HIGH: 'bg-orange-400 text-white',
-  MEDIUM: 'bg-yellow-400 text-black',
-  LOW: 'bg-green-500 text-white',
-}
-
-const STATUS_BADGE = {
-  open: 'bg-blue-900/60 text-blue-300 border-blue-800/60',
-  accepted: 'bg-purple-900/60 text-purple-300 border-purple-800/60',
-  resolved: 'bg-gray-800/80 text-gray-400 border-gray-700/60',
+  CRITICAL: 'bg-red-700 text-[#fff]',
+  HIGH: 'bg-high text-[#172033]',
+  MEDIUM: 'bg-medium text-[#172033]',
+  LOW: 'bg-low text-[#172033]',
 }
 
 const STATUS_DOT = {
-  open: 'bg-blue-400 animate-pulse',
-  accepted: 'bg-purple-400 animate-pulse',
+  open: 'bg-blue-500',
+  accepted: 'bg-purple-500',
   resolved: 'bg-gray-500',
 }
 
-function AlertRow({ a, onCancel, cancelling, index = 0 }) {
+function AlertRow({ a, onCancel, cancelling }) {
   const { t } = useI18n()
   const ago = useTimeAgo(a.created_at)
   return (
     <div
-      className="surface-card p-3 sm:p-4 transition-colors duration-200 hover:border-accent/40 reveal-up"
-      style={{ animationDelay: `${index * 60}ms` }}
+      className="surface-card min-w-0 p-4 sm:p-5"
     >
       <div className="flex items-start justify-between gap-2 mb-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-semibold capitalize text-white">{t(`cat_${a.category}`) ?? a.category}</span>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${URGENCY_BADGE[a.urgency]}`}>
+          <span className="font-semibold capitalize text-app-ink">{t(`cat_${a.category}`) ?? a.category}</span>
+          <span className={`text-xs font-semibold px-2 py-1 rounded-md ${URGENCY_BADGE[a.urgency]}`}>
             {a.urgency}
           </span>
-          <span className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 capitalize border ${STATUS_BADGE[a.status]}`}>
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[a.status]}`} />
+          <span className="text-xs px-2 py-1 rounded-md inline-flex items-center gap-1.5 capitalize bg-surface-2 text-app-ink">
+            <span aria-hidden className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[a.status]}`} />
             {a.status}
           </span>
         </div>
-        <span className="text-xs text-gray-500 shrink-0 tabular-nums">{ago}</span>
+        <span className="text-xs text-app-muted tabular-nums">{ago}</span>
       </div>
-      <p className="text-gray-300 text-sm wrap-break-word">{a.description}</p>
+      <p className="text-app-ink text-[15px] leading-relaxed whitespace-pre-wrap wrap-break-word">{a.description}</p>
       {a.address && (
-        <p className="text-gray-500 text-xs mt-1.5 flex gap-1">
-          <MapPin className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
-          <span className="line-clamp-1">{a.address}</span>
+        <p className="text-app-muted text-sm leading-relaxed mt-3 flex gap-2">
+          <MapPin className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
+          <span className="min-w-0 wrap-break-word">{a.address}</span>
         </p>
       )}
-      <div className="flex flex-wrap gap-2 sm:gap-3 mt-2 text-[11px] text-gray-500">
+      <div className="flex flex-wrap gap-x-3 gap-y-2 mt-3 text-xs text-app-muted">
         <span className="tabular-nums">Evidence {Math.max(0, Math.min(100, a.verified_score ?? 0))}/100</span>
         <span>
           <Users className="h-3 w-3 inline-block mr-1 -mt-0.5" aria-hidden />{Math.max(0, (a.witnesses ?? 1) - 1)}{' '}
@@ -78,9 +71,10 @@ function AlertRow({ a, onCancel, cancelling, index = 0 }) {
       {a.status === 'open' && (
         <div className="mt-3 flex justify-end">
           <button
+            type="button"
             onClick={() => onCancel(a.id)}
             disabled={cancelling}
-            className="text-xs text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors"
+            className="tap app-secondary-button"
           >
             {cancelling ? t('mine_cancelling') : t('mine_cancel')}
           </button>
@@ -140,23 +134,23 @@ export default function MyAlerts() {
 
   return (
     <div className="page-panel max-w-2xl mx-auto px-4 py-6 sm:py-8">
-      <div className="flex items-center justify-between mb-5 sm:mb-6 gap-3 reveal-up">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 sm:mb-6 gap-3">
         <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">{t('mine_title')}</h1>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1 tabular-nums">
-            {alerts.length} {t('mine_summary')} · {groups.open.length} {t('mine_open')} · {groups.accepted.length} {t('mine_in_progress')}
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-app-ink">{t('mine_title')}</h1>
+          <p className="flex flex-wrap gap-x-3 gap-y-1 text-app-muted text-sm mt-2 tabular-nums">
+            <span>{alerts.length} {t('mine_summary')}</span><span>{groups.open.length} {t('mine_open')}</span><span>{groups.accepted.length} {t('mine_in_progress')}</span>
           </p>
         </div>
         <Link
           to="/post-alert"
-          className="bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg hover:shadow-red-500/40 transition-colors duration-200 whitespace-nowrap"
+          className="tap app-primary-button w-full sm:w-auto"
         >
           + {t('mine_new')}
         </Link>
       </div>
 
       {error && (
-        <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
+        <div role="alert" className="bg-surface-2 border border-line text-app-ink text-sm rounded-xl px-4 py-3 mb-6 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>
@@ -171,7 +165,7 @@ export default function MyAlerts() {
           action={
             <Link
               to="/post-alert"
-              className="inline-block bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:shadow-red-500/40 transition-colors duration-200"
+              className="tap app-primary-button"
             >
               {t('mine_post_first')}
               <ArrowRight className="h-4 w-4 inline-block ml-1.5 -mt-0.5" aria-hidden />
@@ -180,13 +174,12 @@ export default function MyAlerts() {
         />
       ) : (
         <div className="space-y-3">
-          {alerts.map((a, i) => (
+          {alerts.map((a) => (
             <AlertRow
               key={a.id}
               a={a}
               onCancel={cancel}
               cancelling={cancelling === a.id}
-              index={i}
             />
           ))}
         </div>

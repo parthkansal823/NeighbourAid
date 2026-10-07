@@ -84,26 +84,17 @@ export default function Register() {
 
   const [lng, lat] = form.location.coordinates
 
-  const inputCls =
-    'w-full bg-gray-800/80 border border-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-hidden focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 focus:bg-gray-800 transition-colors duration-200 text-base placeholder:text-gray-600'
+  const inputCls = 'app-field w-full'
 
   return (
-    <div className="auth-page relative min-h-screen flex items-center justify-center px-4 py-8 sm:py-12 overflow-hidden">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-xl rounded-full bg-orange-500/10 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-24 left-1/4 h-56 w-72 rounded-full bg-emerald-500/10 blur-3xl"
-      />
-      <div className="relative surface-card p-6 sm:p-8 w-full max-w-md reveal-up">
-        <BrandLogo size={64} className="mb-4" alt="NeighbourAid" />
-        <h1 className="text-2xl font-bold text-white mb-2">{t('register_title')}</h1>
-        <p className="text-gray-400 text-sm mb-6 sm:mb-8">{t('register_subtitle')}</p>
+    <div className="auth-page app-auth-page flex items-start justify-center px-4 py-6 sm:py-10">
+      <div className="app-auth-panel w-full max-w-md">
+        <BrandLogo size={40} className="mb-5" alt="NeighbourAid" />
+        <h1 className="text-2xl font-semibold text-app-ink tracking-tight mb-2">{t('register_title')}</h1>
+        <p className="text-app-muted text-sm leading-relaxed mb-6">{t('register_subtitle')}</p>
 
         {error && (
-          <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 mb-6 flex items-start gap-2 pop-in">
+          <div role="alert" className="app-feedback-error text-sm rounded-xl px-4 py-3 mb-6 flex items-start gap-2">
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
             <span>{error}</span>
           </div>
@@ -111,7 +102,7 @@ export default function Register() {
 
         <form onSubmit={submit} className="space-y-5">
           <div>
-            <label htmlFor="register-name" className="block text-sm text-gray-400 mb-1.5">{t('register_name')}</label>
+            <label htmlFor="register-name" className="app-form-label">{t('register_name')}</label>
             <input
               id="register-name"
               required
@@ -124,7 +115,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label htmlFor="register-email" className="block text-sm text-gray-400 mb-1.5">{t('login_email')}</label>
+            <label htmlFor="register-email" className="app-form-label">{t('login_email')}</label>
             <input
               id="register-email"
               type="email"
@@ -139,7 +130,7 @@ export default function Register() {
           </div>
 
           <div>
-            <label htmlFor="register-password" className="block text-sm text-gray-400 mb-1.5">{t('login_password')}</label>
+            <label htmlFor="register-password" className="app-form-label">{t('login_password')}</label>
             <input
               id="register-password"
               type="password"
@@ -150,13 +141,14 @@ export default function Register() {
               minLength={8}
               pattern="(?=.*[A-Za-z])(?=.*\d).{8,}"
               title={t('register_password_hint')}
+              aria-describedby="register-password-hint"
               autoComplete="new-password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className={inputCls}
               placeholder="••••••••"
             />
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p id="register-password-hint" className="text-xs text-app-muted leading-relaxed mt-2">
               {t('register_password_hint')}
             </p>
           </div>
@@ -169,18 +161,15 @@ export default function Register() {
               group" before reading the options instead of two bare buttons
               with no idea what the choice is about.
             */}
-            <span id="register-role-label" className="block text-sm text-gray-400 mb-1.5">{t('register_want_to')}</span>
-            <div role="group" aria-labelledby="register-role-label" className="grid grid-cols-2 gap-3">
+            <span id="register-role-label" className="app-form-label">{t('register_want_to')}</span>
+            <div role="group" aria-labelledby="register-role-label" className="grid grid-cols-2 gap-2">
               {['reporter', 'volunteer'].map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setForm({ ...form, role: r })}
-                  className={`py-3 rounded-xl border font-semibold capitalize transition-colors duration-200 text-sm sm:text-base ${
-                    form.role === r
-                      ? 'border-orange-500 bg-orange-500/15 text-orange-300'
-                      : 'border-gray-700 text-gray-400 hover:border-orange-500/40 hover:text-gray-200 hover:bg-gray-800/40'
-                  }`}
+                  aria-pressed={form.role === r}
+                  className="app-choice-button min-w-0 px-3 py-3 text-sm font-medium"
                 >
                   {r === 'reporter' ? t('register_role_reporter') : t('register_role_volunteer')}
                 </button>
@@ -191,8 +180,8 @@ export default function Register() {
           {form.role === 'volunteer' && (
             <>
               <div>
-                <span id="register-skills-label" className="block text-sm text-gray-400 mb-1.5">
-                  Skills <span className="text-gray-600 text-xs">· helps route the right alerts to you</span>
+                <span id="register-skills-label" className="app-form-label">
+                  Skills <span className="block text-app-muted text-xs font-normal mt-1">Helps route the right alerts to you</span>
                 </span>
                 <div role="group" aria-labelledby="register-skills-label">
                   <SkillsPicker
@@ -209,8 +198,8 @@ export default function Register() {
           )}
 
           <div>
-            <label htmlFor="register-location" className="block text-sm text-gray-400 mb-1.5">{t('register_location')}</label>
-            <div className="flex gap-2">
+            <label htmlFor="register-location" className="app-form-label">{t('register_location')}</label>
+            <div className="flex flex-wrap gap-2">
               <input
                 id="register-location"
                 readOnly
@@ -221,17 +210,14 @@ export default function Register() {
                       ? t('register_detecting')
                       : t('register_location_placeholder')
                 }
-                className={`flex-1 min-w-0 bg-gray-800/80 border rounded-lg px-3 sm:px-4 py-2.5 text-sm ${
-                  locationSet
-                    ? 'border-emerald-700/70 ring-1 ring-emerald-700/30 text-gray-300 tabular-nums'
-                    : 'border-amber-700/70 text-amber-300/90'
-                }`}
+                aria-describedby="register-location-hint"
+                className="app-field flex-1 min-w-0 basis-40 tabular-nums"
               />
               <button
                 type="button"
                 onClick={detectLocation}
                 disabled={locLoading}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2.5 rounded-lg text-sm transition-colors duration-200 disabled:opacity-50 whitespace-nowrap active:scale-95"
+                className="app-secondary-button flex-1 sm:flex-none px-4 text-sm"
               >
                 {locLoading ? (
                   <span className="inline-flex items-center gap-2">
@@ -249,11 +235,7 @@ export default function Register() {
                 )}
               </button>
             </div>
-            <p
-              className={`text-[11px] mt-1 ${
-                locationSet ? 'text-emerald-400' : 'text-amber-400/90'
-              }`}
-            >
+            <p id="register-location-hint" className="text-xs text-app-muted leading-relaxed mt-2" aria-live="polite">
               {locationSet
                 ? t('register_location_saved')
                 : t('register_location_required')}
@@ -263,7 +245,8 @@ export default function Register() {
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full tap bg-accent hover:bg-orange-400 active:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-gray-950 font-semibold py-3 rounded-xl transition-colors duration-200 press-in overflow-hidden"
+            aria-busy={loading}
+            className="app-primary-button w-full"
           >
             <span className="relative inline-flex items-center justify-center gap-2">
               {loading && (
@@ -277,9 +260,9 @@ export default function Register() {
           </button>
         </form>
 
-        <p className="text-center text-gray-500 text-sm mt-6">
+        <p className="text-center text-app-muted text-sm leading-relaxed mt-6">
           {t('register_have_account')}{' '}
-          <Link to="/login" className="text-orange-400 hover:text-orange-300 underline-offset-2 hover:underline transition-colors">
+          <Link to="/login" className="text-app-ink font-semibold underline underline-offset-4">
             {t('register_sign_in')}
           </Link>
         </p>

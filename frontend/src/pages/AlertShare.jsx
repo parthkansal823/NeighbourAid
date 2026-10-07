@@ -13,10 +13,10 @@ import {
 } from '../components/icons'
 
 const URGENCY_BADGE = {
-  CRITICAL: 'bg-red-500 text-white',
-  HIGH: 'bg-orange-400 text-white',
-  MEDIUM: 'bg-yellow-400 text-black',
-  LOW: 'bg-green-500 text-white',
+  CRITICAL: 'bg-red-700 text-[#fff]',
+  HIGH: 'bg-high text-[#172033]',
+  MEDIUM: 'bg-medium text-[#172033]',
+  LOW: 'bg-low text-[#172033]',
 }
 
 
@@ -44,7 +44,7 @@ export default function AlertShare() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-gray-500">
+      <div role="status" className="flex items-center justify-center py-20 text-app-muted">
         <svg className="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24" fill="none" aria-hidden>
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.25" />
           <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -56,11 +56,11 @@ export default function AlertShare() {
 
   if (error || !alert) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-12 text-center reveal-up">
-        <Link2 className="h-12 w-12 mx-auto mb-4 text-gray-500" aria-hidden />
-        <h1 className="text-xl font-bold text-white mb-2">Alert unavailable</h1>
-        <p className="text-gray-400 text-sm mb-6">{error || 'The link may have expired.'}</p>
-        <Link to="/" className="text-orange-400 hover:text-orange-300 underline-offset-2 hover:underline">
+      <div className="max-w-lg mx-auto px-4 py-12 text-center">
+        <Link2 className="h-10 w-10 mx-auto mb-4 text-app-muted" aria-hidden />
+        <h1 className="text-xl font-semibold text-app-ink mb-2">Alert unavailable</h1>
+        <p role="alert" className="text-app-muted text-sm leading-relaxed mb-6">{error || 'The link may have expired.'}</p>
+        <Link to="/" className="tap app-secondary-button">
           Go to NeighbourAid <ArrowRight className="h-4 w-4 inline-block ml-1 -mt-0.5" aria-hidden />
         </Link>
       </div>
@@ -71,45 +71,42 @@ export default function AlertShare() {
   const mapsUrl = `/map?dest=${lat},${lng}&focus=${alert.id}`
 
   return (
-    <div className="page-panel max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <section className="relative surface-card p-5 sm:p-6 reveal-up overflow-hidden">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-12 -right-8 h-40 w-40 rounded-full bg-orange-500/10 blur-3xl"
-        />
-        <div className="relative flex items-center justify-between gap-2 mb-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <CategoryIcon category={alert.category} className="h-6 w-6 shrink-0" />
-            <h1 className="font-semibold capitalize text-white text-lg">{alert.category}</h1>
+    <div className="page-panel max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-6">
+      <section className="surface-card min-w-0 p-4 sm:p-6 overflow-hidden">
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <div className="flex min-w-0 items-center gap-2">
+            <CategoryIcon category={alert.category} className="h-5 w-5 shrink-0 text-app-muted" />
+            <h1 className="font-semibold capitalize text-app-ink text-xl wrap-break-word">{alert.category}</h1>
           </div>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${URGENCY_BADGE[alert.urgency]}`}>
+          <span className={`text-xs font-semibold px-2 py-1 rounded-md ${URGENCY_BADGE[alert.urgency]}`}>
             {alert.urgency}
           </span>
         </div>
-        <p className="relative text-gray-200 whitespace-pre-wrap">{alert.description}</p>
+        {alert.status && <p className="mb-3 text-xs font-medium capitalize text-app-muted">{alert.status}</p>}
+        <p className="text-[15px] leading-relaxed text-app-ink whitespace-pre-wrap wrap-break-word">{alert.description}</p>
         {alert.address && (
-          <p className="relative text-gray-500 text-sm mt-3 flex items-start gap-1">
-            <MapPin className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
-            <span>{alert.address}</span>
+          <p className="text-app-muted text-sm leading-relaxed mt-4 flex items-start gap-2">
+            <MapPin className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
+            <span className="min-w-0 wrap-break-word">{alert.address}</span>
           </p>
         )}
-        <div className="relative flex flex-wrap gap-2 mt-4">
+        <div className="alert-share-actions flex flex-wrap gap-2 mt-5 border-t border-line pt-4">
           {['medical', 'fire', 'accident'].includes(alert.category) && <FirstAidButton />}
           <Link
             to={mapsUrl}
-            className="group relative bg-blue-500 hover:bg-blue-400 active:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:shadow-blue-500/40 transition-colors duration-200 overflow-hidden"
+            className="tap app-primary-button"
           >
-            <span className="relative inline-flex items-center gap-1.5"><Compass className="h-4 w-4" aria-hidden />Directions</span>
+            <Compass className="h-4 w-4 shrink-0" aria-hidden />Directions
           </Link>
           <a
             href="tel:112"
-            className="bg-red-500 hover:bg-red-400 active:bg-red-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:shadow-red-500/40 transition-colors duration-200"
+            className="tap inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-[#fff] hover:bg-red-800"
           >
             <PhoneCall className="h-4 w-4 inline-block mr-1.5 -mt-0.5" aria-hidden />112 Emergency
           </a>
           <Link
             to="/register"
-            className="border border-orange-500/60 text-orange-300 hover:text-orange-200 hover:bg-orange-500/10 text-sm font-semibold px-4 py-2 rounded-lg transition-colors duration-200"
+            className="tap app-secondary-button"
           >
             Join NeighbourAid <ArrowRight className="h-4 w-4 inline-block ml-1 -mt-0.5" aria-hidden />
           </Link>
@@ -117,8 +114,8 @@ export default function AlertShare() {
       </section>
 
       {alert.photos?.length > 0 && (
-        <section className="surface-card p-4 reveal-up stagger-1">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3">
+        <section>
+          <h2 className="text-base font-semibold text-app-ink mb-3">
             Photos
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -127,14 +124,15 @@ export default function AlertShare() {
                 key={i}
                 src={src}
                 alt={`evidence ${i + 1}`}
-                className="aspect-square object-cover rounded-lg border border-gray-700 bg-gray-800 hover:scale-[1.02] hover:border-orange-500/40 transition-colors duration-200 cursor-zoom-in"
+                loading="lazy"
+                className="w-full min-w-0 aspect-square object-cover rounded-xl border border-line bg-surface-2"
               />
             ))}
           </div>
         </section>
       )}
 
-      <p className="text-center text-[11px] text-gray-500">
+      <p className="text-sm leading-relaxed text-app-muted">
         This is a public snapshot shared from NeighbourAid. Join to witness or accept alerts.
       </p>
     </div>

@@ -232,14 +232,10 @@ export default function Profile() {
   if (!user) return null
 
   if (loading) {
-    return <div className="text-center text-gray-500 py-20">{t('profile_loading')}</div>
+    return <div role="status" className="text-center text-app-muted py-16">{t('profile_loading')}</div>
   }
 
   const [lng, lat] = me?.location?.coordinates ?? [0, 0]
-  const contactCount = contactsDraft.length
-  const readinessCount =
-    (me?.role === 'volunteer' && skillsDraft.length === 0 ? 1 : 0) +
-    (contactCount === 0 ? 1 : 0)
 
   // The end time, not a countdown. A countdown needs `Date.now()` during
   // render — which React treats as impure, and which would freeze at
@@ -253,67 +249,59 @@ export default function Profile() {
       })
     : null
 
-  const sectionCls =
-    'surface-card p-4 sm:p-5'
-  const saveBtnCls =
-    'group relative bg-orange-500 hover:bg-orange-400 active:bg-orange-600 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg hover:shadow-orange-500/40 transition-colors duration-200 overflow-hidden'
+  const sectionCls = 'min-w-0 rounded-2xl border border-line bg-surface-1 p-4 sm:p-5 scroll-mt-24'
+  const saveBtnCls = 'app-primary-button w-full sm:w-auto px-5'
 
   return (
-    <div className="page-panel max-w-2xl mx-auto px-4 py-8 sm:py-10 space-y-5 sm:space-y-6">
-      <div className="reveal-up">
-        <h1 className="text-xl sm:text-2xl font-bold text-white">{t('profile_title')}</h1>
-        <p className="text-gray-500 text-sm wrap-break-word">
-          {t('profile_signed_as')} <span className="text-gray-300">{me?.email}</span>
+    <div className="page-panel max-w-4xl mx-auto px-4 py-6 sm:py-8 space-y-5">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-app-ink">{t('profile_title')}</h1>
+        <p className="text-app-muted text-sm leading-relaxed mt-2 wrap-break-word">
+          {t('profile_signed_as')} <span className="text-app-ink">{me?.email}</span>
         </p>
-        <div className="flex flex-wrap gap-2 mt-3 text-xs">
-          <a href="#location" className="px-2.5 py-1 rounded-full border border-gray-700 text-gray-300 hover:text-white hover:border-orange-500/50 transition-colors">
+        <nav aria-label={t('profile_title')} className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-sm">
+          <a href="#location" className="inline-flex min-h-11 items-center text-app-muted underline underline-offset-4">
             Location
           </a>
           {me?.role === 'volunteer' && (
-            <a href="#skills" className="px-2.5 py-1 rounded-full border border-gray-700 text-gray-300 hover:text-white hover:border-orange-500/50 transition-colors">
+            <a href="#skills" className="inline-flex min-h-11 items-center text-app-muted underline underline-offset-4">
               Skills
             </a>
           )}
-          <a href="#contacts" className="px-2.5 py-1 rounded-full border border-gray-700 text-gray-300 hover:text-white hover:border-orange-500/50 transition-colors">
+          <a href="#contacts" className="inline-flex min-h-11 items-center text-app-muted underline underline-offset-4">
             Contacts
           </a>
-          <a href="#activity" className="px-2.5 py-1 rounded-full border border-gray-700 text-gray-300 hover:text-white hover:border-orange-500/50 transition-colors">
+          <a href="#activity" className="inline-flex min-h-11 items-center text-app-muted underline underline-offset-4">
             Activity
           </a>
-        </div>
-      </div>
-
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-2 reveal-up stagger-1">
-        <Stat label="Contacts" value={contactCount} accent={contactCount > 0 ? 'text-emerald-400' : 'text-amber-400'} />
-        <Stat label="Skills" value={me?.role === 'volunteer' ? skillsDraft.length : '-'} accent="text-blue-400" />
-        <Stat label="Vehicle" value={me?.role === 'volunteer' ? (vehicleDraft ? 'yes' : 'no') : '-'} accent="text-violet-300" />
-        <Stat label="Open tasks" value={readinessCount} accent={readinessCount === 0 ? 'text-emerald-400' : 'text-orange-400'} />
-      </section>
+        </nav>
+      </header>
 
       {error && (
-        <div className="bg-red-950/70 border border-red-700 text-red-300 text-sm rounded-lg px-4 py-3 flex items-start gap-2 pop-in">
+        <div role="alert" className="app-feedback-error text-sm rounded-xl px-4 py-3 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{error}</span>
         </div>
       )}
       {message && (
-        <div className="bg-emerald-950/70 border border-emerald-700 text-emerald-300 text-sm rounded-lg px-4 py-3 flex items-start gap-2 pop-in">
+        <div role="status" className="app-feedback-success text-sm rounded-xl px-4 py-3 flex items-start gap-2">
           <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
           <span>{message}</span>
         </div>
       )}
 
-      <section id="identity" className={`${sectionCls} reveal-up stagger-1 scroll-mt-24`}>
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-4">
+      <section id="identity" className={sectionCls}>
+        <h2 className="text-base font-semibold text-app-ink mb-4">
           {t('profile_identity')}
         </h2>
-        <dl className="grid grid-cols-3 gap-y-2 text-sm">
-          <dt className="text-gray-500">{t('profile_name')}</dt>
-          <dd className="col-span-2 text-gray-200 wrap-break-word">{me?.name}</dd>
-          <dt className="text-gray-500">{t('profile_role')}</dt>
-          <dd className="col-span-2 capitalize text-gray-200">{me?.role}</dd>
-          <dt className="text-gray-500">{t('profile_joined')}</dt>
-          <dd className="col-span-2 text-gray-200">
+        <dl className="grid grid-cols-3 gap-x-3 gap-y-3 text-sm leading-relaxed">
+          <dt className="text-app-muted">{t('profile_name')}</dt>
+          <dd className="col-span-2 text-app-ink wrap-break-word">{me?.name}</dd>
+          <dt className="text-app-muted">{t('profile_role')}</dt>
+          <dd className="col-span-2 capitalize text-app-ink">{me?.role}</dd>
+          <dt className="text-app-muted">{t('profile_joined')}</dt>
+          <dd className="col-span-2 text-app-ink">
             {me?.created_at ? new Date(me.created_at).toLocaleString() : '—'}
           </dd>
         </dl>
@@ -324,11 +312,11 @@ export default function Profile() {
         <div className="mt-4 border-t border-line pt-4">
           <label
             htmlFor="profile-phone"
-            className="block text-sm font-medium text-gray-300"
+            className="app-form-label"
           >
             {t('profile_phone')}
           </label>
-          <p className="mt-1 text-xs text-gray-500">{t('profile_phone_hint')}</p>
+          <p id="profile-phone-hint" className="mt-1 text-xs text-app-muted leading-relaxed">{t('profile_phone_hint')}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <input
               id="profile-phone"
@@ -336,12 +324,11 @@ export default function Profile() {
               inputMode="tel"
               autoComplete="tel"
               maxLength={32}
+              aria-describedby="profile-phone-hint"
               value={phoneDraft}
               onChange={(e) => setPhoneDraft(e.target.value)}
               placeholder={t('profile_phone_ph')}
-              className="tap min-w-0 flex-1 rounded-lg border border-line bg-surface-1 px-3
-                         text-sm text-white placeholder:text-gray-600
-                         focus:border-accent focus:outline-none"
+              className="app-field min-w-0 flex-1 basis-40"
             />
             <Button
               size="sm"
@@ -355,37 +342,37 @@ export default function Profile() {
         </div>
       </section>
 
-      <section id="location" className={`${sectionCls} reveal-up stagger-2 scroll-mt-24`}>
+      <section id="location" className={sectionCls}>
         <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
+          <h2 className="text-base font-semibold text-app-ink">
             {t('profile_home_location')}
           </h2>
           <button
             onClick={detectAndUpdate}
             disabled={locLoading || saving}
-            className="text-xs bg-orange-500 hover:bg-orange-400 active:bg-orange-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-50 hover:shadow-orange-500/40 transition-colors duration-200 active:scale-95"
+            className="app-secondary-button px-3 text-sm"
           >
             {locLoading ? t('profile_detecting') : saving ? t('profile_saving') : t('profile_update_loc')}
           </button>
         </div>
-        <p className="text-gray-400 text-sm font-mono tabular-nums">
+        <p className="text-app-ink text-sm tabular-nums">
           {lat.toFixed(5)}, {lng.toFixed(5)}
         </p>
         {(accuracy || locTimestamp) && (
-          <p className="text-[11px] text-gray-600 mt-1 tabular-nums">
+          <p className="text-xs text-app-muted mt-2 tabular-nums">
             {accuracy ? `±${Math.round(accuracy)} m` : ''}
             {accuracy && locTimestamp ? ' · ' : ''}
             {locTimestamp ? new Date(locTimestamp).toLocaleString() : ''}
           </p>
         )}
-        <p className="text-[11px] text-gray-600 mt-1">
+        <p className="text-xs text-app-muted leading-relaxed mt-2">
           {t('profile_loc_hint')}
         </p>
       </section>
 
       {me?.role === 'volunteer' && (
-        <section id="skills" className={`${sectionCls} reveal-up stagger-3 scroll-mt-24`}>
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-3">
+        <section id="skills" className={sectionCls}>
+          <h2 className="text-base font-semibold text-app-ink mb-4">
             Skills &amp; availability
           </h2>
           <div className="space-y-3">
@@ -400,7 +387,7 @@ export default function Profile() {
             </button>
           </div>
           {skillsDraft.length > 0 && (
-            <p className="text-[11px] text-gray-500 mt-3">
+            <p className="text-xs text-app-muted leading-relaxed mt-3">
               You&apos;ll get priority alerts matching:{' '}
               {SKILL_OPTIONS.filter((s) => skillsDraft.includes(s.code))
                 .map((s) => s.label)
@@ -414,34 +401,34 @@ export default function Profile() {
               LOW ones buzzing a pocket at an hour that makes people turn
               notifications off entirely. */}
           <div className="mt-5 border-t border-line pt-4">
-            <h3 className="text-sm font-medium text-gray-300">
+            <h3 className="text-sm font-semibold text-app-ink">
               {t('avail_title')}
             </h3>
-            <p className="mt-1 text-xs text-gray-500">{t('avail_hint')}</p>
+            <p className="mt-2 text-xs text-app-muted leading-relaxed">{t('avail_hint')}</p>
 
-            <div className="mt-3 flex flex-wrap items-end gap-3">
-              <label className="text-xs text-gray-400">
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <label className="text-sm text-app-muted min-w-0">
                 {t('avail_from')}
                 <select
                   value={availDraft.from_hour}
                   onChange={(e) =>
                     setAvailDraft({ ...availDraft, from_hour: +e.target.value })
                   }
-                  className="tap mt-1 block rounded-lg border border-line bg-surface-1 px-2 text-sm text-white"
+                  className="app-field w-full mt-2"
                 >
                   {HOURS.map((h) => (
                     <option key={h} value={h}>{fmtHour(h)}</option>
                   ))}
                 </select>
               </label>
-              <label className="text-xs text-gray-400">
+              <label className="text-sm text-app-muted min-w-0">
                 {t('avail_to')}
                 <select
                   value={availDraft.to_hour}
                   onChange={(e) =>
                     setAvailDraft({ ...availDraft, to_hour: +e.target.value })
                   }
-                  className="tap mt-1 block rounded-lg border border-line bg-surface-1 px-2 text-sm text-white"
+                  className="app-field w-full mt-2"
                 >
                   {[...HOURS, 24].map((h) => (
                     <option key={h} value={h}>{fmtHour(h)}</option>
@@ -450,18 +437,18 @@ export default function Profile() {
               </label>
             </div>
 
-            <label className="mt-3 flex items-start gap-2 text-sm text-gray-300">
+            <label className="mt-4 flex min-h-12 items-start gap-3 py-2 text-sm text-app-ink cursor-pointer">
               <input
                 type="checkbox"
                 checked={availDraft.critical_always}
                 onChange={(e) =>
                   setAvailDraft({ ...availDraft, critical_always: e.target.checked })
                 }
-                className="mt-0.5 h-4 w-4 accent-orange-500"
+                className="mt-0.5 h-5 w-5 shrink-0 accent-accent"
               />
               <span>
                 {t('avail_critical_always')}
-                <span className="block text-xs text-gray-500">
+                <span className="block text-xs text-app-muted leading-relaxed mt-1">
                   {t('avail_critical_hint')}
                 </span>
               </span>
@@ -475,23 +462,23 @@ export default function Profile() {
                 {t('avail_snooze')}
               </Button>
               {busyRemaining && (
-                <span className="text-[11px] text-orange-300">
+                <span className="text-xs text-app-muted">
                   {t('avail_busy_until')} {busyRemaining}
                 </span>
               )}
             </div>
-            <p className="mt-2 text-[11px] text-gray-600">
+            <p className="mt-3 text-xs text-app-muted wrap-break-word">
               {t('avail_timezone')}: {availDraft.timezone}
             </p>
           </div>
         </section>
       )}
 
-      <section id="contacts" className={`${sectionCls} reveal-up stagger-4 scroll-mt-24`}>
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest mb-1">
+      <section id="contacts" className={sectionCls}>
+        <h2 className="text-base font-semibold text-app-ink mb-2">
           Emergency contacts
         </h2>
-        <p className="text-[11px] text-gray-500 mb-3">
+        <p className="text-xs text-app-muted leading-relaxed mb-4">
           Tap a buddy chip during an SOS — the right phone/message app opens pre-filled.
         </p>
         <EmergencyContactsEditor value={contactsDraft} onChange={setContactsDraft} />
@@ -504,9 +491,9 @@ export default function Profile() {
         </button>
       </section>
 
-      <section id="activity" className={`${sectionCls} reveal-up stagger-5 scroll-mt-24`}>
+      <section id="activity" className={`${sectionCls} lg:col-span-2`}>
         <div className="flex items-center justify-between mb-3 gap-2">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
+          <h2 className="text-base font-semibold text-app-ink">
             {t('profile_activity')}
           </h2>
           {stats?.trust && (
@@ -517,25 +504,26 @@ export default function Profile() {
           <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
             <Stat label={t('profile_stat_posted')} value={stats.posted} />
             <Stat label={t('profile_stat_open')} value={stats.open} />
-            <Stat label={t('profile_stat_resolved')} value={stats.resolved} accent="text-emerald-400" />
+            <Stat label={t('profile_stat_resolved')} value={stats.resolved} />
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
             <Stat label={t('profile_stat_accepted')} value={stats?.accepted ?? 0} />
-            <Stat label={t('profile_stat_inprogress')} value={stats?.in_progress ?? 0} accent="text-blue-400" />
-            <Stat label={t('profile_stat_resolved')} value={stats?.resolved ?? 0} accent="text-emerald-400" />
+            <Stat label={t('profile_stat_inprogress')} value={stats?.in_progress ?? 0} />
+            <Stat label={t('profile_stat_resolved')} value={stats?.resolved ?? 0} />
           </div>
         )}
       </section>
+      </div>
     </div>
   )
 }
 
-function Stat({ label, value, accent = 'text-orange-400' }) {
+function Stat({ label, value }) {
   return (
-    <div className="bg-gray-950/80 border border-gray-800 rounded-lg py-3 px-2 transition-colors duration-200 hover:border-gray-700">
-      <div className={`text-xl sm:text-2xl font-bold tabular-nums ${accent}`}>{value}</div>
-      <div className="text-[10px] sm:text-[11px] text-gray-500 uppercase tracking-widest mt-0.5">
+    <div className="min-w-0 rounded-xl bg-surface py-4 px-2">
+      <div className="text-xl sm:text-2xl font-semibold text-app-ink tabular-nums">{value}</div>
+      <div className="text-xs text-app-muted leading-snug mt-1">
         {label}
       </div>
     </div>
@@ -543,17 +531,9 @@ function Stat({ label, value, accent = 'text-orange-400' }) {
 }
 
 function TrustBadge({ trust }) {
-  const style =
-    trust.label === 'trusted'
-      ? 'bg-emerald-900/40 text-emerald-300 border-emerald-800'
-      : trust.label === 'reliable'
-      ? 'bg-blue-900/40 text-blue-300 border-blue-800'
-      : trust.label === 'new'
-      ? 'bg-gray-800 text-gray-300 border-gray-700'
-      : 'bg-amber-900/40 text-amber-300 border-amber-800'
   return (
     <span
-      className={`text-[10px] uppercase tracking-wide font-semibold px-1.5 py-0.5 rounded-full border ${style}`}
+      className="text-xs capitalize font-medium px-2.5 py-1 rounded-full border border-line bg-surface text-app-muted"
       title={`${trust.resolved}/${trust.accepted} alerts resolved · trust ${trust.score}`}
     >
       {trust.label}
