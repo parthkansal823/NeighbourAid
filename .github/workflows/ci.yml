@@ -115,6 +115,11 @@ jobs:
       - name: Run frontend and Worker tests
         run: npm test -- --reporter=default --reporter=junit --outputFile=test-results/vitest.xml
 
+      - name: Verify updater tests with a later Android build number
+        env:
+          VERSION_CODE: "1000000"
+        run: npm test -- src/utils/androidUpdate.test.js
+
       - name: Test server setup tools
         run: npm run test:tools
 

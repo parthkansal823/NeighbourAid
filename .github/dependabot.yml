@@ -16,11 +16,27 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 5
+    # eslint-plugin-react 7 currently supports ESLint through 9.x only.
+    # Keep security audits active; migrate the lint stack deliberately before
+    # proposing its next major. Minor/patch fixes continue automatically.
+    ignore:
+      - dependency-name: eslint
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
     groups:
       capacitor:
         patterns: ["@capacitor/*"]
+      # These packages require matching versions, including major updates.
+      react-runtime:
+        patterns: ["react", "react-dom"]
+      vitest:
+        patterns: ["vitest", "@vitest/*"]
+      lint-tooling:
+        patterns: ["eslint", "@eslint/js", "eslint-plugin-*"]
+        update-types: [minor, patch]
       test-tooling:
-        patterns: ["vitest", "@vitest/*", "@testing-library/*"]
+        patterns: ["@testing-library/*"]
         update-types: [minor, patch]
 
   - package-ecosystem: pip
