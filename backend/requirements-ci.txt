@@ -1,0 +1,5 @@
+# Keep CI tooling stable while runtime dependencies retain their patch floors.
+# Install together with requirements.txt; this file is not a production dependency.
+ruff==0.16.8
+pytest-cov==7.1.0
+pip-audit==2.10.1

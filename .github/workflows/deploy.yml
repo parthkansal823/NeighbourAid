@@ -1,7 +1,5 @@
 name: Deploy Cloudflare Worker
 
-# A deployment follows a green CI run, not merely a push to main. The
-# workflow_run payload supplies the exact revision CI accepted.
 on:
   workflow_run:
     workflows: ["NeighbourAid CI"]
@@ -9,6 +7,7 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Finish an active upload; queued runs validate main again before deploying.
 concurrency:
   group: deploy-cloudflare-production
   cancel-in-progress: false
@@ -18,50 +17,127 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  # The token is a secret; the account id is intentionally a GitHub Actions
-  # variable because it is an identifier, not a credential.
-  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-  CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
 
 jobs:
   deploy:
-    # Manual runs are allowed. Automatic runs deploy only if all CI jobs in
-    # NeighbourAid CI completed successfully.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
     environment:
       name: production
       url: https://neighbouraid.kansalp-parth.workers.dev
 
     steps:
-      - name: Checkout the CI-tested revision
-        uses: actions/checkout@v4
+      - name: Checkout deployment workflow helpers
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.workflow_sha }}
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - name: Require successful CI for the current main revision
+        id: ci
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const { resolveCiDeployment } = require('./.github/scripts/deploy-ci.cjs');
+            const deployment = await resolveCiDeployment({ github, context });
+            core.setOutput('sha', deployment.sha);
+            core.setOutput('run_id', deployment.runId);
+            await core.summary.addHeading('Production deployment candidate')
+              .addTable([
+                [{ data: 'Commit', header: true }, { data: 'Successful CI run', header: true }],
+                [deployment.sha, String(deployment.runId)],
+              ]).write();
+
+      - name: Check deployment configuration
+        id: config
+        env:
+          TOKEN_CONFIGURED: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
+          ACCOUNT_CONFIGURED: ${{ vars.CLOUDFLARE_ACCOUNT_ID != '' }}
+        run: |
+          if [[ "$TOKEN_CONFIGURED" == "true" && "$ACCOUNT_CONFIGURED" == "true" ]]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo '::warning::Deployment skipped: configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.'
+            {
+              echo '### Deployment skipped'
+              echo 'Add the `CLOUDFLARE_API_TOKEN` secret and `CLOUDFLARE_ACCOUNT_ID` variable in the production environment or repository. CI remains active.'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Checkout the CI-tested revision
+        if: steps.config.outputs.ready == 'true'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ steps.ci.outputs.sha }}
+          persist-credentials: false
+
+      - name: Setup Node
+        if: steps.config.outputs.ready == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install frontend dependencies
-        run: cd frontend && npm ci
+      - name: Install deployment tooling from the tested lockfile
+        if: steps.config.outputs.ready == 'true'
+        working-directory: frontend
+        run: npm ci
 
-      - name: Explain missing deployment credentials
-        if: env.CLOUDFLARE_API_TOKEN == '' || env.CLOUDFLARE_ACCOUNT_ID == ''
-        run: >-
-          echo "::warning::Cloudflare deployment skipped. Add the
-          CLOUDFLARE_API_TOKEN repository secret and CLOUDFLARE_ACCOUNT_ID
-          repository variable to enable it. CI remains fully active."
+      - name: Download the exact CI edge build
+        if: steps.config.outputs.ready == 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: frontend-edge-dist
+          path: frontend/dist
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.ci.outputs.run_id }}
 
-      - name: Deploy Worker and static assets
-        if: env.CLOUDFLARE_API_TOKEN != '' && env.CLOUDFLARE_ACCOUNT_ID != ''
+      - name: Validate artifact provenance and current main again
+        if: steps.config.outputs.ready == 'true'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
-          # The browser site uses relative URLs; the Worker supplies the
-          # backend connection from its server-side KV binding.
-          VITE_EDGE_PROXY: "1"
-        run: cd frontend && npm run deploy
+          DEPLOY_SHA: ${{ steps.ci.outputs.sha }}
+          CI_RUN_ID: ${{ steps.ci.outputs.run_id }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const { resolveCiDeployment, validateBuildMetadata } = require('./.github/scripts/deploy-ci.cjs');
+            const current = await resolveCiDeployment({ github, context });
+            if (current.sha !== process.env.DEPLOY_SHA || String(current.runId) !== process.env.CI_RUN_ID) {
+              throw new Error('main or its CI run changed while deployment was preparing. Run deployment after the latest CI succeeds.');
+            }
+            validateBuildMetadata(JSON.parse(fs.readFileSync('frontend/dist/ci-build.json', 'utf8')), current);
+            if (!fs.statSync('frontend/dist/index.html').isFile()) throw new Error('The CI artifact has no index.html.');
+
+      - name: Deploy tested Worker and static assets
+        id: deployment
+        if: steps.config.outputs.ready == 'true'
+        working-directory: frontend
+        env:
+          # Credentials exist only for the step that uploads to Cloudflare.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        # npm run deploy rebuilds the SPA; deploy the downloaded CI assets directly.
+        run: npx --no-install wrangler deploy
+
+      - name: Check deployed static frontend
+        if: steps.deployment.outcome == 'success'
+        env:
+          SITE_URL: https://neighbouraid.kansalp-parth.workers.dev
+        run: |
+          curl --fail --silent --show-error --location --retry 4 --retry-all-errors \
+            --retry-delay 3 --max-time 20 "$SITE_URL/" --output "$RUNNER_TEMP/deployed-index.html"
+          grep -q 'id="root"' "$RUNNER_TEMP/deployed-index.html"
+          {
+            echo '### Production deployed'
+            echo 'The CI edge artifact was deployed and the static frontend responded successfully.'
+          } >> "$GITHUB_STEP_SUMMARY"

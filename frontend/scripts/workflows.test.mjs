@@ -68,7 +68,26 @@ test('local Docker API/database/tunnel remain, without remote backend hosting co
 
 test('Android workflow calls the tested signing check and watches its changes', () => {
   assert.ok(jobBlock(android, 'signed-apk-release').includes('run: bash .github/scripts/check-android-signing.sh'))
-  assert.equal(android.split('- ".github/scripts/check-android-signing.sh"').length - 1, 2)
+  assert.equal(android.split('- ".github/scripts/**"').length - 1, 2)
+  assert.equal(android.split('- ".github/workflows/ci.yml"').length - 1, 2)
+})
+
+test('Android signing requires debug validation and same-commit trusted CI', () => {
+  const release = jobBlock(android, 'signed-apk-release')
+  assert.match(release, /needs: \[debug-apk, release-ci-gate\]/)
+  const gate = jobBlock(android, 'release-ci-gate')
+  assert.match(gate, /actions: read/)
+  assert.match(gate, /run: node \.github\/scripts\/check-android-ci\.mjs/)
+  assert.doesNotMatch(gate, /contents: write|secrets\./)
+})
+
+test('Android signing restores keys after installing dependencies and always removes them', () => {
+  const release = jobBlock(android, 'signed-apk-release')
+  assert.ok(release.indexOf('npm ci') < release.indexOf('run: node frontend/scripts/restore-signing.mjs'))
+  assert.match(release, /Remove signing files after every build outcome\n\s+if: always\(\)/)
+  assert.match(release, /upload-keystore\.jks.*keystore\.properties.*force: true/)
+  assert.match(release, /cache-read-only: true/)
+  assert.doesNotMatch(release, /cache: gradle/)
 })
 
 function checkSigning(event, ref, configuredNames) {

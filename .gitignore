@@ -20,6 +20,7 @@ __pycache__/
 coverage.xml
 backend/coverage.xml
 htmlcov/
+backend/test-results/
 .tox/
 .nox/
 .hypothesis/
@@ -52,6 +53,9 @@ frontend/dist-demo/
 frontend/native/**/build/
 frontend/native/**/.gradle/
 frontend/.vite/
+frontend/test-results/
+frontend/audit-reports/
+backend/pip-audit.json
 
 # --- HuggingFace cache ---
 .cache/huggingface/

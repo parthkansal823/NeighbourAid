@@ -7,18 +7,22 @@ on:
     paths:
       - "frontend/**"
       - ".github/workflows/android.yml"
-      - ".github/scripts/check-android-signing.sh"
+      - ".github/workflows/ci.yml"
+      - ".github/scripts/**"
   pull_request:
     branches: ["**"]
     paths:
       - "frontend/**"
       - ".github/workflows/android.yml"
-      - ".github/scripts/check-android-signing.sh"
+      - ".github/workflows/ci.yml"
+      - ".github/scripts/**"
   workflow_dispatch:
 
 concurrency:
-  group: android-${{ github.ref }}
-  cancel-in-progress: true
+  group: android-${{ github.event_name }}-${{ github.ref }}
+  # Keep publishing jobs alive; a newer main push must not interrupt signing
+  # or leave a release half-uploaded. Contributor builds may be superseded.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v')) }}
 
 permissions:
   contents: read
@@ -36,29 +40,35 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           # Capacitor compiles both the shell and its runtime with Java 21.
           java-version: "21"
-          cache: gradle
+
+      - name: Validate Gradle wrappers and restore build cache
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+        with:
+          cache-read-only: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
 
       - name: Install frontend dependencies
         run: cd frontend && npm ci
 
-      - name: Build and sync Capacitor Android assets
-        run: cd frontend && npm run mobile:sync
-
       - name: Check frontend before distributing an APK
         run: cd frontend && npm run lint && npm test && npm run test:tools && npm run check:private
+
+      - name: Build and sync Capacitor Android assets
+        run: cd frontend && npm run mobile:sync
 
       - name: Make Gradle wrapper executable
         # Git on Windows commonly stores gradlew without its Unix execute
@@ -68,15 +78,47 @@ jobs:
 
       - name: Assemble installable debug APK
         working-directory: frontend/android
-        run: ./gradlew app:assembleDebug :neighbouraid-app-updater:testDebugUnitTest :neighbouraid-speech-input:testDebugUnitTest --no-daemon
+        run: ./gradlew app:assembleDebug :neighbouraid-app-updater:testDebugUnitTest :neighbouraid-speech-input:testDebugUnitTest --no-daemon --stacktrace
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: neighbouraid-debug-apk
+          name: neighbouraid-debug-${{ github.run_number }}-${{ github.run_attempt }}-apk
           path: frontend/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload Android test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-test-reports-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            frontend/native/*/android/build/reports/tests/
+            frontend/native/*/android/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  release-ci-gate:
+    # Version tags are only signed after this exact commit passed main CI.
+    if: >-
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Require successful CI for this release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/check-android-ci.mjs
 
   signed-apk-release:
     # Relevant main pushes, version tags and manual main runs publish releases.
@@ -89,7 +131,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: debug-apk
+    needs: [debug-apk, release-ci-gate]
     concurrency:
       group: neighbouraid-signed-release
       cancel-in-progress: false
@@ -98,34 +140,38 @@ jobs:
       # GitHub Release where friends can download the signed APK.
       contents: write
     env:
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       ANDROID_RELEASE_CHANNEL: release
       RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('android-{0}', github.run_number) }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
+          persist-credentials: false
 
       - name: Check release signing configuration
         id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: bash .github/scripts/check-android-signing.sh
 
-      - name: Restore signing key without printing it
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         if: steps.signing.outputs.configured == 'true'
-        run: node frontend/scripts/restore-signing.mjs
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        if: steps.signing.outputs.configured == 'true'
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Validate Gradle wrappers and restore cache without saving signed state
+        if: steps.signing.outputs.configured == 'true'
+        uses: gradle/actions/setup-gradle@4c125117fe7c5aed11272ec4213f602f012f89f2 # v5
+        with:
+          cache-read-only: true
 
       - name: Install frontend dependencies
         if: steps.signing.outputs.configured == 'true'
@@ -140,10 +186,24 @@ jobs:
         working-directory: frontend/android
         run: chmod +x gradlew
 
+      - name: Restore signing key without printing it
+        if: steps.signing.outputs.configured == 'true'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: node frontend/scripts/restore-signing.mjs
+
       - name: Build signed APK
         if: steps.signing.outputs.configured == 'true'
         working-directory: frontend/android
-        run: ./gradlew app:assembleRelease --no-daemon
+        run: ./gradlew app:assembleRelease --no-daemon --stacktrace
+
+      - name: Remove signing files after every build outcome
+        if: always()
+        run: |
+          node --input-type=module -e "import {rm} from 'node:fs/promises'; await Promise.all(['frontend/android/app/upload-keystore.jks', 'frontend/android/keystore.properties'].map(path => rm(path, {force: true})))"
 
       - name: Verify signed APK
         if: steps.signing.outputs.configured == 'true'
@@ -156,9 +216,9 @@ jobs:
 
       - name: Upload signed APK artifact
         if: steps.signing.outputs.configured == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: neighbouraid-${{ env.RELEASE_TAG }}-apk
+          name: neighbouraid-signed-${{ github.run_number }}-${{ github.run_attempt }}-apk
           path: |
             frontend/android/app/build/outputs/apk/release/app-release.apk
             frontend/android/app/build/outputs/apk/release/app-release.apk.sha256
