@@ -86,16 +86,19 @@
     "vitest-axe": "^0.1.0",
     "wrangler": "^4.131.0"
   },
-  "_overrides_note": "Security floors for build tooling. brace-expansion stays scoped per parent: legacy minimatch@3 needs the 1.x export shape, while minimatch@10 needs 5.x. The updated floors cover the October 2026 audit findings without forcing incompatible major exports. Drop overrides once parent dependencies select patched versions themselves.",
+  "_overrides_note": "Security floors for build tooling. Scope brace-expansion to the consuming minimatch major: 3.x uses 1.x, 8.x uses 2.x, and 10.x uses 5.x. A broad @capacitor/cli override also affects the assets tool's legacy CLI, making npm 10 and 11 disagree when regenerating the lockfile. Drop these floors once upstream dependencies select patched versions themselves.",
   "overrides": {
     "sharp": "$sharp",
     "tar": ">=7.5.21",
     "uuid": ">=11.1.1",
-    "eslint-plugin-react": {
+    "minimatch@^3.0.0": {
       "brace-expansion": "^1.1.21"
     },
-    "@capacitor/cli": {
-      "brace-expansion": ">=5.0.12"
+    "minimatch@^8.0.0": {
+      "brace-expansion": "^2.1.7"
+    },
+    "minimatch@^10.0.0": {
+      "brace-expansion": "^5.0.12"
     }
   }
 }

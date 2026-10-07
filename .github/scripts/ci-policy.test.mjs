@@ -67,6 +67,18 @@ test('unsupported ESLint majors require a deliberate plugin migration', () => {
   assert.doesNotMatch(npm, /dependency-name: ["']?\*["']?\s*\n/)
 })
 
+test('brace-expansion security floors respect each consuming minimatch major', () => {
+  const manifest = JSON.parse(readFileSync(new URL('../../frontend/package.json', import.meta.url), 'utf8'))
+  for (const [consumer, brace] of [[3, 1], [8, 2], [10, 5]]) {
+    const floor = manifest.overrides[`minimatch@^${consumer}.0.0`]?.['brace-expansion']
+    assert.match(floor ?? '', new RegExp(`^\\^${brace}\\.`), `Minimatch ${consumer} needs brace-expansion ${brace}.x`)
+  }
+  // This broad parent includes both the current CLI and the assets tool's
+  // older CLI; it caused npm 11 to prune entries required by npm 10.
+  assert.equal(manifest.overrides['@capacitor/cli'], undefined)
+  assert.equal(manifest.overrides['brace-expansion'], undefined)
+})
+
 test('security checks cannot suppress a vulnerability or service failure', () => {
   const audit = workflow.slice(workflow.indexOf('\n  security-audit:'), workflow.indexOf('\n  ci-success:'))
   assert.doesNotMatch(audit, /continue-on-error|\|\| true/)

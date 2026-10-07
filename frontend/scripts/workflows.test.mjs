@@ -80,7 +80,7 @@ test('debug and signed APK jobs install the JVM required by generated Gradle cri
   assert.ok(distributions[vendor], `Review CI JDK setup for Gradle vendor ${vendor}`)
   assert.ok(version, 'Generated Gradle JVM version must be present')
   for (const name of ['debug-apk', 'signed-apk-release']) {
-    const setup = jobBlock(android, name).match(/- uses: actions\/setup-java@[^\n]+\n([\s\S]*?)(?=\n      -|$)/)?.[1]
+    const setup = jobBlock(android, name).match(/- uses: actions\/setup-java@[^\n]+\n([\s\S]*?)(?=\n {6}-|$)/)?.[1]
     assert.ok(setup, `${name} must install its own JDK`)
     assert.match(setup, new RegExp(`distribution: ${distributions[vendor]}\\s+java-version: "${version}"`))
     assert.match(setup, /GITHUB_TOKEN: \$\{\{ github.token \}\}/)
