@@ -15,7 +15,7 @@ python-multipart>=0.0.27
 # app/services/photo.py degrades to a crude byte-length check without this,
 # so every dimension/corruption check it documents silently never runs.
 pillow>=11.3.0
-pydantic[email]>=2.12.0
+pydantic[email]>=2.13.5
 pydantic-settings>=2.14.2
 pytest>=8.3.0
 httpx>=0.28.0
