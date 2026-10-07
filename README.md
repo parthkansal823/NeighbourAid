@@ -1,5 +1,5 @@
 <h1 align="center">
-  <img src="frontend/public/brand-logo.png" alt="NeighbourAid Logo" width="55" height="55" style="vertical-align: middle;">
+  <img src="frontend/public/brand-logo.png" alt="NeighbourAid Logo" width="40" height="40" style="vertical-align: middle;">
   NeighbourAid
 </h1>
 
