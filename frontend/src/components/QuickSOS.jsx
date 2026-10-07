@@ -6,6 +6,7 @@ import { apiError } from '../utils/error'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 import BuddyPing from './BuddyPing'
+import { haptic } from '../utils/haptics'
 
 export default function QuickSOS() {
   const { user } = useAuth()
@@ -35,8 +36,10 @@ export default function QuickSOS() {
               coordinates: [coords.longitude, coords.latitude],
             },
           })
+          haptic([12, 32, 28])
           navigate('/my-alerts')
         } catch (err) {
+          haptic(70)
           setError(apiError(err, t('sos_failed')))
         } finally {
           setLoading(false)
@@ -52,6 +55,7 @@ export default function QuickSOS() {
 
   const confirm = () => {
     if (window.confirm(t('sos_confirm'))) {
+      haptic(10)
       fire()
     }
   }

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 import { LanguageMenu } from './Navbar'
-import { Menu, X } from './icons'
+import { ArrowLeft, Menu, X } from './icons'
 import BrandLogo from './BrandLogo'
 import NativeUpdateSettings from './NativeUpdateSettings'
 
@@ -16,6 +16,21 @@ export default function NativeHeader({ onOpenEmergency }) {
   const menuButton = useRef(null)
   const { pathname } = useLocation()
   const navigate = useNavigate()
+
+  const screenTitle = {
+    '/map': t('nav_map'),
+    '/post-alert': t('post_title'),
+    '/my-alerts': t('nav_my_alerts'),
+    '/volunteer': t('nav_volunteer'),
+    '/profile': t('nav_profile'),
+    '/safety': t('nav_safety'),
+    '/resources': t('nav_resources'),
+    '/news': t('nav_news'),
+    '/help': t('help_title'),
+    '/app-updates': 'App updates',
+    '/login': t('nav_login'),
+    '/register': t('nav_join'),
+  }[pathname]
 
   useEffect(() => { setOpen(false) }, [pathname])
   useEffect(() => {
@@ -47,10 +62,17 @@ export default function NativeHeader({ onOpenEmergency }) {
   return (
     <header ref={ref} className="app-header sticky top-0 z-[1100] border-b border-line bg-surface">
       <div className="flex min-h-16 items-center justify-between gap-1 px-3">
-        <Link to="/" className="tap flex min-w-0 items-center gap-1.5 font-bold tracking-tight text-white" onClick={() => setOpen(false)}>
-          <BrandLogo size={36} />
-          <span>NeighbourAid</span>
-        </Link>
+        {screenTitle ? (
+          <div className="flex min-w-0 items-center gap-1">
+            <button type="button" onClick={() => { setOpen(false); window.history.length > 1 ? navigate(-1) : navigate('/') }} className="tap inline-flex shrink-0 items-center justify-center rounded-xl text-gray-200 hover:bg-surface-2" aria-label="Go back"><ArrowLeft className="h-5 w-5" aria-hidden /></button>
+            <p className="truncate px-1 text-base font-semibold tracking-tight text-white">{screenTitle}</p>
+          </div>
+        ) : (
+          <Link to="/" className="tap flex min-w-0 items-center gap-1.5 rounded-xl font-bold tracking-tight text-white" onClick={() => setOpen(false)}>
+            <BrandLogo size={36} />
+            <span>NeighbourAid</span>
+          </Link>
+        )}
         <div className="flex shrink-0 items-center gap-1">
           <button type="button" onClick={() => { setOpen(false); onOpenEmergency() }} className="tap rounded-xl border border-red-500/30 bg-red-500/10 px-2 text-sm font-semibold text-red-300" aria-label={t('dialer_open')}>112</button>
           <LanguageMenu />
@@ -59,7 +81,7 @@ export default function NativeHeader({ onOpenEmergency }) {
           </button>
         </div>
       </div>
-      {open && <nav id="native-menu" aria-label="More navigation" className="absolute inset-x-0 top-full max-h-[calc(100dvh-10rem)] overflow-y-auto border-b border-line bg-surface p-3 shadow-lg">
+      {open && <nav id="native-menu" aria-label="More navigation" className="native-more-menu absolute inset-x-0 top-full max-h-[calc(100dvh-10rem)] overflow-y-auto border-b border-line bg-surface p-3 shadow-lg">
         {links.map(({ to, key }) => <Link key={to} to={to} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-xl px-3 text-sm text-gray-200 hover:bg-surface-2">{t(key)}</Link>)}
         {user && <button type="button" onClick={() => { logout(); setOpen(false); navigate('/') }} className="flex min-h-12 w-full items-center rounded-xl px-3 text-sm text-gray-300">{t('nav_logout')}</button>}
         <NativeUpdateSettings />

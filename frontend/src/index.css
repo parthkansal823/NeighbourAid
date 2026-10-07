@@ -9,15 +9,15 @@
   --app-header-height: calc(4rem + var(--app-safe-top));
   --app-nav-height: calc(4.5rem + var(--app-safe-bottom));
   min-height: 100dvh;
-  background: #101010;
-  color-scheme: dark;
+  background: var(--color-surface);
+  color-scheme: inherit;
 }
 .native-app .app-header { padding-top: var(--app-safe-top); }
 .native-app .app-header > div { padding-left: max(.75rem, var(--app-safe-left)); padding-right: max(.75rem, var(--app-safe-right)); }
 .native-app .app-content { padding-bottom: calc(var(--app-nav-height) + 1rem); }
 .native-app .app-content { padding-left: var(--app-safe-left); padding-right: var(--app-safe-right); }
 .native-app .app-content h1 { font-size: clamp(1.5rem, 5vw, 1.875rem); line-height: 1.25; }
-.native-app .app-content :is(input, select, textarea):not([type='checkbox']):not([type='radio']) { font-size: 16px; min-height: 48px; background-color: #171717; border-color: #343434; }
+.native-app .app-content :is(input, select, textarea):not([type='checkbox']):not([type='radio']) { font-size: 16px; min-height: 48px; background-color: var(--color-surface-1); border-color: var(--color-line); }
 .native-app .app-content :is(h1, h2, h3, p, dd) { overflow-wrap: anywhere; }
 .native-app .mobile-nav[hidden] { display: none; }
 .native-app .mobile-nav { padding-left: max(.5rem, var(--app-safe-left)); padding-right: max(.5rem, var(--app-safe-right)); padding-bottom: var(--app-safe-bottom); }
@@ -35,11 +35,11 @@
 .native-app .auth-page { min-height: calc(100dvh - var(--app-header-height) - var(--app-nav-height) - 1rem); align-items: flex-start; padding-top: 1.5rem; overflow: visible; }
 .native-app .auth-page > [aria-hidden] { display: none; }
 .native-app .auth-page > .surface-card { padding: 1.25rem; }
-.native-app .auth-page input:not([type='checkbox']):not([type='radio']) { min-height: 48px; background: #171717; border-color: #343434; border-radius: 12px; font-size: 16px; }
+.native-app .auth-page input:not([type='checkbox']):not([type='radio']) { min-height: 48px; background: var(--color-surface-1); border-color: var(--color-line); border-radius: 12px; font-size: 16px; }
 .native-app .reveal-up, .native-app .pop-in { animation: none; }
 .native-app main > .min-h-screen { min-height: calc(100dvh - var(--app-header-height) - var(--app-nav-height)); }
 .app-overlay { position: fixed; inset: 0; z-index: 1400; }
-.native-overlay { color-scheme: dark; }
+.native-overlay { color-scheme: inherit; }
 .native-overlay [role='dialog'] { padding-top: max(1rem, var(--safe-area-inset-top, env(safe-area-inset-top, 0px))); padding-bottom: max(1rem, var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))); padding-left: max(.75rem, var(--safe-area-inset-left, env(safe-area-inset-left, 0px))); padding-right: max(.75rem, var(--safe-area-inset-right, env(safe-area-inset-right, 0px))); }
 .native-overlay button { min-width: 44px; min-height: 44px; }
 .native-overlay input { min-width: 0; font-size: 16px; }
@@ -64,20 +64,20 @@
    expanded view also uses this layout on desktop, with a visible exit. */
 .map-compact .map-body { position: absolute; inset: 0; padding: 0; z-index: 0; }
 .map-compact .leaflet-container { border-radius: 0; min-height: 0 !important; }
-.map-compact .map-toolbar { position: absolute; inset-inline: 0; bottom: 0; z-index: 500; max-height: 65%; overflow-y: auto; border-top: 1px solid #343434; border-bottom: 0; border-radius: 16px 16px 0 0; background: #171717; padding: .5rem .75rem; }
+.map-compact .map-toolbar { position: absolute; inset-inline: 0; bottom: 0; z-index: 500; max-height: 65%; overflow-y: auto; border-top: 1px solid var(--color-line); border-bottom: 0; border-radius: 16px 16px 0 0; background: var(--color-surface-1); padding: .5rem .75rem; }
 .map-compact .map-toolbar h1 { font-size: 1rem; line-height: 1.25; }
 .map-compact .map-filters { width: 100%; flex-wrap: nowrap; overflow-x: auto; padding-bottom: .25rem; }
 .map-compact .map-filters button { flex-shrink: 0; white-space: nowrap; min-height: 44px; }
 .map-compact .map-legend { bottom: calc(var(--map-controls-height) + 2.25rem); font-size: 10px; padding: .5rem; }
 .map-compact .leaflet-bottom { bottom: calc(var(--map-controls-height) + .25rem); }
 .map-compact .leaflet-control-attribution { font-size: 10px; }
-.map-expanded, .native-app .map-expanded, .web-content .map-expanded { position: fixed; inset: 0; z-index: 1300; height: 100dvh; min-height: 0; background: #101010; }
+.map-expanded, .native-app .map-expanded, .web-content .map-expanded { position: fixed; inset: 0; z-index: 1300; height: 100dvh; min-height: 0; background: var(--color-surface); }
 .map-expanded .map-toolbar { bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
 .map-expanded .leaflet-top { top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); }
 .map-expanded .map-legend { bottom: calc(var(--map-controls-height) + var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)) + 2.25rem); }
 .map-expanded .leaflet-bottom { bottom: calc(var(--map-controls-height) + .25rem); }
 .map-expanded .map-body { padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
-.native-app .map-expanded::before { content: ''; position: absolute; inset-inline: 0; top: 0; height: var(--app-safe-top); background: #101010; z-index: 1000; pointer-events: none; }
+.native-app .map-expanded::before { content: ''; position: absolute; inset-inline: 0; top: 0; height: var(--app-safe-top); background: var(--color-surface); z-index: 1000; pointer-events: none; }
 
 @theme {
   --color-critical: #ef4444;
@@ -131,6 +131,89 @@
   --duration-fast: 140ms; /* taps, hovers, colour changes */
   --duration-base: 220ms; /* entrances, reveals, sheets */
   --duration-slow: 400ms; /* attention — use sparingly */
+}
+
+/* ----------------------------------------------------------------------
+   System appearance
+
+   The palette follows the phone or browser preference by default. React
+   writes data-theme as soon as it mounts so Android's edge-to-edge system
+   bars and the document stay in lockstep when the preference changes live.
+   The neutral Tailwind variables are deliberately remapped here too: most
+   existing screens use those utilities, so every route gets a real light
+   surface instead of a dark page with a pale body behind it. */
+:root {
+  color-scheme: light;
+  --app-ink: #172033;
+  --app-muted: #526176;
+  --app-glass: rgb(244 247 251 / 0.94);
+  --app-shadow-float: 0 16px 48px -12px rgb(31 45 61 / 0.18);
+  --color-surface: #f4f7fb;
+  --color-surface-1: #ffffff;
+  --color-surface-2: #eaf0f6;
+  --color-line: #d8e1ea;
+  --color-accent: #c45116;
+  --color-accent-soft: #c451161a;
+  --color-gray-950: #f4f7fb;
+  --color-gray-900: #f0f4f8;
+  --color-gray-800: #e3eaf1;
+  --color-gray-700: #cbd5e1;
+  --color-gray-600: #94a3b8;
+  --color-gray-500: #64748b;
+  --color-gray-400: #4b5b70;
+  --color-gray-300: #334155;
+  --color-gray-200: #d8e1ea;
+  --color-gray-100: #172033;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --app-ink: #f8fafc;
+    --app-muted: #9ca3af;
+    --app-glass: rgb(16 16 16 / 0.94);
+    --app-shadow-float: 0 16px 48px -12px rgb(0 0 0 / 0.65);
+    --color-surface: #101010;
+    --color-surface-1: #171717;
+    --color-surface-2: #222222;
+    --color-line: #343434;
+    --color-accent: #f97316;
+    --color-accent-soft: #f973161f;
+    --color-gray-950: oklch(13% .028 261.692);
+    --color-gray-900: oklch(21% .034 264.665);
+    --color-gray-800: oklch(27.8% .033 256.848);
+    --color-gray-700: oklch(37.3% .034 259.733);
+    --color-gray-600: oklch(44.6% .03 256.802);
+    --color-gray-500: oklch(55.1% .027 264.364);
+    --color-gray-400: oklch(70.7% .022 261.325);
+    --color-gray-300: oklch(87.2% .01 258.338);
+    --color-gray-200: oklch(92.8% .006 264.531);
+    --color-gray-100: oklch(96.7% .003 264.542);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --app-ink: #f8fafc;
+  --app-muted: #9ca3af;
+  --app-glass: rgb(16 16 16 / 0.94);
+  --app-shadow-float: 0 16px 48px -12px rgb(0 0 0 / 0.65);
+  --color-surface: #101010;
+  --color-surface-1: #171717;
+  --color-surface-2: #222222;
+  --color-line: #343434;
+  --color-accent: #f97316;
+  --color-accent-soft: #f973161f;
+  --color-gray-950: oklch(13% .028 261.692);
+  --color-gray-900: oklch(21% .034 264.665);
+  --color-gray-800: oklch(27.8% .033 256.848);
+  --color-gray-700: oklch(37.3% .034 259.733);
+  --color-gray-600: oklch(44.6% .03 256.802);
+  --color-gray-500: oklch(55.1% .027 264.364);
+  --color-gray-400: oklch(70.7% .022 261.325);
+  --color-gray-300: oklch(87.2% .01 258.338);
+  --color-gray-200: oklch(92.8% .006 264.531);
+  --color-gray-100: oklch(96.7% .003 264.542);
 }
 
 /* ---- A new alert arriving --------------------------------------------
@@ -229,7 +312,7 @@
    Anything that is part of the page flow uses `surface-card` instead. */
 @utility surface-float {
   @apply bg-surface-1 border border-line rounded-2xl;
-  box-shadow: 0 16px 48px -12px rgb(0 0 0 / 0.65);
+  box-shadow: var(--app-shadow-float);
 }
 
 /* ---- Chip ------------------------------------------------------------
@@ -361,7 +444,7 @@
 
 @utility glass {
   /* Navigation stays readable over maps without becoming decorative glass. */
-  background: rgb(16 16 16 / 0.94);
+  background: var(--app-glass);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -388,7 +471,7 @@
 
 @utility text-gradient-brand {
   /* The name is retained for existing components; the visual is now plain. */
-  color: #fff;
+  color: var(--app-ink);
 }
 
 @utility pulse-dot {
@@ -419,7 +502,9 @@
 
 @layer utilities {
   body {
-    @apply bg-gray-950 text-gray-100 font-sans;
+    background: var(--color-surface);
+    color: var(--app-ink);
+    font-family: var(--font-sans);
     -webkit-tap-highlight-color: transparent;
     -webkit-text-size-adjust: 100%;
   }
@@ -431,7 +516,7 @@
     inset: 0;
     pointer-events: none;
     z-index: -1;
-    background: #101010;
+    background: var(--color-surface);
   }
 
   /* iOS Safari zooms in on form inputs with font-size < 16px. */
@@ -480,22 +565,22 @@
       height: 10px;
     }
     ::-webkit-scrollbar-track {
-      background: #0b0f19;
+      background: var(--color-surface);
     }
     ::-webkit-scrollbar-thumb {
-      background: #1f2937;
+      background: var(--color-surface-2);
       border-radius: 8px;
-      border: 2px solid #0b0f19;
+      border: 2px solid var(--color-surface);
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: #374151;
+      background: var(--color-gray-600);
     }
   }
 
   /* Visible focus ring for keyboard users — replaces the ugly browser
  * default outline with one that matches the orange brand. */
   :focus-visible {
-    outline: 2px solid #f97316;
+    outline: 2px solid var(--color-accent);
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -511,7 +596,7 @@
   }
 
   .leaflet-container {
-    background: #0b0f19;
+    background: var(--color-surface-2);
   }
 
   /* ------------------------------------------------------------- */
@@ -619,4 +704,388 @@
 
 .animate-toast-out {
   animation: toast-out 0.22s ease-in;
+}
+
+/* Light mode has semantic ink rather than inverted dark-mode text. The
+   project predates the theme system and uses text-white liberally for page
+   headings, so this small compatibility bridge makes every existing screen
+   legible while preserving white labels on high-signal action buttons. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .text-white { color: var(--app-ink); }
+  :root:not([data-theme='dark']) .bg-black { background-color: var(--color-surface); }
+  :root:not([data-theme='dark']) :is(.bg-red-500, .bg-red-600, .bg-orange-500, .bg-orange-600, .bg-green-600, .bg-teal-600, .bg-blue-600, .bg-purple-600, [class*='bg-black/']).text-white { color: #fff; }
+}
+
+:root[data-theme='light'] .text-white { color: var(--app-ink); }
+:root[data-theme='light'] .bg-black { background-color: var(--color-surface); }
+:root[data-theme='light'] :is(.bg-red-500, .bg-red-600, .bg-orange-500, .bg-orange-600, .bg-green-600, .bg-teal-600, .bg-blue-600, .bg-purple-600, [class*='bg-black/']).text-white { color: #fff; }
+
+/* Shared app-shell rhythm. These deliberately work for a Capacitor WebView
+   and a phone browser so both feel like one product, not two layouts. */
+.native-app .app-header {
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.native-app .mobile-nav {
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  box-shadow: 0 -10px 28px rgb(15 23 42 / 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.native-app .page-panel,
+.native-app .app-updates-page {
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.native-more-menu {
+  box-shadow: var(--app-shadow-float);
+}
+
+.native-more-menu > a,
+.native-more-menu > button {
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.native-more-menu > a:hover,
+.native-more-menu > button:hover,
+.native-menu-update:hover {
+  background: var(--color-surface-2);
+}
+
+.app-screen-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  color: var(--color-accent);
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.app-update-hero {
+  background: linear-gradient(135deg, var(--color-accent-soft), transparent 65%);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.app-update-mark,
+.app-update-nudge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: .875rem;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.app-update-mark { width: 3rem; height: 3rem; }
+.app-update-nudge-icon { width: 2rem; height: 2rem; }
+
+.app-update-ready {
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  border-radius: 999px;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  padding: .2rem .5rem;
+  font-size: .6875rem;
+  font-weight: 700;
+}
+
+.app-update-empty {
+  display: flex;
+  gap: .75rem;
+  align-items: flex-start;
+  border: 1px solid rgb(34 197 94 / 0.28);
+  border-radius: .875rem;
+  color: #15803d;
+  background: rgb(34 197 94 / 0.08);
+  padding: .875rem;
+  font-size: .875rem;
+}
+
+.app-primary-action {
+  color: #fff;
+  background: var(--color-accent);
+  transition: background-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-spring);
+}
+
+.app-primary-action:hover { background: color-mix(in srgb, var(--color-accent) 86%, white); }
+.app-primary-action:active { transform: scale(.98); }
+
+.app-update-nudge { transition: background-color var(--duration-fast) var(--ease-out); }
+.app-update-nudge:hover { background: var(--color-surface-2); }
+
+/* A release is important enough to deserve a deliberate app screen, rather
+   than a small banner people can miss while reporting an emergency. It still
+   has an immediate, plainly labelled way out. */
+.app-update-prompt-layer {
+  position: fixed;
+  z-index: 1600;
+  inset: 0;
+  display: flex;
+  min-height: 100dvh;
+  overflow: auto;
+  color: var(--app-ink);
+  background:
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, var(--color-accent) 16%, transparent), transparent 28rem),
+    radial-gradient(circle at 8% 92%, color-mix(in srgb, var(--color-brand) 10%, transparent), transparent 24rem),
+    var(--color-surface);
+}
+
+.app-update-prompt {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100%;
+  overflow: hidden;
+  padding:
+    max(1rem, env(safe-area-inset-top, 0px))
+    max(1rem, env(safe-area-inset-right, 0px))
+    max(1rem, env(safe-area-inset-bottom, 0px))
+    max(1rem, env(safe-area-inset-left, 0px));
+  outline: none;
+}
+
+.app-update-prompt::after {
+  position: absolute;
+  z-index: -1;
+  top: 13%;
+  left: 50%;
+  width: min(80vw, 32rem);
+  aspect-ratio: 1;
+  content: '';
+  pointer-events: none;
+  border-radius: 999px;
+  opacity: .52;
+  filter: blur(36px);
+  transform: translateX(-50%);
+  background: color-mix(in srgb, var(--color-accent-soft) 75%, transparent);
+}
+
+.app-update-prompt-topline,
+.app-update-prompt-footer {
+  display: flex;
+  width: min(100%, 34rem);
+  margin-right: auto;
+  margin-left: auto;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-update-prompt-kicker,
+.app-update-prompt-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  color: var(--app-muted);
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.app-update-prompt-pulse {
+  width: .5rem;
+  height: .5rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+  box-shadow: 0 0 0 .28rem color-mix(in srgb, var(--color-accent) 20%, transparent);
+  animation: app-update-pulse 2.4s var(--ease-out) infinite;
+}
+
+.app-update-prompt-close {
+  display: inline-flex;
+  width: 2.75rem;
+  height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line);
+  border-radius: .875rem;
+  color: var(--app-muted);
+  background: color-mix(in srgb, var(--color-surface-1) 86%, transparent);
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+
+.app-update-prompt-close:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-line));
+  color: var(--app-ink);
+  background: var(--color-surface-2);
+}
+
+.app-update-prompt-main {
+  display: flex;
+  width: min(100%, 34rem);
+  margin: auto;
+  padding: 2.5rem 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.app-update-prompt-icon {
+  display: inline-flex;
+  width: 5rem;
+  height: 5rem;
+  margin-bottom: 1.75rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 34%, transparent);
+  border-radius: 1.5rem;
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent-soft) 86%, transparent);
+  box-shadow: 0 1.125rem 2.5rem -1.5rem color-mix(in srgb, var(--color-accent) 52%, transparent);
+}
+
+.app-update-prompt-eyebrow { color: var(--color-accent); }
+
+.app-update-prompt-title {
+  max-width: 12ch;
+  margin: .75rem 0 0;
+  color: var(--app-ink);
+  font-size: clamp(2rem, 8vw, 3.25rem);
+  font-weight: 760;
+  line-height: .98;
+  letter-spacing: -.055em;
+}
+
+.app-update-prompt-copy {
+  max-width: 31rem;
+  margin: 1rem 0 0;
+  color: var(--app-muted);
+  font-size: .95rem;
+  line-height: 1.65;
+}
+
+.app-update-prompt-version {
+  display: flex;
+  width: 100%;
+  margin-top: 1.5rem;
+  padding: .875rem 1rem;
+  align-items: center;
+  gap: .5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+  color: var(--app-muted);
+  background: color-mix(in srgb, var(--color-surface-1) 84%, transparent);
+  font-size: .78rem;
+}
+
+.app-update-prompt-version-label { color: var(--app-muted); }
+.app-update-prompt-version strong { overflow: hidden; color: var(--app-ink); text-overflow: ellipsis; white-space: nowrap; }
+
+.app-update-prompt-action {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.app-update-prompt-action > div { max-width: none; }
+
+.app-update-prompt-action .app-update-action-button {
+  display: inline-flex;
+  width: 100%;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1rem;
+  color: #fff;
+  background: var(--color-accent);
+  box-shadow: 0 .875rem 1.75rem -1.15rem color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+.app-update-prompt-action .app-update-action-button:hover { background: color-mix(in srgb, var(--color-accent) 86%, white); }
+
+.app-update-prompt-assurance {
+  margin: .875rem auto 0;
+  color: var(--app-muted);
+  font-size: .72rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.app-update-prompt-footer {
+  gap: .75rem;
+  padding-top: .5rem;
+}
+
+.app-update-prompt-details,
+.app-update-prompt-later {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: .45rem;
+  border-radius: .875rem;
+  font-size: .84rem;
+  font-weight: 650;
+}
+
+.app-update-prompt-details {
+  padding: 0 .2rem;
+  color: var(--app-ink);
+}
+
+.app-update-prompt-details:hover { color: var(--color-accent); }
+
+.app-update-prompt-later {
+  padding: 0 .875rem;
+  color: var(--app-muted);
+  background: color-mix(in srgb, var(--color-surface-1) 88%, transparent);
+}
+
+.app-update-prompt-later:hover { color: var(--app-ink); background: var(--color-surface-2); }
+
+@keyframes app-update-pulse {
+  0%, 100% { box-shadow: 0 0 0 .28rem color-mix(in srgb, var(--color-accent) 20%, transparent); }
+  50% { box-shadow: 0 0 0 .5rem color-mix(in srgb, var(--color-accent) 4%, transparent); }
+}
+
+@media (max-height: 42rem) {
+  .app-update-prompt-main { padding: 1.25rem 0; }
+  .app-update-prompt-icon { width: 4rem; height: 4rem; margin-bottom: 1rem; border-radius: 1.25rem; }
+  .app-update-prompt-title { font-size: clamp(1.85rem, 7vw, 2.5rem); }
+  .app-update-prompt-copy { margin-top: .65rem; }
+  .app-update-prompt-version { margin-top: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-update-prompt-pulse { animation: none; }
+}
+
+.native-home-intro {
+  position: relative;
+  padding: .25rem 0 .5rem;
+}
+
+.native-home-intro::before {
+  content: '';
+  display: block;
+  width: 2.25rem;
+  height: .25rem;
+  margin-bottom: .875rem;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+
+.native-home-actions > a:first-child {
+  box-shadow: 0 10px 22px -12px color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.native-home-callout,
+.native-home-links {
+  transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+
+.native-home-callout:hover,
+.native-home-links:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-line));
+}
+
+@media (max-width: 1023px) {
+  .native-app .app-content > .page-panel {
+    padding-top: 1.25rem;
+  }
+
+  .native-app .app-content > .auth-page {
+    padding-inline: 1rem;
+  }
 }

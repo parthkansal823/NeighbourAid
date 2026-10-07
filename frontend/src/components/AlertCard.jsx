@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
@@ -24,6 +24,9 @@ import {
   ImageIcon,
   Link2,
   MapPin,
+  MessageCircle,
+  RefreshCw,
+  Send,
   Sparkles,
   Tag,
   Users,
@@ -440,40 +443,49 @@ export default function AlertCard({ alert, onUpdate }) {
   const [updates, setUpdates] = useState([])
   const [newUpdate, setNewUpdate] = useState('')
   const [loadingUpdates, setLoadingUpdates] = useState(false)
+  const [updatesLoaded, setUpdatesLoaded] = useState(false)
+  const [updatesError, setUpdatesError] = useState('')
+  const [updateError, setUpdateError] = useState('')
   const [flagged, setFlagged] = useState(false)
+  const updatesPanelId = useId()
+  const updateComposerId = useId()
 
   const createdAgo = useTimeAgo(alert.created_at)
 
   const fetchUpdates = useCallback(async () => {
     setLoadingUpdates(true)
+    setUpdatesError('')
     try {
       const { data } = await api.get(`/api/alerts/${alert.id}/updates`)
-      setUpdates(data)
-    } catch {
-      /* silent */
+      setUpdates(Array.isArray(data) ? data : [])
+      setUpdatesLoaded(true)
+    } catch (err) {
+      setUpdatesError(apiError(err, t('card_update_failed')))
     } finally {
       setLoadingUpdates(false)
     }
-  }, [alert.id])
+  }, [alert.id, t])
 
   useEffect(() => {
     if (showUpdates) fetchUpdates()
   }, [showUpdates, fetchUpdates])
 
-  const postUpdate = async () => {
+  const postUpdate = async (event) => {
+    event.preventDefault()
     const body = newUpdate.trim()
     if (body.length < 3) {
-      setError(t('card_update_too_short'))
+      setUpdateError(t('card_update_too_short'))
       return
     }
     setLoading('post')
-    setError('')
+    setUpdateError('')
     try {
       const { data } = await api.post(`/api/alerts/${alert.id}/updates`, { body })
-      setUpdates((prev) => [...prev, data])
+      setUpdates((prev) => [data, ...prev])
+      setUpdatesLoaded(true)
       setNewUpdate('')
     } catch (err) {
-      setError(apiError(err, t('card_update_failed')))
+      setUpdateError(apiError(err, t('card_update_failed')))
     } finally {
       setLoading(null)
     }
@@ -546,6 +558,12 @@ export default function AlertCard({ alert, onUpdate }) {
 
   const isSkillMatch = alert.is_skill_match === true
   const photoCount = alert.photo_count ?? (alert.photos?.length ?? 0)
+  const latestFirstUpdates = useMemo(() => [...updates].sort((a, b) => {
+    const aTime = Date.parse(a?.created_at) || 0
+    const bTime = Date.parse(b?.created_at) || 0
+    return bTime - aTime
+  }), [updates])
+  const canPostUpdate = newUpdate.trim().length >= 3 && loading !== 'post'
 
   return (
     <div
@@ -762,11 +780,19 @@ export default function AlertCard({ alert, onUpdate }) {
         <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-end">
           {user && (
             <button
+              type="button"
               onClick={() => setShowUpdates((v) => !v)}
-              className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition-colors"
-              title="Show situational updates timeline"
+              aria-expanded={showUpdates}
+              aria-controls={updatesPanelId}
+              className={`tap inline-flex items-center gap-1.5 rounded-xl border px-3 text-xs font-medium transition-colors ${
+                showUpdates
+                  ? 'border-orange-500/60 bg-orange-500/10 text-orange-200'
+                  : 'border-line bg-surface-2 text-gray-200 hover:border-orange-500/50 hover:text-white'
+              }`}
             >
-              {t('card_updates')}{updates.length ? ` (${updates.length})` : ''}
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              <span>{t('card_updates')}</span>
+              {updatesLoaded && <span className="rounded-full bg-black/25 px-1.5 py-0.5 text-[10px] tabular-nums">{updates.length}</span>}
             </button>
           )}
           <ShareAlert alert={alert} />
@@ -841,39 +867,69 @@ export default function AlertCard({ alert, onUpdate }) {
       <MatchingResources alertId={alert.id} category={alert.category} />
 
       {showUpdates && (
-        <div className="mt-3 border-t border-gray-800 pt-3 space-y-2">
+        <section id={updatesPanelId} aria-label={t('card_updates')} className="mt-4 rounded-2xl border border-line bg-black/20 p-3 sm:p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500/10 text-orange-300">
+                <MessageCircle className="h-4 w-4" aria-hidden />
+              </div>
+              <h3 className="text-sm font-semibold text-white">{t('card_updates')}</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => { void fetchUpdates() }}
+              disabled={loadingUpdates}
+              className="tap inline-flex shrink-0 items-center justify-center rounded-xl text-gray-300 transition-colors hover:bg-surface-2 hover:text-white disabled:opacity-50"
+              aria-label={t('card_updates')}
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingUpdates ? 'animate-spin' : ''}`} aria-hidden />
+            </button>
+          </div>
           {loadingUpdates ? (
-            <p className="text-xs text-gray-500">{t('card_loading_updates')}</p>
-          ) : updates.length === 0 ? (
-            <p className="text-xs text-gray-500">{t('card_no_updates')}</p>
+            <p role="status" className="py-2 text-xs text-gray-400">{t('card_loading_updates')}</p>
+          ) : updatesError ? (
+            <div role="alert" className="rounded-xl border border-red-500/25 bg-red-500/10 px-3 py-2 text-xs leading-relaxed text-red-200">
+              {updatesError}
+            </div>
+          ) : latestFirstUpdates.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line px-3 py-3 text-xs leading-relaxed text-gray-400">{t('card_no_updates')}</p>
           ) : (
-            <ul className="space-y-2">
-              {updates.map((u) => (
-                <UpdateRow key={u.id} update={u} />
+            <ol className="ml-2 space-y-3 border-l border-line pl-4" aria-live="polite">
+              {latestFirstUpdates.map((u, index) => (
+                <UpdateRow key={u.id} update={u} latest={index === 0} />
               ))}
-            </ul>
+            </ol>
           )}
           {user && alert.status !== 'resolved' && (
-            <div className="flex gap-2">
-              <input
-                type="text"
+            <form onSubmit={postUpdate} className="mt-4 border-t border-line pt-3">
+              <label htmlFor={updateComposerId} className="sr-only">{t('card_update_ph')}</label>
+              <textarea
+                id={updateComposerId}
                 value={newUpdate}
-                onChange={(e) => setNewUpdate(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && postUpdate()}
+                onChange={(e) => { setNewUpdate(e.target.value); if (updateError) setUpdateError('') }}
                 placeholder={t('card_update_ph')}
                 maxLength={500}
-                className="flex-1 min-w-0 bg-gray-950 border border-gray-800 text-xs text-gray-200 rounded-lg px-3 py-1.5 focus:outline-hidden focus:border-orange-500"
+                rows={3}
+                aria-invalid={Boolean(updateError)}
+                aria-describedby={`${updateComposerId}-count${updateError ? ` ${updateComposerId}-error` : ''}`}
+                className="min-h-24 w-full resize-y rounded-xl border border-line bg-gray-950 px-3 py-2.5 text-sm leading-relaxed text-gray-100 placeholder:text-gray-500 focus:outline-hidden focus:border-orange-500"
               />
-              <button
-                onClick={postUpdate}
-                disabled={loading === 'post'}
-                className="text-xs bg-orange-600 hover:bg-orange-700 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap"
-              >
-                {loading === 'post' ? '…' : t('card_send')}
-              </button>
-            </div>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <output id={`${updateComposerId}-count`} className="text-xs tabular-nums text-gray-500">{newUpdate.length}/500</output>
+                <button
+                  type="submit"
+                  disabled={!canPostUpdate}
+                  aria-busy={loading === 'post'}
+                  className="tap inline-flex items-center justify-center gap-1.5 rounded-xl bg-orange-500 px-4 text-sm font-semibold text-black transition-colors hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <Send className="h-4 w-4" aria-hidden />
+                  <span>{loading === 'post' ? '…' : t('card_send')}</span>
+                </button>
+              </div>
+              {updateError && <p id={`${updateComposerId}-error`} role="alert" className="mt-2 text-xs leading-relaxed text-red-300">{updateError}</p>}
+            </form>
           )}
-        </div>
+        </section>
       )}
 
       {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
@@ -881,22 +937,21 @@ export default function AlertCard({ alert, onUpdate }) {
   )
 }
 
-function UpdateRow({ update }) {
+function UpdateRow({ update, latest }) {
   const updateAgo = useTimeAgo(update.created_at)
   return (
-    <li className="text-xs bg-gray-950 border border-gray-800 rounded-lg px-3 py-2">
-      <div className="flex items-center justify-between text-gray-500 mb-1 gap-2">
-        <span className="font-medium text-gray-300 truncate">
-          {update.author_name}
-          {update.author_role && (
-            <span className="ml-1 text-[10px] uppercase text-gray-500">
-              · {update.author_role}
-            </span>
-          )}
-        </span>
-        <span className="whitespace-nowrap">{updateAgo}</span>
-      </div>
-      <TranslatableText text={update.body} />
+    <li className="relative text-xs">
+      <span aria-hidden className={`absolute -left-[1.34rem] top-3 h-2.5 w-2.5 rounded-full border-2 border-surface-1 ${latest ? 'bg-orange-400' : 'bg-gray-600'}`} />
+      <article className="rounded-xl border border-line bg-gray-950 px-3 py-2.5">
+        <div className="mb-1.5 flex items-start justify-between gap-2 text-gray-500">
+          <div className="min-w-0">
+            <span className="block truncate font-medium text-gray-200">{update.author_name}</span>
+            {update.author_role && <span className="mt-0.5 inline-flex rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] capitalize text-gray-400">{update.author_role}</span>}
+          </div>
+          <span className="shrink-0 whitespace-nowrap pt-0.5">{updateAgo}</span>
+        </div>
+        <TranslatableText text={update.body} />
+      </article>
     </li>
   )
 }

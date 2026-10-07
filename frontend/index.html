@@ -3,7 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#101010" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f4f7fb" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101010" />
     <meta
       name="description"
       content="NeighbourAid — hyperlocal crisis and help network for India. Real-time volunteer dispatch, AI urgency triage, and multi-source verification."
@@ -11,6 +13,7 @@
 
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
+    <link rel="preload" as="image" href="/brand-logo.png" type="image/png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -27,9 +30,52 @@
     <meta property="og:locale" content="en_IN" />
 
     <title>NeighbourAid — Hyperlocal Crisis Network</title>
+    <style>
+      /* Kept in the document instead of the React bundle so an installed
+         WebView has a deliberate first frame while the app is loading. The
+         React launch layer removes this once it has mounted. */
+      #boot-splash {
+        position: fixed;
+        z-index: 2147483647;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #101010;
+        color: #f8fafc;
+        transition: opacity 180ms ease-out;
+      }
+      #boot-splash > div { display: grid; justify-items: center; gap: 1rem; }
+      #boot-splash.boot-splash--leaving { opacity: 0; pointer-events: none; }
+      #boot-splash img {
+        width: 96px;
+        height: 96px;
+        border-radius: 24px;
+        animation: boot-mark-arrival 760ms cubic-bezier(.2,.8,.2,1) both;
+      }
+      #boot-splash span {
+        font: 600 15px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        letter-spacing: .015em;
+        animation: boot-name-arrival 600ms 180ms cubic-bezier(.2,.8,.2,1) both;
+      }
+      @keyframes boot-mark-arrival {
+        0% { opacity: 0; transform: scale(.72); }
+        65% { opacity: 1; transform: scale(1.04); }
+        100% { opacity: 1; transform: scale(1); }
+      }
+      @keyframes boot-name-arrival {
+        0% { opacity: 0; transform: translateY(6px); }
+        100% { opacity: 1; transform: translateY(0); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot-splash img, #boot-splash span { animation: none; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="boot-splash" role="status" aria-label="Launching NeighbourAid">
+      <div><img src="/brand-logo.png" width="96" height="96" alt="" /><span>NeighbourAid</span></div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
       // Register the service worker in production only — in dev Vite's HMR

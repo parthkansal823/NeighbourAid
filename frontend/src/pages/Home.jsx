@@ -9,7 +9,7 @@ import OfficialAdvisories from '../components/OfficialAdvisories'
 import { isNativeApp } from '../utils/runtime'
 import { OFFLINE_QUEUE_EVENT, listPending } from '../utils/offlineQueue'
 
-export default function Home() {
+export default function Home({ compactShell = false }) {
   const { user } = useAuth()
   const { t } = useI18n()
   const [stats, setStats] = useState(null)
@@ -311,7 +311,7 @@ export default function Home() {
     ]
   }, [contactCount, myStats, pendingOffline, skillCount, stats, user])
 
-  if (isNativeApp()) return <><QuickSOS /><NativeHome heroPrimary={heroPrimary} stats={stats} /></>
+  if (compactShell || isNativeApp()) return <><QuickSOS /><NativeHome heroPrimary={heroPrimary} stats={stats} /></>
 
   return (
     <div className="min-h-screen bg-surface">

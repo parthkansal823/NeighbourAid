@@ -43,7 +43,10 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // AGP 9 no longer accepts the legacy default because it disables
+            // R8 optimisations. Keep project-specific rules unchanged while
+            // using the supported optimised Android baseline.
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
     }

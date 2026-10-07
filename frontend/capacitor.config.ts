@@ -7,7 +7,9 @@ const config: CapacitorConfig = {
   bundledWebRuntime: false,
   plugins: {
     // Included in Capacitor 8; no extra plugin or hand-edited Android shell.
-    SystemBars: { style: 'DARK', insetsHandling: 'css' },
+    // DEFAULT follows the device light/dark preference. The React shell also
+    // updates it live if that preference changes while the app is open.
+    SystemBars: { style: 'DEFAULT', insetsHandling: 'css' },
   },
 }
 

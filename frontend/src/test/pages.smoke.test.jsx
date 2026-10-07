@@ -54,6 +54,6 @@ describe.each([false, true])('page smoke, native=%s', (native) => {
     expect(container.querySelector('#main-content')).toBeInTheDocument()
     expect(container.querySelector('.native-app') !== null).toBe(native)
     expect(screen.queryByRole('heading', { name: 'Something went wrong' })).not.toBeInTheDocument()
-    expect(container.querySelector('a[href="/help"]')).toBeInTheDocument()
+    expect(container.querySelector('a[href="/"]')).toBeInTheDocument()
   })
 })

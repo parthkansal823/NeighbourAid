@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useI18n } from '../utils/i18n'
 import { androidUpdateCopy, cancelDirectUpdate, directUpdateStatus, installDirectUpdate, startDirectUpdate } from '../utils/androidUpdate'
+import { haptic } from '../utils/haptics'
 
-export default function AndroidUpdateAction({ update }) {
+export default function AndroidUpdateAction({ update, autoFocus = false }) {
   const { lang } = useI18n()
   const copy = androidUpdateCopy(lang)
   const [download, setDownload] = useState({ state: 'idle', percent: 0 })
@@ -22,6 +23,7 @@ export default function AndroidUpdateAction({ update }) {
     try {
       const result = await installDirectUpdate()
       if (alive.current) setDownload(previous => ({ ...previous, state: result.state }))
+      haptic([12, 28, 20])
     } catch (err) { showError(err) }
     finally { installBusy.current = false; if (alive.current) setBusy(false) }
   }, [showError])
@@ -58,13 +60,14 @@ export default function AndroidUpdateAction({ update }) {
     try {
       const state = await startDirectUpdate(update)
       if (alive.current) { setDownload(state); setPollTick(n => n + 1) }
+      haptic(12)
       if (alive.current && state.state === 'ready' && document.visibilityState !== 'hidden') { autoInstall.current = false; await install() }
     } catch (err) { autoInstall.current = false; showError(err) }
     finally { if (alive.current) setBusy(false) }
   }
   const cancel = async () => {
     setBusy(true); autoInstall.current = false
-    try { await cancelDirectUpdate(); if (alive.current) setDownload({ state: 'idle', percent: 0 }) }
+    try { await cancelDirectUpdate(); if (alive.current) setDownload({ state: 'idle', percent: 0 }); haptic(8) }
     catch (err) { showError(err) }
     finally { if (alive.current) setBusy(false) }
   }
@@ -74,7 +77,7 @@ export default function AndroidUpdateAction({ update }) {
     {pending && <><p role="status" className="mb-1 text-xs text-gray-300">{copy[download.state]} {Math.max(0, Math.min(100, Number(download.percent) || 0))}%</p><progress className="mb-2 w-full accent-orange-500" value={download.percent || 0} max="100" aria-label={copy.downloading} /></>}
     {ready && <p role="status" className="mb-2 text-xs leading-relaxed text-gray-300">{copy[download.state]}</p>}
     {error && <p role="alert" className="mb-2 text-xs leading-relaxed text-orange-300">{copy[error]}</p>}
-    <button type="button" disabled={busy} onClick={pending ? cancel : ready ? install : start} className="tap rounded-lg bg-orange-500 px-3 font-medium text-black disabled:opacity-50">
+    <button type="button" autoFocus={autoFocus} disabled={busy} onClick={pending ? cancel : ready ? install : start} className="tap app-update-action-button rounded-lg bg-orange-500 px-3 font-medium text-black disabled:opacity-50">
       {busy ? copy.opening : pending ? copy.cancel : ready ? copy.install : download.state === 'failed' ? copy.retry : copy.update}
     </button>
     {!pending && !ready && <p className="mt-1 text-xs text-gray-400">{copy.confirmation}</p>}

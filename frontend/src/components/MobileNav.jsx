@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { HeartHandshake, Home, Map, Siren, User } from './icons'
+import { HeartHandshake, Home, Inbox, Map, ShieldCheck, Siren, User } from './icons'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
 
@@ -59,6 +59,10 @@ export default function MobileNav({ native = false }) {
   const action = user?.role === 'volunteer'
     ? { to: '/volunteer', label: t(native ? 'nav_respond_short' : 'nav_volunteer'), Icon: HeartHandshake }
     : { to: '/post-alert', label: t(native ? 'nav_report_short' : 'nav_report'), Icon: Siren }
+  const secondary = user?.role === 'reporter'
+    ? { to: '/my-alerts', label: t('nav_my_alerts'), Icon: Inbox }
+    : { to: '/safety', label: t('nav_safety'), Icon: ShieldCheck }
+  const SecondaryIcon = secondary.Icon
 
   return (
     <nav
@@ -89,9 +93,9 @@ export default function MobileNav({ native = false }) {
           <action.Icon className="h-5 w-5" aria-hidden />
           <span className={native ? 'break-words text-center' : 'max-w-16 truncate px-1'}>{action.label}</span>
         </NavLink>
-        <NavLink to="/help" className={itemClass(native)}>
-          <HeartHandshake className="h-5 w-5" aria-hidden />
-          <span>{t('nav_help')}</span>
+        <NavLink to={secondary.to} className={itemClass(native)}>
+          <SecondaryIcon className="h-5 w-5" aria-hidden />
+          <span>{secondary.label}</span>
         </NavLink>
         <NavLink to={user ? '/profile' : '/login'} className={itemClass(native)}>
           <User className="h-5 w-5" aria-hidden />

@@ -24,7 +24,10 @@ import ServerOfflineBanner from './components/ServerOfflineBanner'
 import OfflineQueueStatus from './components/OfflineQueueStatus'
 import AppUpdateNotice from './components/AppUpdateNotice'
 import NativeHeader from './components/NativeHeader'
-import { isNativeApp } from './utils/runtime'
+import useCompactAppShell from './hooks/useCompactAppShell'
+import useSystemAppearance from './hooks/useSystemAppearance'
+import AppUpdates from './pages/AppUpdates'
+import LaunchScreen from './components/LaunchScreen'
 
 function PrivateRoute({ children, role }) {
   const { user } = useAuth()
@@ -48,29 +51,31 @@ function NativeFrame({ children }) {
 }
 
 export default function App() {
-  const native = isNativeApp()
-  const Shell = native ? NativeFrame : Fragment
+  useSystemAppearance()
+  const compactShell = useCompactAppShell()
+  const Shell = compactShell ? NativeFrame : Fragment
   const [dialerOpen, setDialerOpen] = useState(false)
   const openDialer = useCallback(() => setDialerOpen(true), [])
   const closeDialer = useCallback(() => setDialerOpen(false), [])
-  const statuses = <><ServerOfflineBanner native={native} /><OfflineQueueStatus /><DemoModeBanner /></>
+  const statuses = <><ServerOfflineBanner native={compactShell} /><OfflineQueueStatus /><DemoModeBanner /></>
   return (
     <ErrorBoundary>
     <I18nProvider>
     <AuthProvider>
       <ToastProvider>
+        <LaunchScreen />
         <BrowserRouter
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
         >
           <Shell>
-          {!native && statuses}
-          {native ? <NativeHeader onOpenEmergency={openDialer} /> : <Navbar />}
+          {!compactShell && statuses}
+          {compactShell ? <NativeHeader onOpenEmergency={openDialer} /> : <Navbar />}
           <AppUpdateNotice />
-          <main id="main-content" className={native ? 'app-content' : 'web-content pb-[5.5rem] lg:pb-0'}>
+          <main id="main-content" className={compactShell ? 'app-content' : 'web-content pb-[5.5rem] lg:pb-0'}>
             {/* Status strips stay in flow, below the persistent app header. */}
-            {native && statuses}
+            {compactShell && statuses}
             <Routes>
-              <Route path="/" element={<Home />} />
+              <Route path="/" element={<Home compactShell={compactShell} />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/map" element={<MapDashboard />} />
@@ -110,11 +115,13 @@ export default function App() {
               <Route path="/resources" element={<Resources />} />
               <Route path="/news" element={<News />} />
               <Route path="/help" element={<Help />} />
+              <Route path="/app-updates" element={<AppUpdates />} />
               <Route path="/alert/:id" element={<AlertShare />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
-          <MobileNav native={native} />
-          <EmergencyDialer native={native} open={dialerOpen} onOpen={openDialer} onClose={closeDialer} />
+          <MobileNav native={compactShell} />
+          <EmergencyDialer native={compactShell} open={dialerOpen} onOpen={openDialer} onClose={closeDialer} />
           </Shell>
         </BrowserRouter>
       </ToastProvider>
