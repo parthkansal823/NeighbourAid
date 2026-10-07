@@ -232,9 +232,9 @@ cd backend
 CI tests Python 3.12/3.13, frontend lint/tests, setup tools and build modes,
 and checks GitHub workflow syntax plus Worker deployment packaging. The stable
 `ci-success` check requires every CI job to pass, including security checks.
-Known Python vulnerabilities and high/critical browser-runtime vulnerabilities
-block releases; build-tool findings remain visible in summaries and downloadable
-reports. Dependabot proposes dependency/action updates weekly.
+Known Python vulnerabilities and high/critical frontend vulnerabilities,
+including build tooling, block releases. Full findings remain visible in
+summaries and downloadable reports. Dependabot proposes dependency/action updates weekly.
 
 Cloudflare deploys the tested edge artifact for the current `main` commit;
 manual deployments use the same CI gate. Signed Android releases require passing

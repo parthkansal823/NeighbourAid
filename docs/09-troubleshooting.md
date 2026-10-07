@@ -42,7 +42,7 @@ Check `.github/workflows/ci.yml`. Common failures:
 | `Missing script: "test"` | `frontend/package.json` doesn't have the `test` script. Add it. |
 | `Could not find a version that satisfies pytest-asyncio` | Pin a version compatible with the matrix Python version. 0.23+ supports 3.11/3.12. |
 | `pip-audit` fails | Read `security-audit-python`; upgrade the affected dependency to its fixed version and rerun CI. Audit network failures also need resolution. |
-| npm security gate fails | Read `security-audit-npm/runtime.json`; fix high/critical runtime dependencies. Build tooling findings are listed separately in the full report. |
+| npm security gate fails | Read `security-audit-npm/runtime.json` and `all-dependencies.json`; fix high/critical runtime or build-tool dependencies, then regenerate and verify the lockfile. |
 | Production deployment rejected as stale | Wait for current-main `ci-success`, then run deployment on main. Rerun CI if its build artifact expired. |
 | Android release waits for CI | The tagged/manual commit must have a successful main CI run with `ci-success`; PR or feature-branch results do not authorize signing. |
 | `npm ci` fails with `EUSAGE` | `package.json` and `package-lock.json` are out of sync. Run `npm install` locally and commit the lockfile. |

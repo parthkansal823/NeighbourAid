@@ -15,7 +15,7 @@ Only the frontend is hosted on Cloudflare; APKs are distributed on GitHub.
 
 ## Requirements
 
-- Node.js 22+ and dependencies installed with `npm ci` in `frontend/`.
+- Node.js 22.12+ and dependencies installed with `npm ci` in `frontend/`.
 - Docker Desktop, Linux containers, engine running; Compose plugin 2.24+.
 - A Cloudflare account you control, with Wrangler authenticated to it.
 - For APK builds only: JDK 21 and Android SDK platform/build tools 36, with
@@ -299,10 +299,10 @@ not written into the Gradle cache.
 Configure branch protection/rulesets to require **`ci-success`**. This check runs
 on pushes, PRs, merge queues and manual CI runs, and fails if any prerequisite
 fails, is cancelled or is skipped. Python dependency vulnerabilities and
-high/critical browser-runtime dependency vulnerabilities block it. The full npm
-audit also reports build-tool findings in the Actions summary and
-`security-audit-npm` artifact; those findings need review but do not block the
-runtime gate. Audit-service errors fail rather than being reported as clean.
+high/critical frontend dependency vulnerabilities, including build tooling,
+block it. The full npm audit retains lower-severity findings in the Actions
+summary and `security-audit-npm` artifact for review. Audit-service errors
+fail rather than being reported as clean.
 Dependabot opens weekly GitHub Actions, npm and Python update proposals.
 
 Cloudflare production needs the **`CLOUDFLARE_API_TOKEN`** secret and

@@ -47,14 +47,15 @@ export function auditFrontend(reportDirectory) {
     '| Dependency audit | High | Critical | Total | Policy |',
     '|---|---|---|---|---|',
     `| Browser runtime | ${runtime.counts.high} | ${runtime.counts.critical} | ${runtime.counts.total} | High/critical block CI |`,
-    `| Runtime + build tooling | ${all.counts.high} | ${all.counts.critical} | ${all.counts.total} | Full report retained |`,
+    `| Runtime + build tooling | ${all.counts.high} | ${all.counts.critical} | ${all.counts.total} | High/critical block CI |`,
     '',
   ].join('\n')
   console.log(summary)
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary)
   if (runtime.blocked) throw new Error('High/critical browser runtime vulnerabilities must be fixed before release.')
+  if (all.blocked) throw new Error('High/critical dependency vulnerabilities, including build tooling, must be fixed before release.')
   if (all.counts.total) {
-    console.warn('::warning::Build tooling dependency findings are present. Review the security-audit-npm artifact and Dependabot updates.')
+    console.warn('::warning::Lower-severity dependency findings are present. Review the security-audit-npm artifact and Dependabot updates.')
   }
 }
 

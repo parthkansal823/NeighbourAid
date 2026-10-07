@@ -157,14 +157,14 @@ The workflow is at `.github/workflows/ci.yml`. Five checks:
 
 1. **`backend-test`** — matrix on Python 3.12 + 3.13. Installs deps,
    runs ruff (`E9,F63,F7,F82` only — show-stoppers), pytest with
-   coverage and JUnit reports, retained even when tests fail.
+   an 80% backend coverage floor and JUnit reports, retained even when tests fail.
 2. **`frontend-lint`** — Node 22, `npm ci`, lint, **`npm test`**,
    `npm run test:tools`, private-file guard, direct-API/edge/demo builds;
    validates Worker packaging with a credential-free Wrangler dry run and
    uploads the real edge `dist/` with tested SHA/run metadata as an artifact.
 3. **`security-audit`** — Python and npm run independently. Known Python
-   vulnerabilities and high/critical browser-runtime vulnerabilities block CI.
-   Full npm tooling findings appear in the summary and report artifact;
+   vulnerabilities and high/critical frontend vulnerabilities, including build
+   tooling, block CI. Full findings appear in the summary and report artifact;
    audit-service errors fail instead of silently passing.
 4. **`workflow-lint`** — checksum-verified actionlint checks workflow syntax,
    expressions and jobs; Node tests exercise release/deployment safety policies.

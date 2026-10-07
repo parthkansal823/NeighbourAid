@@ -2,6 +2,9 @@
   "name": "neighbouraid-frontend",
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -65,7 +68,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.4",
     "@vitejs/plugin-react": "^6.0.5",
-    "@vitest/ui": "^4.1.10",
+    "@vitest/ui": "^4.1.11",
     "axe-core": "^4.13.0",
     "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
@@ -75,26 +78,29 @@
     "globals": "^17.10.0",
     "jsdom": "^30.0.1",
     "postcss": "^8.4.32",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vite": "^8.2.1",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "vitest-axe": "^0.1.0",
-    "wrangler": "^4.42.0"
+    "wrangler": "^4.131.0"
   },
-  "_overrides_note": "Transitive deps of build-time tooling (never shipped to the browser) that had open advisories with no released parent version picking up the fix. brace-expansion is scoped per-parent on purpose: the advisory covers <=1.1.17 and 3.0.0-5.0.8, so 1.1.18 and 5.0.9 are both clean — but a single global range cannot serve both, because legacy minimatch@3 needs the 1.x export shape while minimatch@10 needs 5.x. Forcing one globally breaks ESLint with 'expand is not a function'. Drop an entry once its parent depends on a clean version by itself.",
+  "_overrides_note": "Security floors for build tooling. brace-expansion stays scoped per parent: legacy minimatch@3 needs the 1.x export shape, while minimatch@10 needs 5.x. The updated floors cover the October 2026 audit findings without forcing incompatible major exports. Drop overrides once parent dependencies select patched versions themselves.",
   "overrides": {
     "@capacitor/assets": {
-      "sharp": "^0.34.5"
+      "sharp": "^0.35.5"
+    },
+    "miniflare": {
+      "sharp": "^0.35.5"
     },
     "tar": ">=7.5.21",
     "uuid": ">=11.1.1",
     "eslint-plugin-react": {
-      "brace-expansion": "^1.1.18"
+      "brace-expansion": "^1.1.21"
     },
     "@capacitor/cli": {
-      "brace-expansion": ">=5.0.9"
+      "brace-expansion": ">=5.0.12"
     }
   }
 }

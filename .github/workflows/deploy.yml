@@ -67,7 +67,7 @@ jobs:
             echo '::warning::Deployment skipped: configure CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.'
             {
               echo '### Deployment skipped'
-              echo 'Add the `CLOUDFLARE_API_TOKEN` secret and `CLOUDFLARE_ACCOUNT_ID` variable in the production environment or repository. CI remains active.'
+              echo 'Add the CLOUDFLARE_API_TOKEN secret and CLOUDFLARE_ACCOUNT_ID variable in the production environment or repository. CI remains active.'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
