@@ -72,6 +72,21 @@ test('Android workflow calls the tested signing check and watches its changes', 
   assert.equal(android.split('- ".github/workflows/ci.yml"').length - 1, 2)
 })
 
+test('debug and signed APK jobs install the JVM required by generated Gradle criteria', () => {
+  const criteria = readFileSync(path.join(repo, 'frontend/android/gradle/gradle-daemon-jvm.properties'), 'utf8').replaceAll('\r', '')
+  const vendor = criteria.match(/^toolchainVendor=(.+)$/m)?.[1].trim()
+  const version = criteria.match(/^toolchainVersion=(\d+)$/m)?.[1]
+  const distributions = { JETBRAINS: 'jetbrains', ADOPTIUM: 'temurin' }
+  assert.ok(distributions[vendor], `Review CI JDK setup for Gradle vendor ${vendor}`)
+  assert.ok(version, 'Generated Gradle JVM version must be present')
+  for (const name of ['debug-apk', 'signed-apk-release']) {
+    const setup = jobBlock(android, name).match(/- uses: actions\/setup-java@[^\n]+\n([\s\S]*?)(?=\n      -|$)/)?.[1]
+    assert.ok(setup, `${name} must install its own JDK`)
+    assert.match(setup, new RegExp(`distribution: ${distributions[vendor]}\\s+java-version: "${version}"`))
+    assert.match(setup, /GITHUB_TOKEN: \$\{\{ github.token \}\}/)
+  }
+})
+
 test('Android signing requires debug validation and same-commit trusted CI', () => {
   const release = jobBlock(android, 'signed-apk-release')
   assert.match(release, /needs: \[debug-apk, release-ci-gate\]/)

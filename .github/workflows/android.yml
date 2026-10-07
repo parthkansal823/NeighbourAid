@@ -51,9 +51,14 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        env:
+          # The pinned JetBrains installer reads this for release discovery.
+          GITHUB_TOKEN: ${{ github.token }}
         with:
-          distribution: temurin
-          # Capacitor compiles both the shell and its runtime with Java 21.
+          # The generated daemon criteria requires JetBrains Java 21 and
+          # overrides JAVA_HOME. Install it here instead of using stale
+          # Foojay fallback URLs from the Android Studio-generated file.
+          distribution: jetbrains
           java-version: "21"
 
       - name: Validate Gradle wrappers and restore build cache
@@ -163,8 +168,10 @@ jobs:
 
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         if: steps.signing.outputs.configured == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
-          distribution: temurin
+          distribution: jetbrains
           java-version: "21"
 
       - name: Validate Gradle wrappers and restore cache without saving signed state
