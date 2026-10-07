@@ -45,5 +45,5 @@ tzdata>=2025.2
 # Transitive pins that pip-audit flagged; listed explicitly so a fresh
 # install can't resolve back to a vulnerable version.
 urllib3>=2.7.0
-idna>=3.15
+idna>=3.20
 starlette>=1.3.1
