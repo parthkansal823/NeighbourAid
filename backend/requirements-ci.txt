@@ -3,3 +3,5 @@
 ruff==0.16.8
 pytest-cov==7.1.0
 pip-audit==2.10.1
+# Python 3.11 venvs can seed a vulnerable legacy setuptools; audit tooling too.
+setuptools==83.0.0

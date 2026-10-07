@@ -8,8 +8,10 @@ manager directly.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -55,6 +57,89 @@ def test_count_reflects_active_connections(manager):
     assert manager.count() == 2
     manager.disconnect("u1")
     assert manager.count() == 1
+
+
+@pytest.mark.asyncio
+async def test_old_connection_cleanup_preserves_replacement(manager):
+    old_ws, new_ws = FakeWS(), FakeWS()
+    manager.register("v1", old_ws, [76.7794, 30.7333])
+    manager.register("v1", new_ws, [76.7794, 30.7333])
+
+    manager.disconnect("v1", old_ws)
+    await manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333))
+
+    assert manager.count() == 1
+    assert len(new_ws.sent) == 1
+    manager.disconnect("v1", new_ws)
+    assert manager.count() == 0
+
+
+@pytest.mark.asyncio
+async def test_failed_send_on_old_socket_preserves_replacement(manager):
+    new_ws = FakeWS()
+
+    class ReplacedDuringSend(FakeWS):
+        async def send_text(self, _text):
+            manager.register("v1", new_ws, [76.7794, 30.7333])
+            raise RuntimeError("old connection failed after reconnection")
+
+    manager.register("v1", ReplacedDuringSend(), [76.7794, 30.7333])
+    await manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333))
+    await manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333, oid="next"))
+
+    assert manager.count() == 1
+    assert [item["id"] for item in new_ws.sent] == ["next"]
+
+
+@pytest.mark.asyncio
+async def test_websocket_handler_late_disconnect_preserves_new_connection(monkeypatch, manager):
+    from bson import ObjectId
+    from fastapi import WebSocketDisconnect
+    from app import main
+
+    class EndpointWS(FakeWS):
+        def __init__(self):
+            super().__init__()
+            self.registered = asyncio.Event()
+            self.disconnected = asyncio.Event()
+            self.initial_location = True
+
+        async def accept(self):
+            pass
+
+        async def receive_text(self):
+            if self.initial_location:
+                self.initial_location = False
+                return json.dumps({"coordinates": [76.7794, 30.7333]})
+            self.registered.set()
+            await self.disconnected.wait()
+            raise WebSocketDisconnect()
+
+    volunteer_id = str(ObjectId())
+    db = MagicMock()
+    db.users.find_one = AsyncMock(return_value={"skills": []})
+    monkeypatch.setattr(main, "get_db", lambda: db)
+    monkeypatch.setattr(main, "manager", manager)
+    monkeypatch.setattr(main, "decode_token_safe", lambda _token: {
+        "sub": volunteer_id, "role": "volunteer",
+    })
+    old_ws, new_ws = EndpointWS(), EndpointWS()
+    old_task = asyncio.create_task(main.volunteer_ws(old_ws, "valid"))
+    new_task = None
+    try:
+        await asyncio.wait_for(old_ws.registered.wait(), timeout=1)
+        new_task = asyncio.create_task(main.volunteer_ws(new_ws, "valid"))
+        await asyncio.wait_for(new_ws.registered.wait(), timeout=1)
+        old_ws.disconnected.set()
+        await asyncio.wait_for(old_task, timeout=1)
+
+        await manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333))
+        assert manager.count() == 1
+        assert len(new_ws.sent) == 1
+    finally:
+        old_ws.disconnected.set()
+        new_ws.disconnected.set()
+        await asyncio.gather(old_task, *([new_task] if new_task else []))
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,7 @@ import VolunteerFeed from './VolunteerFeed'
 const mocks = vi.hoisted(() => ({
   auth: { user: { id: 'volunteer-1', role: 'volunteer' }, token: 'test-token' },
   get: vi.fn(), socket: vi.fn(), toast: vi.fn(), notify: vi.fn(), speak: vi.fn(),
+  notifications: {}, unsubscribe: vi.fn(),
 }))
 
 vi.mock('../context/AuthContext', () => ({ useAuth: () => mocks.auth }))
@@ -18,7 +19,7 @@ vi.mock('../utils/api', () => ({ default: { get: mocks.get } }))
 vi.mock('../hooks/useWebSocket', () => ({ useVolunteerSocket: mocks.socket }))
 vi.mock('../components/Toast', () => ({ useToast: () => ({ push: mocks.toast }) }))
 vi.mock('../hooks/useNotifications', () => ({
-  useNotifications: () => ({ permission: 'granted', pushSupported: false, notify: mocks.notify }),
+  useNotifications: () => ({ permission: 'granted', pushSupported: false, notify: mocks.notify, ...mocks.notifications }),
 }))
 vi.mock('../hooks/useVoiceAlert', () => ({
   useVoiceAlert: () => ({ supported: false, speak: mocks.speak }),
@@ -67,6 +68,8 @@ async function loaded() {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.auth = { user: { id: 'volunteer-1', role: 'volunteer' }, token: 'test-token' }
+  mocks.notifications = {}
+  mocks.unsubscribe.mockReset()
   mocks.get.mockReset().mockResolvedValue({ data: rows.map((row) => ({ ...row })) })
 })
 
@@ -124,6 +127,20 @@ describe('VolunteerFeed location recovery', () => {
     expect(mocks.get).not.toHaveBeenCalled()
     expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
     expect(socketOptions().coordinates).toBeNull()
+  })
+})
+
+describe('VolunteerFeed push controls', () => {
+  it('shows a failure and keeps the turn-off action available when unregistering fails', async () => {
+    mocks.notifications = { pushSupported: true, pushEnabled: true, unsubscribe: mocks.unsubscribe }
+    mocks.unsubscribe.mockResolvedValue('failed')
+    mount()
+    await loaded()
+    await userEvent.click(screen.getByRole('button', { name: /turn off background alerts/i }))
+    expect(screen.getByRole('heading', { name: 'Could not turn off background alerts' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /turn off background alerts/i })).toBeEnabled()
+    expect(mocks.toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'error', title: 'Could not turn off background alerts' }))
+    expect(mocks.toast).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Background alerts turned off' }))
   })
 })
 

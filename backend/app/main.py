@@ -346,4 +346,4 @@ async def volunteer_ws(websocket: WebSocket, token: str):
     except WebSocketDisconnect:
         pass
     finally:
-        manager.disconnect(vol_id)
+        manager.disconnect(vol_id, websocket)

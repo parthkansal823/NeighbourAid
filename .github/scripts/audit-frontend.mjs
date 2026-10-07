@@ -23,10 +23,12 @@ export function auditResult(stdout, status) {
 
 export function runAudit(args, outputPath) {
   // Arguments are fixed by this script, never interpolated from PR content.
-  const result = spawnSync('npm', ['audit', '--package-lock-only', '--json', ...args], {
+  const auditArgs = ['audit', '--package-lock-only', '--json', ...args]
+  const windows = process.platform === 'win32'
+  const result = spawnSync(windows ? (process.env.ComSpec || 'cmd.exe') : 'npm',
+    windows ? ['/d', '/s', '/c', `npm ${auditArgs.join(' ')}`] : auditArgs, {
     cwd: frontend,
     encoding: 'utf8',
-    shell: process.platform === 'win32',
     windowsHide: true,
     timeout: 120_000,
     maxBuffer: 16 * 1024 * 1024,

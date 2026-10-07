@@ -5,7 +5,18 @@
 # lost on NTFS.
 node_modules
 dist
+dist-demo
 .vite
+.wrangler
+test-results
+audit-reports
+android
+ios
+native/**/build
+native/**/.gradle
+**/*.jks
+**/*.keystore
+**/keystore.properties
 .env
 .env.*
 npm-debug.log*

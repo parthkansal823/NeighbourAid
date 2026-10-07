@@ -227,9 +227,11 @@ address or private API key belongs there.
   14 days and is for testing.
 - A relevant push to `main` also builds a signed APK if all four secrets exist,
   then publishes an `android-<run-number>` release with APK and SHA-256 checksum.
-  No manual tag is needed for this path.
+  It waits for successful main CI of that exact commit and the debug/native
+  checks before signing. No manual tag is needed for this path.
 - `v*` tag pushes can publish a named version. Use a **new** tag, not a previously
-  published one; the workflow uses increasing build version codes.
+  published one; the workflow uses increasing build version codes. Tag a commit
+  that has passed CI on `main`; feature/PR CI cannot authorize signing.
 - After pushing this workflow, choose **Actions → Android package → Run workflow →
   main** to build and publish a release manually. Manual runs on other branches
   build only the debug APK.
@@ -287,10 +289,38 @@ An APK build/signature check does not replace these phone tests.
 ## CI and common problems
 
 CI runs Python 3.12/3.13 backend tests, frontend tests/lint/build modes,
-and server-tool tests. Dependency
-audits are non-blocking. Android uses Node 22/Java 21. Automatic publication
-starts only after you push the updated workflow and configure signing secrets;
-local edits do not publish a release.
+server-tool tests, checksum-verified actionlint and a Wrangler deployment dry run.
+Actions use immutable commit pins, CI tools are pinned in
+`backend/requirements-ci.txt`, and failure/coverage/security reports are retained
+for 14 days. Android uses Node 22/Java 21 with Gradle wrapper validation;
+signing files are removed after every build outcome and signed build state is
+not written into the Gradle cache.
+
+Configure branch protection/rulesets to require **`ci-success`**. This check runs
+on pushes, PRs, merge queues and manual CI runs, and fails if any prerequisite
+fails, is cancelled or is skipped. Python dependency vulnerabilities and
+high/critical browser-runtime dependency vulnerabilities block it. The full npm
+audit also reports build-tool findings in the Actions summary and
+`security-audit-npm` artifact; those findings need review but do not block the
+runtime gate. Audit-service errors fail rather than being reported as clean.
+Dependabot opens weekly GitHub Actions, npm and Python update proposals.
+
+Cloudflare production needs the **`CLOUDFLARE_API_TOKEN`** secret and
+**`CLOUDFLARE_ACCOUNT_ID`** variable in the repository or `production` environment.
+Use the token permissions described in
+[Cloudflare's CI guidance](https://developers.cloudflare.com/workers/ci-cd/external-cicd/).
+Missing configuration produces an explicit skipped-deployment summary.
+
+After successful main CI, deployment downloads its `frontend-edge-dist` artifact
+instead of rebuilding it. The artifact's `ci-build.json` binds the SHA, CI run
+and edge target; the workflow checks current main and the successful gate again
+before upload. Manual production runs are main-only and require the same tested
+artifact. A stale run cannot deploy over newer main code. If the artifact has
+expired, run **NeighbourAid CI** on main again, then deploy. The post-deploy check
+verifies the static frontend, independently of the laptop API.
+
+Automatic publication starts only after the updated workflows are pushed and
+credentials are configured; local edits do not publish a release.
 
 CI does not build Docker images, start a database/tunnel or deploy a backend.
 With your laptop stack running, use `npm run server:test` from `frontend/` to

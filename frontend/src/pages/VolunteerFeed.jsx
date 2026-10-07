@@ -287,9 +287,14 @@ export default function VolunteerFeed() {
     if (!notif.unsubscribe) return
     setPushBusy(true)
     try {
-      await notif.unsubscribe()
-      setPushResult('idle')
-      toast({ variant: 'info', title: 'Background alerts turned off', body: 'Live alerts will still appear while NeighbourAid is open.' })
+      const result = await notif.unsubscribe()
+      if (result === 'unsubscribed') {
+        setPushResult('idle')
+        toast({ variant: 'info', title: 'Background alerts turned off', body: 'Live alerts will still appear while NeighbourAid is open.' })
+      } else {
+        setPushResult('unsubscribe-failed')
+        toast({ variant: 'error', title: 'Could not turn off background alerts', body: 'Check your connection and try again.' })
+      }
     } finally {
       setPushBusy(false)
     }

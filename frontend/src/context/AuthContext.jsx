@@ -73,13 +73,15 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!user?.exp) return undefined
     const MAX_DELAY = 2 ** 31 - 1
-    const ms = user.exp * 1000 - Date.now()
-    // Clamp to [0, MAX_DELAY] rather than branching to an immediate logout():
-    // a 0 ms timer still fires right away, but the state change now happens
-    // from a timer callback instead of synchronously inside the effect body.
-    // (An already-expired token is filtered out by parseToken before it ever
-    // reaches state, so this floor is belt-and-braces for clock skew.)
-    const id = setTimeout(logout, Math.min(Math.max(ms, 0), MAX_DELAY))
+    let id
+    const checkExpiry = () => {
+      const remaining = user.exp * 1000 - Date.now()
+      if (remaining <= 0) logout()
+      else id = setTimeout(checkExpiry, Math.min(remaining, MAX_DELAY))
+    }
+    // A long-lived token needs multiple bounded waits. Check the real expiry
+    // after each wait so the timer cap itself never ends a valid session.
+    id = setTimeout(checkExpiry, Math.min(Math.max(user.exp * 1000 - Date.now(), 0), MAX_DELAY))
     return () => clearTimeout(id)
   }, [user, logout])
 

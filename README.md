@@ -229,10 +229,17 @@ cd backend
 .\venv\Scripts\python.exe -m pytest tests/ -q
 ```
 
-CI tests Python 3.12/3.13, frontend lint/tests, setup tools and build modes.
-Dependency audits report
-findings but are currently non-blocking. The Android workflow separately
-builds the APK; physical-phone testing remains necessary before distribution.
+CI tests Python 3.12/3.13, frontend lint/tests, setup tools and build modes,
+and checks GitHub workflow syntax plus Worker deployment packaging. The stable
+`ci-success` check requires every CI job to pass, including security checks.
+Known Python vulnerabilities and high/critical browser-runtime vulnerabilities
+block releases; build-tool findings remain visible in summaries and downloadable
+reports. Dependabot proposes dependency/action updates weekly.
+
+Cloudflare deploys the tested edge artifact for the current `main` commit;
+manual deployments use the same CI gate. Signed Android releases require passing
+main CI for their exact commit as well as debug/native checks. Physical-phone
+testing remains necessary before distribution.
 
 CI does not build Docker images, start backend/database containers or deploy a
 backend. Run `npm run server:test` locally with the laptop stack online for

@@ -40,6 +40,10 @@ async def connect():
         _db = _client[_DEFAULT_DB_NAME]
     await _db.alerts.create_index([("location", "2dsphere")])
     await _db.users.create_index("email", unique=True)
+    # Offline push queries volunteers by their saved home location. MongoDB
+    # requires a geospatial index for $nearSphere; the alert index cannot
+    # serve a query against the users collection.
+    await _db.users.create_index([("location", "2dsphere")])
     await _db.medical_reviews.create_index("expires_at", expireAfterSeconds=0)
     await _db.medical_reviews.create_index([("requester_id", 1), ("created_at", -1)])
     await _db.medical_reviews.create_index([("assigned_to", 1), ("created_at", -1)])

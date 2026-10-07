@@ -4,6 +4,9 @@ WORKDIR /app
 
 # Install deps first so the layer caches on source-only changes
 COPY package*.json ./
+# npm ci resolves these file: dependencies before the remaining source copy.
+COPY native/app-updater/package.json native/app-updater/index.js ./native/app-updater/
+COPY native/speech-input/package.json native/speech-input/index.js ./native/speech-input/
 RUN npm ci
 
 # Copy the rest of the source (node_modules is excluded via .dockerignore)

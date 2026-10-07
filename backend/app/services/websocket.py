@@ -100,7 +100,13 @@ class ConnectionManager:
             bool(has_vehicle),
         )
 
-    def disconnect(self, volunteer_id: str):
+    def disconnect(self, volunteer_id: str, ws: Optional[WebSocket] = None):
+        # A reconnect can register its replacement before the previous
+        # handler finishes or its pending send fails. Only the socket being
+        # cleaned up may remove its registration.
+        current = self._active.get(volunteer_id)
+        if ws is not None and (current is None or current[0] is not ws):
+            return
         self._active.pop(volunteer_id, None)
 
     def count(self) -> int:
@@ -159,7 +165,7 @@ class ConnectionManager:
                 await ws.send_text(json.dumps(payload, default=str))
                 reached_live.add(vid)
             except Exception:
-                self.disconnect(vid)
+                self.disconnect(vid, ws)
 
         _schedule_push(alert_dict, radius_km, reached_live)
 

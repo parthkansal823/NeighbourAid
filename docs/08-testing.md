@@ -153,18 +153,23 @@ global.fetch = vi.fn(async () => ({
 
 ## 8.3 CI
 
-The workflow is at `.github/workflows/ci.yml`. Three jobs:
+The workflow is at `.github/workflows/ci.yml`. Five checks:
 
 1. **`backend-test`** — matrix on Python 3.12 + 3.13. Installs deps,
    runs ruff (`E9,F63,F7,F82` only — show-stoppers), pytest with
-   coverage, uploads coverage XML as artifact.
+   coverage and JUnit reports, retained even when tests fail.
 2. **`frontend-lint`** — Node 22, `npm ci`, lint, **`npm test`**,
    `npm run test:tools`, private-file guard, direct-API/edge/demo builds;
-   uploads the real edge `dist/` as an artifact.
-3. **`security-audit`** — non-blocking (`continue-on-error: true` +
-   `|| true` on each step). Runs `pip-audit` and `npm audit
-   --audit-level=high`. Findings appear in the step log without
-   failing the build.
+   validates Worker packaging with a credential-free Wrangler dry run and
+   uploads the real edge `dist/` with tested SHA/run metadata as an artifact.
+3. **`security-audit`** — Python and npm run independently. Known Python
+   vulnerabilities and high/critical browser-runtime vulnerabilities block CI.
+   Full npm tooling findings appear in the summary and report artifact;
+   audit-service errors fail instead of silently passing.
+4. **`workflow-lint`** — checksum-verified actionlint checks workflow syntax,
+   expressions and jobs; Node tests exercise release/deployment safety policies.
+5. **`ci-success`** — stable required check, fails if any prerequisite failed,
+   was cancelled or was skipped. Use it in branch protection/merge queues.
 
 CI does not build Docker images, start containers or deploy a backend. The API,
 MongoDB and tunnel run only on the laptop. With that stack online, run
@@ -175,9 +180,16 @@ persistence. These local integration tests are not part of CI.
 `concurrency` is set so push spam cancels in-flight runs of the
 same ref. `permissions: contents: read` keeps the runner least-priv.
 
+Production uses the exact edge artifact from current-main successful CI. Manual
+deployments require the same successful commit/run and stale runs are rejected.
+CI tools are pinned in `backend/requirements-ci.txt`; external actions are pinned
+to immutable SHAs, and Dependabot proposes updates weekly.
+
 The separate Android workflow builds debug APKs, and publishes signed APKs on
 relevant `main` pushes, `v*` tag pushes or manual `main` runs when all four signing
-secrets are configured. PRs and manual runs on other branches cannot publish.
+secrets are configured and main CI passed for the exact release commit. PRs and
+manual runs on other branches cannot publish. Gradle wrapper validation and
+read-only signed caches protect signing; private signing files are always removed.
 `frontend/scripts/workflows.test.mjs` checks the actual release condition and
 runs `.github/scripts/check-android-signing.sh` with fake credentials. Explicit
 releases fail on missing secret names; ordinary main pushes warn and retain

@@ -22,6 +22,11 @@ const COPY = {
     title: 'Could not enable background alerts',
     body: 'Check your connection, then try again. Live alerts still appear while this app is open.',
   },
+  stopFailed: {
+    icon: Info,
+    title: 'Could not turn off background alerts',
+    body: 'The change could not be confirmed. Check your connection, then try turning them off again.',
+  },
   foreground: {
     icon: ShieldCheck,
     title: 'Live alerts are active in this app',
@@ -51,9 +56,11 @@ export default function NotificationReadiness({
   onDisable,
 }) {
   const { t } = useI18n()
-  const state = pushEnabled || result === 'ready'
-    ? 'ready'
-    : permission === 'denied' || result === 'denied'
+  const state = result === 'unsubscribe-failed'
+    ? 'stopFailed'
+    : pushEnabled || result === 'ready'
+      ? 'ready'
+      : permission === 'denied' || result === 'denied'
       ? 'blocked'
       : result === 'not-configured'
         ? 'setup'

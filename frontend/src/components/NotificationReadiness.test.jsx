@@ -48,6 +48,13 @@ describe('NotificationReadiness', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
+  it('shows an unsuccessful turn-off result and preserves the retry control', () => {
+    renderReadiness({ pushEnabled: true, result: 'unsubscribe-failed' })
+    expect(screen.getByRole('heading', { name: 'Could not turn off background alerts' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Background alerts are ready' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /turn off background alerts/i })).toBeEnabled()
+  })
+
   it('explains the foreground-only fallback on unsupported devices', () => {
     renderReadiness({ pushSupported: false, permission: 'unsupported' })
     expect(screen.getByRole('heading', { name: 'Live alerts are active in this app' })).toBeInTheDocument()

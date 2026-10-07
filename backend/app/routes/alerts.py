@@ -237,9 +237,17 @@ async def _auto_escalate_unaccepted(db) -> list[dict]:
             )
             async for doc in cursor:
                 updated = await db.alerts.find_one_and_update(
-                    # Re-assert the urgency inside the update filter so two
-                    # concurrent /nearby reads can't both bump the same alert.
-                    {"_id": doc["_id"], "urgency": from_u},
+                    # Acceptance, resolution or an urgency-clock reset can
+                    # happen after the cursor read. Recheck all eligibility
+                    # atomically so a handled alert is never escalated and
+                    # re-paged from a stale snapshot.
+                    {
+                        "_id": doc["_id"],
+                        "status": "open",
+                        "accepted_by": None,
+                        "urgency": from_u,
+                        **stale_at_current_urgency,
+                    },
                     {
                         "$set": {
                             "urgency": to_u,

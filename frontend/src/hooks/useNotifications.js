@@ -187,22 +187,28 @@ export function useNotifications() {
 
   /** Unregister this device, both sides. */
   const unsubscribe = useCallback(async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported'
     try {
       const reg = await navigator.serviceWorker.ready
       const sub = await reg.pushManager.getSubscription()
       if (!sub) {
         setPushEnabled(false)
-        return
+        return 'unsubscribed'
       }
       // Server first: if the local unsubscribe succeeds and the request
       // then fails, the server keeps pushing to an endpoint the browser has
       // already thrown away, and the only cure is waiting for a 410.
       await api.delete('/api/push/subscribe', { data: sub.toJSON() })
       await sub.unsubscribe()
-    } catch {
-      /* best effort — a dead subscription is pruned on its next 404/410 */
-    } finally {
+      // A resolved unsubscribe() is not enough: browsers can resolve false
+      // and keep the subscription. Confirm its removal before reporting off.
+      if (await reg.pushManager.getSubscription()) return 'failed'
       setPushEnabled(false)
+      return 'unsubscribed'
+    } catch {
+      // Keep the last known state and let the volunteer retry. A failed
+      // request must not claim that an active subscription was turned off.
+      return 'failed'
     }
   }, [])
 

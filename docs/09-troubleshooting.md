@@ -41,7 +41,10 @@ Check `.github/workflows/ci.yml`. Common failures:
 |---|---|
 | `Missing script: "test"` | `frontend/package.json` doesn't have the `test` script. Add it. |
 | `Could not find a version that satisfies pytest-asyncio` | Pin a version compatible with the matrix Python version. 0.23+ supports 3.11/3.12. |
-| `pip-audit` red despite `continue-on-error` | The job-level flag only blocks dependents. Append `\|\| true` to the step. |
+| `pip-audit` fails | Read `security-audit-python`; upgrade the affected dependency to its fixed version and rerun CI. Audit network failures also need resolution. |
+| npm security gate fails | Read `security-audit-npm/runtime.json`; fix high/critical runtime dependencies. Build tooling findings are listed separately in the full report. |
+| Production deployment rejected as stale | Wait for current-main `ci-success`, then run deployment on main. Rerun CI if its build artifact expired. |
+| Android release waits for CI | The tagged/manual commit must have a successful main CI run with `ci-success`; PR or feature-branch results do not authorize signing. |
 | `npm ci` fails with `EUSAGE` | `package.json` and `package-lock.json` are out of sync. Run `npm install` locally and commit the lockfile. |
 | `ruff check` red on a new file | The file has an actual syntax error. Run `ruff check app` locally. |
 
@@ -55,7 +58,9 @@ cd backend && pytest tests/ --cov=app
 cd frontend && npm ci && npm run lint && npm test && npm run build
 ```
 
-If those four pass, CI will pass.
+CI also checks workflow policy, dependency audits and Wrangler packaging. These
+local checks help reproduce failures; they do not replace the Python 3.12/3.13
+matrix or the final `ci-success` gate.
 
 ---
 
