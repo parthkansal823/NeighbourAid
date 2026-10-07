@@ -88,12 +88,7 @@
   },
   "_overrides_note": "Security floors for build tooling. brace-expansion stays scoped per parent: legacy minimatch@3 needs the 1.x export shape, while minimatch@10 needs 5.x. The updated floors cover the October 2026 audit findings without forcing incompatible major exports. Drop overrides once parent dependencies select patched versions themselves.",
   "overrides": {
-    "@capacitor/assets": {
-      "sharp": "^0.35.5"
-    },
-    "miniflare": {
-      "sharp": "^0.35.5"
-    },
+    "sharp": "$sharp",
     "tar": ">=7.5.21",
     "uuid": ">=11.1.1",
     "eslint-plugin-react": {

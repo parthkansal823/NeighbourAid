@@ -1,9 +1,6 @@
-"""Tests for the in-memory WebSocket ConnectionManager.
+"""WebSocket routing and overlapping connection lifecycles.
 
-We can't easily exercise full WS connect/disconnect in unit tests without
-running uvicorn — but the routing decisions (does this volunteer get this
-alert? does the skill match extend the radius?) are async-callable on the
-manager directly.
+Controlled sockets exercise the actual handler without a live server.
 """
 
 from __future__ import annotations
@@ -92,7 +89,10 @@ async def test_failed_send_on_old_socket_preserves_replacement(manager):
 
 
 @pytest.mark.asyncio
-async def test_websocket_handler_late_disconnect_preserves_new_connection(monkeypatch, manager):
+@pytest.mark.parametrize("late_coordinates", [False, True])
+async def test_websocket_handler_late_disconnect_preserves_new_connection(
+    monkeypatch, manager, late_coordinates,
+):
     from bson import ObjectId
     from fastapi import WebSocketDisconnect
     from app import main
@@ -101,7 +101,7 @@ async def test_websocket_handler_late_disconnect_preserves_new_connection(monkey
         def __init__(self):
             super().__init__()
             self.registered = asyncio.Event()
-            self.disconnected = asyncio.Event()
+            self.messages = asyncio.Queue()
             self.initial_location = True
 
         async def accept(self):
@@ -112,8 +112,11 @@ async def test_websocket_handler_late_disconnect_preserves_new_connection(monkey
                 self.initial_location = False
                 return json.dumps({"coordinates": [76.7794, 30.7333]})
             self.registered.set()
-            await self.disconnected.wait()
-            raise WebSocketDisconnect()
+            message = await self.messages.get()
+            self.registered.clear()
+            if message is None:
+                raise WebSocketDisconnect()
+            return json.dumps(message)
 
     volunteer_id = str(ObjectId())
     db = MagicMock()
@@ -130,15 +133,29 @@ async def test_websocket_handler_late_disconnect_preserves_new_connection(monkey
         await asyncio.wait_for(old_ws.registered.wait(), timeout=1)
         new_task = asyncio.create_task(main.volunteer_ws(new_ws, "valid"))
         await asyncio.wait_for(new_ws.registered.wait(), timeout=1)
-        old_ws.disconnected.set()
+
+        # The current socket can move. A GPS message still queued on the
+        # previous socket must not take ownership back or reset this point.
+        current_coordinates = [76.7800, 30.7333]
+        new_ws.registered.clear()
+        new_ws.messages.put_nowait({"coordinates": current_coordinates})
+        await asyncio.wait_for(new_ws.registered.wait(), timeout=1)
+        assert manager.coords_for(volunteer_id) == current_coordinates
+        if late_coordinates:
+            old_ws.registered.clear()
+            old_ws.messages.put_nowait({"coordinates": [0, 0]})
+            await asyncio.wait_for(old_ws.registered.wait(), timeout=1)
+            assert manager.coords_for(volunteer_id) == current_coordinates
+
+        old_ws.messages.put_nowait(None)
         await asyncio.wait_for(old_task, timeout=1)
 
         await manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333))
         assert manager.count() == 1
         assert len(new_ws.sent) == 1
     finally:
-        old_ws.disconnected.set()
-        new_ws.disconnected.set()
+        old_ws.messages.put_nowait(None)
+        new_ws.messages.put_nowait(None)
         await asyncio.gather(old_task, *([new_task] if new_task else []))
 
 

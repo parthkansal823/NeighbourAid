@@ -100,6 +100,17 @@ class ConnectionManager:
             bool(has_vehicle),
         )
 
+    def update_coordinates(
+        self, volunteer_id: str, ws: WebSocket, coordinates: List[float],
+    ) -> None:
+        # Registration grants ownership only at the initial handshake. A
+        # delayed GPS message from an older socket cannot reclaim it. This
+        # check and write are synchronous so reconnect cannot interleave.
+        current = self._active.get(volunteer_id)
+        if current is None or current[0] is not ws:
+            return
+        self._active[volunteer_id] = (ws, coordinates, current[2], current[3])
+
     def disconnect(self, volunteer_id: str, ws: Optional[WebSocket] = None):
         # A reconnect can register its replacement before the previous
         # handler finishes or its pending send fails. Only the socket being

@@ -336,13 +336,7 @@ async def volunteer_ws(websocket: WebSocket, token: str):
                     continue
             except (ValueError, KeyError, TypeError):
                 continue
-            manager.register(
-                vol_id,
-                websocket,
-                [lng, lat],
-                skills=skills,
-                has_vehicle=has_vehicle,
-            )
+            manager.update_coordinates(vol_id, websocket, [lng, lat])
     except WebSocketDisconnect:
         pass
     finally:
