@@ -14,6 +14,30 @@ function env(origin = 'https://api.example.test') {
 }
 
 describe('native Capacitor proxy bridge', () => {
+  it.each(['https://localhost', 'http://localhost', 'capacitor://localhost'])(
+    'allows the exact anonymous-report preflight from %s without sending a report', async origin => {
+      const config = env()
+      const fetchMock = vi.spyOn(globalThis, 'fetch')
+      const response = await worker.fetch(new Request(`${publicOrigin}/api/alerts/anonymous`, {
+        method: 'OPTIONS',
+        headers: {
+          Origin: origin,
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type,x-anonymous-client-id',
+        },
+      }), config)
+      const allowed = response.headers.get('Access-Control-Allow-Headers').toLowerCase().split(',').map(header => header.trim())
+      expect(response.status).toBe(204)
+      expect(response.headers.get('Access-Control-Allow-Origin')).toBe(origin)
+      expect(response.headers.get('Access-Control-Allow-Methods').split(',').map(method => method.trim())).toContain('POST')
+      expect(allowed).toContain('content-type')
+      expect(allowed).toContain('x-anonymous-client-id')
+      expect(allowed).not.toContain('x-edge-secret')
+      expect(config.CONFIG.get).not.toHaveBeenCalled()
+      expect(fetchMock).not.toHaveBeenCalled()
+    },
+  )
+
   it('handles the Android local-origin preflight at the edge', async () => {
     const response = await worker.fetch(
       new Request(`${publicOrigin}/api/alerts/`, {
