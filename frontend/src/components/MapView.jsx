@@ -2,6 +2,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from
 import L from 'leaflet'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import HeatLayer from './HeatLayer'
+import useReducedMotion from '../hooks/useReducedMotion'
 // Marker images come from the installed leaflet package so the bundler emits
 // them as local assets. They used to be hot-linked from unpkg, which meant
 // every pin on the crisis map depended on a third-party CDN being reachable —
@@ -39,12 +40,11 @@ const URGENCY_COLORS = {
   LOW: '#22c55e',
 }
 
-function urgencyIcon(urgency, isFocus = false) {
+function urgencyIcon(urgency, isFocus = false, reducedMotion = false) {
   const color = URGENCY_COLORS[urgency] ?? '#94a3b8'
   const ring = isFocus
     ? `<circle cx="12" cy="12" r="11" fill="none" stroke="${color}" stroke-width="2" opacity="0.5">
-         <animate attributeName="r" from="6" to="14" dur="1.4s" repeatCount="indefinite" />
-         <animate attributeName="opacity" from="0.7" to="0" dur="1.4s" repeatCount="indefinite" />
+         ${reducedMotion ? '' : '<animate attributeName="r" from="6" to="14" dur="1.4s" repeatCount="indefinite" /><animate attributeName="opacity" from="0.7" to="0" dur="1.4s" repeatCount="indefinite" />'}
        </circle>`
     : ''
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="${isFocus ? 32 : 24}" height="${isFocus ? 48 : 36}">
@@ -63,16 +63,16 @@ function urgencyIcon(urgency, isFocus = false) {
 
 const userDotIcon = L.divIcon({
   html: `<div style="position:relative;width:18px;height:18px;">
-    <div style="position:absolute;inset:-6px;border-radius:50%;background:rgba(59,130,246,0.35);animation:user-halo 1.8s ease-out infinite;"></div>
+    <div class="na-user-halo" style="position:absolute;inset:-6px;border-radius:50%;background:rgba(59,130,246,0.35);animation:user-halo 1.8s ease-out infinite;"></div>
     <div style="position:absolute;inset:0;width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 0 2px rgba(59,130,246,0.5);"></div>
   </div>
-  <style>@keyframes user-halo{0%{transform:scale(0.5);opacity:0.7}100%{transform:scale(2.2);opacity:0}}</style>`,
+  <style>@keyframes user-halo{0%{transform:scale(0.5);opacity:0.7}100%{transform:scale(2.2);opacity:0}}@media(prefers-reduced-motion:reduce){.na-user-halo{animation:none!important}}</style>`,
   className: '',
   iconSize: [18, 18],
   iconAnchor: [9, 9],
 })
 
-function destinationIcon() {
+function destinationIcon(reducedMotion = false) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 44" width="32" height="44">
     <defs>
       <radialGradient id="dg" cx="50%" cy="40%" r="50%">
@@ -81,8 +81,7 @@ function destinationIcon() {
       </radialGradient>
     </defs>
     <circle cx="16" cy="14" r="13" fill="none" stroke="#fb923c" stroke-width="2" opacity="0.6">
-      <animate attributeName="r" from="6" to="18" dur="1.6s" repeatCount="indefinite" />
-      <animate attributeName="opacity" from="0.8" to="0" dur="1.6s" repeatCount="indefinite" />
+      ${reducedMotion ? '' : '<animate attributeName="r" from="6" to="18" dur="1.6s" repeatCount="indefinite" /><animate attributeName="opacity" from="0.8" to="0" dur="1.6s" repeatCount="indefinite" />'}
     </circle>
     <path d="M16 0C8.27 0 2 6.27 2 14c0 10 14 30 14 30s14-20 14-30C30 6.27 23.73 0 16 0z" fill="url(#dg)" stroke="white" stroke-width="1.5"/>
     <circle cx="16" cy="14" r="6" fill="white"/>
@@ -95,6 +94,34 @@ function destinationIcon() {
     iconAnchor: [16, 44],
     popupAnchor: [0, -44],
   })
+}
+
+function NamedMarker({ name, icon, children, ...props }) {
+  const markerRef = useRef(null)
+  useEffect(() => {
+    const marker = markerRef.current
+    if (!marker) return
+    // React Leaflet updates position/icon, but not Marker title/alt options.
+    // Keep live incident changes and replacement divIcons equally discernible.
+    marker.options.title = name
+    marker.options.alt = name
+    const element = marker.getElement()
+    if (element) {
+      element.title = name
+      element.setAttribute('aria-label', name)
+      if (element.tagName === 'IMG') element.alt = name
+    }
+  }, [name, icon])
+  return <Marker {...props} ref={markerRef} icon={icon} title={name} alt={name} keyboard>{children}</Marker>
+}
+
+function incidentName(alert) {
+  const text = value => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : ''
+  const category = text(alert.category) || 'other'
+  const urgency = text(alert.urgency)
+  const description = text(alert.description)
+  const headline = description.length > 120 ? `${description.slice(0, 119)}…` : description
+  return `${alert.is_drill ? 'Practice ' : ''}${category} incident, ${urgency ? `${urgency} urgency` : 'urgency not reported'}${headline ? `: ${headline}` : ''}`
 }
 
 // Keeps the map centered on the user as their coords update. Only re-centers
@@ -440,6 +467,7 @@ export default function MapView({
   onClearDestination,
 }) {
   const defaultCenter = center ?? [30.7333, 76.7794]
+  const reducedMotion = useReducedMotion()
 
   // Cap the accuracy circle to something sensible so a 5 km fix doesn't swamp
   // the whole map. Also hide it entirely if we have no fix yet.
@@ -518,7 +546,7 @@ export default function MapView({
 
         {center && (
           <>
-            <Marker position={center} icon={userDotIcon}>
+            <NamedMarker position={center} icon={userDotIcon} name="Your location">
               <Popup>
                 <div className="text-xs">
                   <strong>Your location</strong>
@@ -527,7 +555,7 @@ export default function MapView({
                   {accuracy ? <><br />±{Math.round(accuracy)} m</> : null}
                 </div>
               </Popup>
-            </Marker>
+            </NamedMarker>
             {cappedAccuracy && cappedAccuracy > 15 && (
               <Circle
                 center={center}
@@ -539,7 +567,7 @@ export default function MapView({
         )}
 
         {destination && (
-          <Marker position={destination} icon={destinationIcon()}>
+          <NamedMarker position={destination} icon={destinationIcon(reducedMotion)} name="Destination">
             <Popup>
               <div className="text-xs">
                 <strong>Destination</strong>
@@ -553,14 +581,14 @@ export default function MapView({
                 )}
               </div>
             </Popup>
-          </Marker>
+          </NamedMarker>
         )}
 
         {alerts.map((alert) => {
           const [lng, lat] = alert.location.coordinates
           const isFocus = focusId && alert.id === focusId
           return (
-            <Marker key={alert.id} position={[lat, lng]} icon={urgencyIcon(alert.urgency, isFocus)}>
+            <NamedMarker key={alert.id} position={[lat, lng]} icon={urgencyIcon(alert.urgency, isFocus, reducedMotion)} name={incidentName(alert)}>
               <Popup>
                 <div className="text-sm max-w-[240px]">
                   <p className="font-bold capitalize">{alert.category}</p>
@@ -588,7 +616,7 @@ export default function MapView({
                   </p>
                 </div>
               </Popup>
-            </Marker>
+            </NamedMarker>
           )
         })}
       </MapContainer>

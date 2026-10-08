@@ -22,6 +22,7 @@ import NativePlatformEffects from './components/NativePlatformEffects'
 import DeliveryReceipts from './components/DeliveryReceipts'
 import AppQueryProvider from './context/AppQueryProvider'
 import WebUpdateNotice from './components/WebUpdateNotice'
+import CameraRecoveryNotice from './components/CameraRecoveryNotice'
 
 // Keep the report form in the core bundle. Heavy maps and optional screens
 // load only when opened; a text-first visit need not download Leaflet.
@@ -84,6 +85,7 @@ export default function App() {
           <main id="main-content" className={compactShell ? 'app-content' : 'web-content pb-[5.5rem] lg:pb-0'}>
             {/* Status strips stay in flow, below the persistent app header. */}
             {compactShell && statuses}
+            <CameraRecoveryNotice />
             <Suspense fallback={<div role="status" className="page-panel mx-auto max-w-2xl px-4 py-6 text-sm text-app-muted">Loading screen…</div>}>
             <Routes>
               <Route path="/" element={<Home compactShell={compactShell} />} />

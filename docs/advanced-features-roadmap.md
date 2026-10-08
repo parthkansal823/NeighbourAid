@@ -1,9 +1,11 @@
 # Advanced features: practical next steps
 
 Engineering review: 7 October 2026; authorized implementation pass: 8 October
-2026. **Core backend additions below are implemented locally and regression
-tested, not deployed or verified on real phones.** Companion frontend work is
-tracked separately. No provider credentials or paid services were configured.
+2026. **Core backend additions and their companion frontend workflows are
+implemented locally and regression tested, not deployed or verified on real
+phones.** See the [stack implementation record](tech-stack-upgrade.md) for
+frontend/native tools and verification. No provider credentials or paid services
+were configured.
 These are useful extensions, not claims of first-ever inventions or guaranteed
 emergency help.
 

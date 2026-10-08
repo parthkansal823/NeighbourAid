@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
@@ -10,6 +10,9 @@ import FirstAidButton from '../components/FirstAidGuide'
 import { assistantCopy } from '../utils/assistantCopy'
 import { useI18n, speechLocaleFor } from '../utils/i18n'
 import { approxKb, compressImage } from '../utils/photo'
+import { cameraPhotoBlob } from '../utils/nativeCamera'
+import { clearCameraRecovery, completeCameraRecovery, prepareCameraRecovery, readCameraRecovery } from '../utils/cameraRecovery'
+import useCameraRecovery from '../hooks/useCameraRecovery'
 import {
   OFFLINE_QUEUE_EVENT,
   enqueueAlert,
@@ -71,6 +74,13 @@ const LEAVE_REPORT_COPY = {
 }
 
 export default function PostAlert() {
+  const { user } = useAuth()
+  // A photo review and typed report belong to the session that opened them.
+  // Unmount synchronously on logout/account change, not after an async reset.
+  return <PostAlertForm key={user?.id ? `account:${user.id}` : 'anonymous'} />
+}
+
+function PostAlertForm() {
   const navigate = useNavigate()
   const { t, lang } = useI18n()
   const { user } = useAuth()
@@ -99,15 +109,27 @@ export default function PostAlert() {
   // notices the fix landed on the wrong side of the city before sending
   // volunteers there. Never blocks submit — see the catch below.
   const [address, setAddress] = useState('')
+  const locationRequest = useRef(0)
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [recoveredPhoto, setRecoveredPhoto] = useState(null)
+  const cameraSession = useRef(null)
+  const accountId = user?.id || null
+  const account = useLatest(accountId)
+  const recovery = useCameraRecovery(accountId)
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [photoProcessing, setPhotoProcessing] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   )
-  const operations = useRef({ submitting: false, photoProcessing: false, saved: false })
+  const operations = useRef({ submitting: false, photoProcessing: false, nativeCapture: false, saved: false })
+  const active = useRef(false)
   const submission = useRef(null)
+  useLayoutEffect(() => {
+    active.current = true
+    return () => { active.current = false }
+  }, [])
+  const notify = message => { if (active.current) toast(message) }
 
   // Recognition locale follows the language the reporter actually chose.
   // Hard-coding this to a 3-way check meant Tamil, Telugu, Bengali,
@@ -117,7 +139,7 @@ export default function PostAlert() {
   const voice = useVoice({
     lang: voiceLang,
     onResult: (text, isFinal) => {
-      if (isFinal) {
+      if (isFinal && active.current && !operations.current.submitting && !operations.current.photoProcessing) {
         setForm((f) => ({
           ...f,
           description: f.description ? `${f.description} ${text}` : text,
@@ -130,7 +152,7 @@ export default function PostAlert() {
   // draft. An in-flight operation cannot be discarded, even by confirmation.
   // Register once; the callback reads committed state rather than stale input.
   const reportGuard = useLatest(() => {
-    if (operations.current.submitting || operations.current.photoProcessing) return false
+    if (operations.current.submitting || operations.current.photoProcessing || operations.current.nativeCapture) return false
     if (operations.current.saved) return true
     const dirty = Boolean(form.description.trim() || photos.length || isDrill ||
       form.category !== 'medical' || voice.listening)
@@ -174,8 +196,10 @@ export default function PostAlert() {
     }
     setLocLoading(true)
     setError('')
+    const request = ++locationRequest.current
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        if (request !== locationRequest.current) return
         setForm((f) => ({
           ...f,
           location: { type: 'Point', coordinates: [coords.longitude, coords.latitude] },
@@ -188,10 +212,11 @@ export default function PostAlert() {
           .get('/api/geo/reverse', {
             params: { lat: coords.latitude, lng: coords.longitude },
           })
-          .then((r) => setAddress(r.data?.address || ''))
-          .catch(() => setAddress(''))
+          .then((r) => { if (request === locationRequest.current) setAddress(r.data?.address || '') })
+          .catch(() => { if (request === locationRequest.current) setAddress('') })
       },
       (err) => {
+        if (request !== locationRequest.current) return
         setLocLoading(false)
         setError(err.message || 'Could not read your location.')
       },
@@ -202,11 +227,14 @@ export default function PostAlert() {
   // Ask for the fix as soon as the page opens. Location is mandatory to
   // submit, and someone reporting an emergency shouldn't have to discover
   // that by being blocked at the end of the form.
+  const invalidateLocationRequest = useCallback(() => { locationRequest.current++ }, [])
   useEffect(() => {
     detectLocation()
-  }, [detectLocation])
+    return invalidateLocationRequest
+  }, [detectLocation, invalidateLocationRequest])
 
   const onCameraCapture = async (dataUrl) => {
+    const captureOwner = account.current
     operations.current.photoProcessing = true
     setPhotoProcessing(true)
     setError('')
@@ -215,14 +243,110 @@ export default function PostAlert() {
       const blob = await (await fetch(dataUrl)).blob()
       const file = new File([blob], `capture-${Date.now()}.jpg`, { type: 'image/jpeg' })
       const compressed = await compressImage(file)
+      if (!active.current || account.current !== captureOwner) throw new Error('Your account changed. This photo has not been attached. Return to the original account to recover its camera draft.')
       setPhotos((prev) => [...prev, compressed].slice(0, MAX_PHOTOS))
+      setRecoveredPhoto(null)
       setCameraOpen(false)
+      if (cameraSession.current) {
+        // Clear only this session, never a newer draft from another camera.
+        void clearCameraRecovery(cameraSession.current).catch(() => {})
+        cameraSession.current = null
+      }
     } catch (err) {
       setError(err.message || 'Could not process photo')
+      // LiveCamera retains its review image on attachment failure.
+      throw err
     } finally {
       operations.current.photoProcessing = false
       setPhotoProcessing(false)
     }
+  }
+
+  const beforeNativeCapture = async () => {
+    if (operations.current.submitting || operations.current.photoProcessing) throw new Error('Wait for the current report operation to finish.')
+    const owner = account.current
+    if (owner && getCurrentAccountId(localStorage.getItem('token')) !== owner) {
+      throw new Error('Your reporting session changed. Sign in again before opening the device camera.')
+    }
+    operations.current.nativeCapture = true
+    try {
+      const id = await prepareCameraRecovery({ form, photos, locationSet, address, isDrill }, owner)
+      if (!active.current || account.current !== owner) throw new Error('Your account changed. The saved draft belongs to the original account.')
+      cameraSession.current = id
+      return id
+    } catch (err) {
+      operations.current.nativeCapture = false
+      throw err
+    }
+  }
+
+  const onNativeResult = async (id, result) => {
+    try {
+      const record = await completeCameraRecovery(id, result)
+      if (!active.current || !record || record.accountId !== account.current) throw new Error('Your camera session changed. Return to the original account to review its saved draft.')
+    }
+    finally { operations.current.nativeCapture = false }
+  }
+
+  const restoreCameraDraft = async () => {
+    if (!recovery || operations.current.submitting || operations.current.photoProcessing) return
+    if (submission.current?.queueId != null) {
+      setError('An earlier report has a saved retry. Check Delivery receipts before replacing this form with a camera draft.')
+      return
+    }
+    const dirty = Boolean(form.description.trim() || photos.length || isDrill || form.category !== 'medical')
+    if (dirty && !window.confirm('Replace the current unsent form with the saved camera draft? Nothing will be sent.')) return
+    const selectedId = recovery.id
+    const owner = account.current
+    operations.current.photoProcessing = true
+    setPhotoProcessing(true)
+    voice.cancel()
+    setError('')
+    try {
+      const record = await readCameraRecovery(owner)
+      if (!active.current || !record || record.id !== selectedId) throw new Error('This saved camera draft has expired or changed. Nothing was restored.')
+      let preview = null
+      let photoError = ''
+      if (record.photo) {
+        // Only a local, bounded native camera result can become a review image.
+        try { preview = await compressImage(await cameraPhotoBlob(record.photo)) }
+        catch { photoError = 'The saved camera photo is no longer available. Your text was restored; take a new live photo.' }
+      }
+      if (!active.current || account.current !== owner) throw new Error('Your account changed. This draft was not restored.')
+      // File read/decode can be slow; expiry or another window can replace the
+      // selected session during that wait. Recheck immediately before applying.
+      const latest = await readCameraRecovery(owner)
+      if (!latest || latest.id !== selectedId || latest.expiresAt <= Date.now()) throw new Error('This saved camera draft has expired or changed. Nothing was restored.')
+      if (latest.status === 'pending' && !await completeCameraRecovery(record.id, null)) throw new Error('This saved camera draft has expired or changed. Nothing was restored.')
+      if (!active.current || account.current !== owner) throw new Error('Your account changed. This draft was not restored.')
+      if (latest.expiresAt <= Date.now()) throw new Error('This saved camera draft has expired. Nothing was restored.')
+      setForm(record.draft.form)
+      setPhotos(record.draft.photos)
+      setIsDrill(Boolean(owner && record.draft.isDrill))
+      // A saved GPS fix can be stale. Require a new observed fix before sending.
+      setLocationSet(false)
+      setAddress('')
+      cameraSession.current = record.id
+      setRecoveredPhoto(preview)
+      setCameraOpen(Boolean(preview))
+      detectLocation()
+      if (photoError) setError(photoError)
+      if (!preview) notify({ title: 'Camera draft restored', body: 'Review your report and take a new photo. Nothing has been sent.' })
+    } catch (err) {
+      setError(err.message || 'The saved photo could not be recovered. Your saved camera draft is still on this device.')
+    } finally {
+      operations.current.photoProcessing = false
+      setPhotoProcessing(false)
+    }
+  }
+
+  const discardCameraDraft = async () => {
+    if (!recovery || photoProcessing || submitting) return
+    if (!window.confirm('Delete the saved camera draft from this device? This does not withdraw any report already sent or queued.')) return
+    try {
+      await clearCameraRecovery(recovery.id)
+      if (cameraSession.current === recovery.id) cameraSession.current = null
+    } catch { setError('Could not delete the saved camera draft. Please retry.') }
   }
 
   const removePhoto = (i) => {
@@ -231,6 +355,7 @@ export default function PostAlert() {
 
   const submit = async (e) => {
     e.preventDefault()
+    if (operations.current.submitting || operations.current.photoProcessing || operations.current.nativeCapture || cameraOpen) return
     if (form.description.trim().length < 10) {
       setError(t('post_min_chars'))
       return
@@ -290,6 +415,7 @@ export default function PostAlert() {
       return
     }
     const delivery = submission.current
+    if (!active.current) return
     payload.client_submission_id = delivery.id
     try {
       // Save before the first request: a lost response/app close can replay
@@ -301,23 +427,29 @@ export default function PostAlert() {
             anonymousClientId: delivery.anonymousClientId, requestSync: false,
           })
         } catch {
-          toast({ variant: 'warning', title: 'Device storage unavailable', body: 'Sending online. This report cannot be saved for offline retry on this device.' })
+          notify({ variant: 'warning', title: 'Device storage unavailable', body: 'Sending online. This report cannot be saved for offline retry on this device.' })
         }
       }
+      if (!active.current) return
       const { data } = await api.post(endpoint, payload, {
         skipAuth: isAnonymous,
         headers: isAnonymous
           ? { 'X-Anonymous-Client-ID': delivery.anonymousClientId }
           : reportingToken ? { Authorization: `Bearer ${reportingToken}` } : {},
       })
+      if (typeof data?.id !== 'string' || !data.id.trim()) {
+        throw new Error('The server did not confirm a report ID. Keep this report and retry; receipt is unconfirmed.')
+      }
       if (delivery.queueId !== null) {
         try { await completeDelivery(delivery.queueId, data) } catch {
-          toast({ variant: 'warning', title: 'Server received your report', body: 'The local receipt could not be saved. A retry will use the same submission identity.' })
+          notify({ variant: 'warning', title: 'Server received your report', body: 'The local receipt could not be saved. A retry will use the same submission identity.' })
         }
       }
       // Anonymous reporters have no /my-alerts to return to — send them to the
       // alert's own page so they can still watch it get picked up and share it.
       operations.current.saved = true
+      if (cameraSession.current) void clearCameraRecovery(cameraSession.current).catch(() => {})
+      if (!active.current) return
       navigate(isAnonymous ? `/alert/${data.id}` : '/my-alerts')
     } catch (err) {
       // If we're offline or the network is unreachable, queue it for later
@@ -334,7 +466,7 @@ export default function PostAlert() {
           void requestBackgroundFlush()
           const rows = await listPending()
           setPendingCount(rows.length)
-          toast({
+          notify({
             variant: 'warning',
             title: 'Saved offline',
             body: 'Alert queued — it will send automatically when you reconnect.',
@@ -342,6 +474,8 @@ export default function PostAlert() {
           // /my-alerts is reporter-only; sending an anonymous reporter there
           // would bounce them straight back to the login screen.
           operations.current.saved = true
+          if (cameraSession.current) void clearCameraRecovery(cameraSession.current).catch(() => {})
+          if (!active.current) return
           navigate(isAnonymous ? '/' : '/my-alerts')
           return
         } catch {
@@ -369,6 +503,15 @@ export default function PostAlert() {
         <p className="text-app-muted text-sm leading-relaxed mb-5">
           {t('post_subtitle')}
         </p>
+
+        {recovery && <section aria-label="Saved camera draft" className="mb-4 rounded-xl border border-line bg-surface-2 p-3 text-sm text-app-ink">
+          <p className="font-semibold">Unsent camera draft</p>
+          <p className="mt-1 text-app-muted">Saved on this device for up to 24 hours. Restore to review; nothing sends automatically. A fresh location fix is required.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className="app-secondary-button" disabled={photoProcessing || submitting || cameraOpen} onClick={restoreCameraDraft}>Restore camera draft</button>
+            <button type="button" className="app-secondary-button" disabled={photoProcessing || submitting || cameraOpen} onClick={discardCameraDraft}>Discard saved draft</button>
+          </div>
+        </section>}
 
         {isAnonymous && (
           <div className="rounded-xl bg-surface-2 text-app-muted text-sm leading-relaxed px-3 py-3 mb-4 flex items-start gap-2">
@@ -408,7 +551,8 @@ export default function PostAlert() {
           <FirstAidButton />
         </div>
 
-        <form onSubmit={submit} className="space-y-6">
+        <form onSubmit={submit}>
+          <fieldset disabled={submitting || photoProcessing} className="min-w-0 space-y-6 border-0 p-0">
           {assistantOpen && <VoiceReportAssistant categories={CATEGORIES} existingDescription={form.description} isAnonymous={isAnonymous} onClose={() => setAssistantOpen(false)} onApply={draft => { setForm(old => ({ ...old, ...draft })); setAssistantOpen(false) }} />}
           <div>
             <label htmlFor="post-category" className="app-form-label">{t('post_category')}</label>
@@ -522,7 +666,7 @@ export default function PostAlert() {
             <div role="group" aria-labelledby="post-photos-label" className="grid grid-cols-3 gap-2 mb-2">
               {photos.map((src, i) => (
                 <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-line bg-surface-2">
-                  <img src={src} alt={`upload ${i + 1}`} className="w-full h-full object-cover" />
+                  <img src={src} alt={`Camera photo ${i + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => removePhoto(i)}
@@ -539,8 +683,8 @@ export default function PostAlert() {
               {photos.length < MAX_PHOTOS && (
                 <button
                   type="button"
-                  onClick={() => setCameraOpen(true)}
-                  disabled={photoProcessing}
+                  onClick={() => { voice.cancel(); setRecoveredPhoto(null); setCameraOpen(true) }}
+                  disabled={photoProcessing || submitting}
                   className="aspect-square rounded-xl border border-dashed border-line bg-surface-1 flex flex-col items-center justify-center gap-1 px-2 py-3 text-sm text-app-muted hover:text-app-ink disabled:opacity-55"
                 >
                   <Camera className="h-6 w-6 mb-1" aria-hidden />
@@ -554,8 +698,11 @@ export default function PostAlert() {
           {cameraOpen && (
             <LiveCamera
               busy={photoProcessing}
+              initialPhoto={recoveredPhoto}
+              onBeforeNativeCapture={beforeNativeCapture}
+              onNativeResult={onNativeResult}
               onCapture={onCameraCapture}
-              onClose={() => setCameraOpen(false)}
+              onClose={() => { setCameraOpen(false); setRecoveredPhoto(null) }}
             />
           )}
 
@@ -650,7 +797,7 @@ export default function PostAlert() {
 
           <button
             type="submit"
-            disabled={submitting || !locationSet}
+            disabled={submitting || photoProcessing || cameraOpen || !locationSet}
             className="app-danger-button w-full"
           >
             <span className="relative inline-flex items-center justify-center gap-2">
@@ -663,6 +810,7 @@ export default function PostAlert() {
               {submitting ? t('post_submitting') : t('post_submit')}
             </span>
           </button>
+          </fieldset>
         </form>
       </div>
     </div>

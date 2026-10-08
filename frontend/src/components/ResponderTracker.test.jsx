@@ -8,7 +8,8 @@ vi.mock('../utils/api', () => ({ default: { get: mocks.get } }))
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: mocks.user }) }))
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }) => <div data-testid="tracker-map">{children}</div>,
-  Marker: ({ children, position }) => <div data-testid="marker" data-position={JSON.stringify(position)}>{children}</div>,
+  // Real Leaflet tooltips live in a separate pane, not inside the icon.
+  Marker: ({ children, position, title, alt, keyboard }) => <div role="button" tabIndex={keyboard ? 0 : -1} title={title} data-alt={alt} data-testid="marker" data-position={JSON.stringify(position)}><span aria-hidden>{children}</span></div>,
   TileLayer: () => null, Tooltip: ({ children }) => <span>{children}</span>,
 }))
 const now = Date.parse('2026-10-08T00:00:00Z')
@@ -40,6 +41,12 @@ describe('responder location consent and freshness', () => {
     expect(screen.getByText(/accuracy not reported/)).toBeInTheDocument()
     expect(screen.getByTestId('tracker-map')).toBeInTheDocument()
     expect(screen.getAllByTestId('marker').map(node => node.dataset.position)).toEqual(['[28,76]', '[29,77]'])
+    for (const name of ['Reported incident location', "Volunteer's live shared location"]) {
+      const marker = screen.getByRole('button', { name })
+      expect(marker).toHaveAttribute('tabindex', '0')
+      expect(marker).toHaveAttribute('title', name)
+      expect(marker).toHaveAttribute('data-alt', name)
+    }
     await act(async () => { vi.advanceTimersByTime(90001) })
     expect(screen.queryByTestId('tracker-map')).not.toBeInTheDocument()
     expect(screen.getByText(/position is stale/)).toBeVisible()

@@ -8,6 +8,14 @@ describe('<AutoDispatch />', () => {
     expect(screen.getByText(/108/)).toBeInTheDocument()
   })
 
+  it('keeps emergency call text high contrast in both system themes', () => {
+    render(<AutoDispatch category="medical" />)
+    const link = screen.getByRole('link', { name: 'Call Ambulance, 108' })
+    expect(link).toHaveClass('text-[#fff]', 'bg-emerald-700')
+    expect(link).not.toHaveClass('text-white')
+    expect(screen.getByRole('link', { name: 'Call Medical helpline, 102' })).toHaveClass('text-[#fff]')
+  })
+
   it('renders fire brigade number for fire alerts', () => {
     render(<AutoDispatch category="fire" />)
     expect(screen.getByText(/101/)).toBeInTheDocument()

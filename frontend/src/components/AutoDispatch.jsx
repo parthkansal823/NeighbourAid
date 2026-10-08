@@ -18,12 +18,12 @@ import api from '../utils/api'
 
 const CATEGORY_SERVICES = {
   medical: [
-    { num: '108', label: 'Ambulance', Icon: Ambulance, tone: 'bg-emerald-600 hover:bg-emerald-700' },
+    { num: '108', label: 'Ambulance', Icon: Ambulance, tone: 'bg-emerald-700 hover:bg-emerald-800' },
     { num: '102', label: 'Medical helpline', Icon: Hospital, tone: 'bg-emerald-700 hover:bg-emerald-800' },
     { num: '112', label: 'All-in-one emergency', Icon: Siren, tone: 'bg-red-600 hover:bg-red-700' },
   ],
   fire: [
-    { num: '101', label: 'Fire brigade', Icon: Truck, tone: 'bg-orange-600 hover:bg-orange-700' },
+    { num: '101', label: 'Fire brigade', Icon: Truck, tone: 'bg-orange-700 hover:bg-orange-800' },
     { num: '112', label: 'All-in-one emergency', Icon: Siren, tone: 'bg-red-600 hover:bg-red-700' },
   ],
   flood: [
@@ -83,20 +83,20 @@ function NearbyHospitals({ lat, lng }) {
 
   return (
     <div className="mt-3 border-t border-line pt-3">
-      <div className="text-[11px] uppercase tracking-widest text-gray-400 mb-2">
+      <div className="text-[11px] uppercase tracking-widest text-app-muted mb-2">
         Nearest hospitals
       </div>
       <ul className="space-y-1">
         {rows.slice(0, 3).map((h) => (
           <li key={`${h.lat},${h.lng}`} className="flex items-center gap-2">
-            <Hospital className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
-            <span className="min-w-0 flex-1 truncate text-sm text-gray-200">
+            <Hospital className="h-4 w-4 shrink-0 text-app-muted" aria-hidden />
+            <span className="min-w-0 flex-1 truncate text-sm text-app-ink">
               {h.name}
               {h.emergency && (
-                <span className="ml-1.5 text-[10px] font-bold text-low">ER</span>
+                <span className="ml-1.5 text-[10px] font-bold text-[var(--app-success)]">ER</span>
               )}
             </span>
-            <span className="shrink-0 tabular-nums text-xs text-gray-500">
+            <span className="shrink-0 tabular-nums text-xs text-app-muted">
               {h.distance_km} km
             </span>
             {h.phone && (
@@ -129,7 +129,7 @@ export default function AutoDispatch({ category, compact = false, lat, lng }) {
   const services = CATEGORY_SERVICES[category] || CATEGORY_SERVICES.other
   return (
     <div className={`surface-card ${compact ? 'p-3' : 'p-4'} mb-3`}>
-      <div className="text-[11px] uppercase tracking-widest text-gray-400 mb-2">
+      <div className="text-[11px] uppercase tracking-widest text-app-muted mb-2">
         Recommended services · one tap to call
       </div>
       <div className="flex flex-wrap gap-2">
@@ -137,12 +137,13 @@ export default function AutoDispatch({ category, compact = false, lat, lng }) {
           <a
             key={num}
             href={`tel:${num}`}
-            className={`tap press-in ${tone} text-white rounded-xl px-3 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors`}
+            className={`tap press-in ${tone} text-[#fff] rounded-xl px-3 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors`}
             title={`Call ${label} — ${num}`}
+            aria-label={`Call ${label}, ${num}`}
           >
             <Icon className="h-4 w-4" aria-hidden />
             <span className="font-black">{num}</span>
-            <span className="opacity-80 hidden sm:inline">· {label}</span>
+            <span className="hidden sm:inline">· {label}</span>
           </a>
         ))}
       </div>

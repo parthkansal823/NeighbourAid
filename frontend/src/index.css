@@ -166,8 +166,8 @@ html[data-keyboard-open='true'] .native-toasts { bottom: calc(var(--app-keyboard
   --color-surface-1: #ffffff;
   --color-surface-2: #edf1f5;
   --color-line: #dce2e9;
-  --color-accent: #c45116;
-  --color-accent-soft: #c451161a;
+  --color-accent: #b94711;
+  --color-accent-soft: #b947111a;
   --color-gray-950: #f4f7fb;
   --color-gray-900: #f0f4f8;
   --color-gray-800: #e3eaf1;

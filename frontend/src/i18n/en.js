@@ -218,7 +218,7 @@ export default {
   // Post alert
   post_title: 'Report a Crisis',
   post_subtitle:
-    'Your report is classified by urgency and nearby volunteers are notified instantly.',
+    'After the server receives your report, nearby volunteers can see it. Notifications and responses are not guaranteed.',
   post_category: 'Category',
   post_description: 'Description',
   post_description_hint:

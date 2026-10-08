@@ -13,6 +13,7 @@ provider credentials or live emergency actions were performed.
 | React Router | 7.18.4 | Existing web/native routes and guarded navigation. |
 | Capacitor core / Android / iOS / CLI | 8.5.3 | Native shell continuity; generated Android integration via `mobile:sync`. |
 | Capacitor App / Keyboard / Haptics | 8.1.2 / 8.0.6 / 8.0.2 | Hardware back, keyboard-aware viewport and optional tactile feedback. |
+| Capacitor Camera | 8.2.5 | Android camera-only `takePhoto`, explicit review and account-scoped interruption recovery. Website keeps a live MediaStream, not a gallery picker. |
 | TanStack React Query | 5.104.1 | Private relay/inbox server state, cancellation, invalidation and short-lived memory caching. |
 | IndexedDB + Web Locks | Queue schema v2 | Stable retry identities, durable local receipts and serialized delivery/cancellation. |
 | FastAPI + PyMongo async | Existing backend retained | Mongo-backed retry fencing, incident consent/outcomes and atomic acknowledged handoff. |
@@ -50,6 +51,10 @@ all screens were visually redesigned.
 - Website shell updates require explicit approval and recheck the report guard
   when activation finishes. Capacitor uses packaged assets, not a second cached
   website.
+- Camera-only evidence, capture/review/retake controls, permission retry,
+  bounded JPEG compression and interrupted Android draft recovery. See
+  [camera boundaries and device checklist](camera-system.md); capture is not
+  an authenticity or verified-incident guarantee.
 
 ## Cache and delivery boundaries
 
@@ -86,21 +91,31 @@ emergencies. Tokens are never stored in queued reports or receipts.
 
 ## Verification
 
-- Backend: 933 pytest tests passed on local Python 3.11; CI 3.12/3.13 remains
+- Backend: 933 pytest tests passed, with 87.62% coverage against CI's 80%
+  gate on local Python 3.11; CI 3.12/3.13 remains
   CI verification, not a locally tested claim.
-- Frontend: full suite and newly added regression files passed; see the final
-  handoff for the final count. Strict frontend lint, 46 tool/release tests and
-  private-file check passed.
-- Synthetic headless browser: 104 route/theme/viewport combinations at
+- Frontend: 917 tests across 78 files passed on the final camera-integrated
+  source. Strict frontend lint, 46 tool/release tests and
+  private-file check passed. All 35 CI/deployment policy tests passed; the
+  production-dependency npm audit reported no known findings at check time.
+- Synthetic headless browser: 128 route/camera/theme/viewport combinations at
   320, 390, 430 and 1280 px without horizontal overflow/runtime errors;
-  eight live theme changes passed. Login did not request the lazy map chunks.
+  32 axe checks at 390 px had no detected WCAG A/AA violations. Eight live
+  theme changes passed. Camera live/review covers the viewport; synthetic
+  canvas streams stop after capture, and no file picker is present.
+  Login did not request the lazy map chunks.
   Responses were fictional and all external/API writes were blocked.
 - Production web/mobile build, Capacitor sync, debug APK and updater/speech
   Java unit tests are checked locally using Android Studio's JBR. Generated
   Android files are not hand-edited.
-- Critical Ruff CI rules pass. Full strict Ruff still reports existing style
-  debt; this pass does not hide it with a repository-wide formatter or new
-  blanket suppressions.
+- Critical Ruff CI rules pass. Full strict Ruff has 165 pre-existing style
+  findings (original baseline 168); 34 findings introduced during development
+  were fixed without a repository-wide formatter or blanket suppressions.
+
+Accidentally tracked updater `android/build/` intermediates were removed from
+Git tracking, not deleted from disk. The existing ignore rule now keeps future
+machine-specific generated output out of commits. Native plugin source remains
+tracked and Gradle rebuilds the intermediates.
 
 ## Still requires deployment or device decisions
 
@@ -108,7 +123,7 @@ Public report coordinates/photos retain the existing public-share policy;
 responder consent is **not** full public-report privacy. A precision/disclosure
 rollout needs deliberate form/API/map changes.
 
-Native background push provider setup, physical-device keyboard/haptics/back/
+Native background push provider setup, physical-device camera/keyboard/haptics/back/
 installer tests, release signing/deployment and specialist-reviewed medical
 translations are not complete. Closed-app/background delivery is best-effort
 and platform-dependent. No deployment or signed release was created here.

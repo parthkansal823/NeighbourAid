@@ -44,6 +44,7 @@
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/app": "^8.1.2",
+    "@capacitor/camera": "^8.2.5",
     "@capacitor/app-launcher": "^8.0.1",
     "@capacitor/core": "^8.5.3",
     "@capacitor/haptics": "^8.0.2",
