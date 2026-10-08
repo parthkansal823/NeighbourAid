@@ -5,17 +5,21 @@ import { MemoryRouter } from 'react-router-dom'
 import AppUpdateNotice from './AppUpdateNotice'
 import en from '../i18n/en'
 
-const { isNativeApp, latestAppUpdate } = vi.hoisted(() => ({ isNativeApp: vi.fn(), latestAppUpdate: vi.fn() }))
+const { isNativeApp, latestAppUpdate, hasReleaseUpdateChannel, listenForUpdateTap, notifyAppUpdate } = vi.hoisted(() => ({
+  isNativeApp: vi.fn(), latestAppUpdate: vi.fn(), hasReleaseUpdateChannel: vi.fn(),
+  listenForUpdateTap: vi.fn(), notifyAppUpdate: vi.fn(),
+}))
 vi.mock('../utils/runtime', () => ({ isNativeApp }))
 vi.mock('../utils/appUpdate', () => ({ latestAppUpdate }))
+vi.mock('../utils/updateChannel', () => ({ hasReleaseUpdateChannel }))
 vi.mock('../utils/androidUpdate', () => ({ UPDATE_CHECK_EVENT: 'neighbouraid:check-update', UPDATE_RESULT_EVENT: 'neighbouraid:update-result' }))
 vi.mock('./AndroidUpdateAction', () => ({
   default: () => <button type="button" data-update-primary>Update now</button>,
 }))
 vi.mock('../utils/updateNotification', () => ({
   enableUpdateNotifications: vi.fn().mockResolvedValue(true),
-  listenForUpdateTap: vi.fn().mockResolvedValue(null),
-  notifyAppUpdate: vi.fn().mockResolvedValue(false),
+  listenForUpdateTap,
+  notifyAppUpdate,
   openAppUpdate: vi.fn().mockResolvedValue(true),
 }))
 const translate = key => en[key]
@@ -25,13 +29,39 @@ const update = { versionCode: 12, versionName: 'build-12', downloadUrl: 'https:/
 const renderNotice = () => render(<MemoryRouter><AppUpdateNotice /></MemoryRouter>)
 beforeEach(() => {
   isNativeApp.mockReturnValue(true)
+  hasReleaseUpdateChannel.mockReturnValue(true)
   latestAppUpdate.mockResolvedValue(update)
+  listenForUpdateTap.mockResolvedValue(null)
+  notifyAppUpdate.mockResolvedValue(false)
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
 })
-afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks() })
+afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); vi.unstubAllEnvs() })
 
 describe('app update prompt', () => {
+  it('does not activate APK updates in a demo even with release-channel metadata', () => {
+    vi.stubEnv('MODE', 'demo')
+    renderNotice()
+    expect(latestAppUpdate).not.toHaveBeenCalled()
+    expect(listenForUpdateTap).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('does not compare a local Android Studio build with signed releases', async () => {
+    hasReleaseUpdateChannel.mockReturnValue(false)
+    renderNotice()
+    act(() => {
+      window.dispatchEvent(new Event('neighbouraid:check-update'))
+      window.dispatchEvent(new Event('online'))
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await act(async () => {})
+    expect(latestAppUpdate).not.toHaveBeenCalled()
+    expect(listenForUpdateTap).not.toHaveBeenCalled()
+    expect(notifyAppUpdate).not.toHaveBeenCalled()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
   it('defers the update modal while someone is reporting an emergency', async () => {
     render(<MemoryRouter initialEntries={['/post-alert']}><AppUpdateNotice /></MemoryRouter>)
     await waitFor(() => expect(latestAppUpdate).toHaveBeenCalledOnce())

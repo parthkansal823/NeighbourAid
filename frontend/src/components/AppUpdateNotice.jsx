@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { UPDATE_CHECK_EVENT, UPDATE_RESULT_EVENT } from '../utils/androidUpdate'
 import { isNativeApp } from '../utils/runtime'
 import { latestAppUpdate } from '../utils/appUpdate'
+import { hasReleaseUpdateChannel } from '../utils/updateChannel'
 import { useI18n } from '../utils/i18n'
 import { listenForUpdateTap, notifyAppUpdate } from '../utils/updateNotification'
 import AndroidUpdateAction from './AndroidUpdateAction'
@@ -68,7 +69,7 @@ export default function AppUpdateNotice() {
   }, [dismiss, update, pathname])
 
   useEffect(() => {
-    if (!isNativeApp() || import.meta.env.MODE === 'demo') return undefined
+    if (!isNativeApp() || import.meta.env.MODE === 'demo' || !hasReleaseUpdateChannel()) return undefined
     let active = true
     let busy = false
     let lastChecked = -CHECK_INTERVAL

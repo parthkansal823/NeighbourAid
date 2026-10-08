@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   native: vi.fn(),
   platform: vi.fn(),
   latest: vi.fn(),
+  releaseChannel: vi.fn(),
   enableNotifications: vi.fn(),
   notify: vi.fn(),
   open: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('@capacitor/core', async original => {
 })
 vi.mock('../utils/runtime', () => ({ isNativeApp: mocks.native }))
 vi.mock('../utils/appUpdate', () => ({ latestAppUpdate: mocks.latest }))
+vi.mock('../utils/updateChannel', () => ({ hasReleaseUpdateChannel: mocks.releaseChannel }))
 vi.mock('../utils/updateNotification', () => ({
   enableUpdateNotifications: mocks.enableNotifications,
   notifyAppUpdate: mocks.notify,
@@ -38,6 +40,7 @@ const renderPage = () => render(<I18nProvider><AppUpdates /></I18nProvider>)
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.native.mockReturnValue(true)
+  mocks.releaseChannel.mockReturnValue(true)
   mocks.platform.mockReturnValue('android')
   mocks.latest.mockResolvedValue(update)
   mocks.enableNotifications.mockResolvedValue(true)
@@ -45,9 +48,32 @@ beforeEach(() => {
   mocks.open.mockResolvedValue(true)
   vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
 })
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
 
 describe('AppUpdates', () => {
+  it('does not expose public APK actions in demo mode even with release-channel metadata', async () => {
+    vi.stubEnv('MODE', 'demo')
+    renderPage()
+    await act(async () => {})
+    expect(mocks.latest).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('explains local builds without fetching releases or offering incompatible install controls', async () => {
+    mocks.releaseChannel.mockReturnValue(false)
+    renderPage()
+    await act(async () => {})
+    expect(screen.getByRole('status')).toHaveTextContent('Development build')
+    expect(screen.getByRole('status')).toHaveTextContent('npm run mobile:sync')
+    expect(screen.getByText(__APP_BUILD__.versionName)).toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByText('You have the latest signed release.')).not.toBeInTheDocument()
+    expect(mocks.latest).not.toHaveBeenCalled()
+    expect(mocks.enableNotifications).not.toHaveBeenCalled()
+    expect(mocks.notify).not.toHaveBeenCalled()
+    expect(mocks.open).not.toHaveBeenCalled()
+  })
+
   it('does not offer APK controls or check for releases on the website', () => {
     mocks.native.mockReturnValue(false)
     renderPage()

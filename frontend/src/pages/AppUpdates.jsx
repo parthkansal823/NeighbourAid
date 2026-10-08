@@ -4,6 +4,7 @@ import AndroidUpdateAction from '../components/AndroidUpdateAction'
 import { Bell, CheckCircle2, RefreshCw, ShieldCheck } from '../components/icons'
 import { UPDATE_RESULT_EVENT } from '../utils/androidUpdate'
 import { latestAppUpdate } from '../utils/appUpdate'
+import { hasReleaseUpdateChannel } from '../utils/updateChannel'
 import { isNativeApp } from '../utils/runtime'
 import { enableUpdateNotifications, notifyAppUpdate, openAppUpdate } from '../utils/updateNotification'
 import { androidUpdateCopy } from '../utils/androidUpdate'
@@ -19,6 +20,8 @@ const SCREEN_COPY = {
     version: 'New version',
     build: 'Build',
     ready: 'Available',
+    development: 'Development build',
+    developmentBody: 'This local Android Studio build does not check for signed public releases. To use your latest code, run npm run mobile:sync, then Run in Android Studio. The default 1.0 version does not mean your UI is old. Your saved data stays on this device.',
   },
   hi: {
     title: 'ऐप अपडेट',
@@ -29,6 +32,8 @@ const SCREEN_COPY = {
     version: 'नया संस्करण',
     build: 'बिल्ड',
     ready: 'उपलब्ध',
+    development: 'Development बिल्ड',
+    developmentBody: 'यह local Android Studio बिल्ड signed public releases की जाँच नहीं करता। नया कोड चलाने के लिए npm run mobile:sync के बाद Android Studio में Run करें। Default 1.0 संस्करण का मतलब पुराना UI नहीं है। आपका सहेजा डेटा इसी डिवाइस पर रहता है।',
   },
 }
 
@@ -42,6 +47,7 @@ export default function AppUpdates() {
   const copy = androidUpdateCopy(lang)
   const screenCopy = SCREEN_COPY[lang] || SCREEN_COPY.en
   const native = isNativeApp()
+  const releaseUpdates = hasReleaseUpdateChannel() && import.meta.env.MODE !== 'demo'
   const [state, setState] = useState('idle')
   const [update, setUpdate] = useState(null)
   const [message, setMessage] = useState('')
@@ -49,7 +55,7 @@ export default function AppUpdates() {
   const [notifying, setNotifying] = useState(false)
 
   const check = useCallback(async () => {
-    if (!native || import.meta.env.MODE === 'demo') return
+    if (!native || !releaseUpdates) return
     if (!navigator.onLine) {
       setState('unavailable')
       window.dispatchEvent(new CustomEvent(UPDATE_RESULT_EVENT, { detail: 'unavailable' }))
@@ -67,14 +73,14 @@ export default function AppUpdates() {
       setState('unavailable')
       window.dispatchEvent(new CustomEvent(UPDATE_RESULT_EVENT, { detail: 'unavailable' }))
     }
-  }, [native])
+  }, [native, releaseUpdates])
 
   useEffect(() => {
     void check()
   }, [check])
 
   const enableNotifications = async () => {
-    if (notifying) return
+    if (!releaseUpdates || notifying) return
     setNotifying(true)
     try {
       const granted = await enableUpdateNotifications()
@@ -88,7 +94,7 @@ export default function AppUpdates() {
   }
 
   const downloadInBrowser = async () => {
-    if (!update || opening) return
+    if (!releaseUpdates || !update || opening) return
     setOpening(true)
     setMessage('')
     try {
@@ -130,6 +136,10 @@ export default function AppUpdates() {
         </div>
 
         <div className="space-y-4 p-4 sm:p-5" aria-busy={state === 'checking'}>
+          {!releaseUpdates && <div role="status" className="rounded-xl border border-line bg-surface-2 px-3 py-3 text-app-ink">
+            <p className="text-sm font-semibold">{screenCopy.development}</p>
+            <p className="mt-2 text-sm leading-relaxed text-app-muted">{screenCopy.developmentBody}</p>
+          </div>}
           {state === 'checking' && <p role="status" className="flex items-center gap-2 text-sm text-app-muted"><RefreshCw className="h-4 w-4 shrink-0 animate-spin" aria-hidden />{copy.checking}</p>}
           {update && (
             <>
@@ -144,21 +154,20 @@ export default function AppUpdates() {
                   {opening ? copy.opening : t('app_update_download')}
                 </button>
               )}
-              {__APP_BUILD__.channel !== 'release' && <p className="rounded-xl border border-line bg-surface-2 px-3 py-3 text-xs leading-relaxed text-app-muted">{t('app_update_debug')}</p>}
             </>
           )}
           {noUpdate && <div role="status" className="flex items-start gap-3 text-app-ink"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-app-muted" aria-hidden /><div><p className="text-sm font-medium">{screenCopy.current}</p><p className="mt-1 text-xs leading-relaxed text-app-muted">{copy.none}</p></div></div>}
           {unavailable && <p role="status" className="rounded-xl bg-surface-2 px-3 py-3 text-sm leading-relaxed text-app-ink">{copy.unavailable}</p>}
           {message && <p role="status" className="rounded-xl bg-surface-2 px-3 py-3 text-sm leading-relaxed text-app-ink">{message}</p>}
-          <button type="button" onClick={check} disabled={state === 'checking'} className={`tap ${update ? 'app-secondary-button' : 'app-primary-button'} w-full`}><RefreshCw className={`h-4 w-4 shrink-0${state === 'checking' ? ' animate-spin' : ''}`} aria-hidden />{copy.check}</button>
+          {releaseUpdates && <button type="button" onClick={check} disabled={state === 'checking'} className={`tap ${update ? 'app-secondary-button' : 'app-primary-button'} w-full`}><RefreshCw className={`h-4 w-4 shrink-0${state === 'checking' ? ' animate-spin' : ''}`} aria-hidden />{copy.check}</button>}
         </div>
       </section>
 
-      <section className="mt-6" aria-labelledby="update-notifications-title">
+      {releaseUpdates && <section className="mt-6" aria-labelledby="update-notifications-title">
         <div className="flex items-center gap-2"><Bell className="h-4 w-4 shrink-0 text-app-muted" aria-hidden /><h2 id="update-notifications-title" className="text-sm font-semibold text-app-ink">{screenCopy.notifications}</h2></div>
         <p className="mt-2 text-sm leading-relaxed text-app-muted">{screenCopy.notificationsBody}</p>
         <button type="button" onClick={enableNotifications} disabled={notifying} className="tap app-secondary-button mt-3 w-full">{notifying ? t('vol_enabling') : t('app_update_enable_notifications')}</button>
-      </section>
+      </section>}
     </div>
   )
 }

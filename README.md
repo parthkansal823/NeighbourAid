@@ -155,6 +155,19 @@ Output: `frontend/android/app/build/outputs/apk/debug/app-debug.apk`.
 The package supports Android 7.0+ and uses the stable real Worker URL, not a
 changing tunnel. The laptop server must still be running for live data.
 
+Android Studio's **Run** builds the native shell, not React. After changing
+frontend code, run `npm run mobile:sync` before using full **Run** (not Apply
+Changes). Local debug APKs default to version `1.0 / code 1`; that is not a
+source-code freshness indicator. They do not prompt to install public signed
+releases. Their App updates screen explains how to refresh the local build.
+Reinstalling with the same signing key preserves login, drafts and queued
+reports; do not uninstall or clear app data just to refresh the UI.
+
+Signed release builds must set `ANDROID_RELEASE_CHANNEL=release` during the
+web build/sync, together with matching `VERSION_CODE` and `VERSION_NAME` for
+Vite and Gradle. CI already supplies these values. Only that channel checks
+for public APK releases; native package/version/signature checks still apply.
+
 The Android workflow builds a debug artifact on relevant pushes and pull
 requests. With the four signing secrets configured, relevant **main-branch
 pushes** also publish a signed GitHub Release containing `app-release.apk`
