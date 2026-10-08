@@ -237,3 +237,97 @@ async def test_payload_includes_vehicle_flag(manager):
     alert = _alert("medical", 76.7794, 30.7333)
     await manager.broadcast_nearby(alert)
     assert ws.sent[0]["your_has_vehicle"] is True
+
+
+@pytest.mark.asyncio
+async def test_hung_socket_does_not_delay_healthy_volunteer_or_lose_push_fallback(monkeypatch, manager):
+    from app.services import websocket
+
+    monkeypatch.setattr(websocket, "SOCKET_SEND_TIMEOUT_SECONDS", 0.1)
+    fallback = MagicMock()
+    monkeypatch.setattr(websocket, "_schedule_push", fallback)
+    healthy_sent = asyncio.Event()
+    hung_cancelled = asyncio.Event()
+
+    class HungWS(FakeWS):
+        async def send_text(self, _text):
+            try:
+                await asyncio.Event().wait()
+            finally:
+                hung_cancelled.set()
+
+    class HealthyWS(FakeWS):
+        async def send_text(self, text):
+            await super().send_text(text)
+            healthy_sent.set()
+
+    healthy = HealthyWS()
+    manager.register("hung", HungWS(), [76.7794, 30.7333])
+    manager.register("healthy", healthy, [76.7794, 30.7333])
+    alert = _alert("medical", 76.7794, 30.7333)
+    broadcast = asyncio.create_task(manager.broadcast_nearby(alert))
+    try:
+        await asyncio.wait_for(healthy_sent.wait(), timeout=0.05)
+        assert not broadcast.done(), "healthy delivery must not wait for the hung socket timeout"
+        await asyncio.wait_for(broadcast, timeout=0.5)
+    finally:
+        if not broadcast.done():
+            broadcast.cancel()
+        await asyncio.gather(broadcast, return_exceptions=True)
+
+    assert hung_cancelled.is_set()
+    assert manager.count() == 1
+    assert manager.coords_for("hung") is None
+    assert healthy.sent[0]["id"] == "abc"
+    fallback.assert_called_once_with(alert, DEFAULT_RADIUS_KM, {"healthy"})
+
+
+@pytest.mark.asyncio
+async def test_timed_out_old_socket_does_not_unregister_replacement(monkeypatch, manager):
+    from app.services import websocket
+
+    monkeypatch.setattr(websocket, "SOCKET_SEND_TIMEOUT_SECONDS", 0.01)
+    fallback = MagicMock()
+    monkeypatch.setattr(websocket, "_schedule_push", fallback)
+    replacement = FakeWS()
+
+    class ReplacedHungWS(FakeWS):
+        async def send_text(self, _text):
+            manager.register("v1", replacement, [76.7794, 30.7333])
+            await asyncio.Event().wait()
+
+    manager.register("v1", ReplacedHungWS(), [76.7794, 30.7333])
+    await asyncio.wait_for(manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333)), timeout=0.5)
+    assert manager.count() == 1
+    assert fallback.call_args.args[2] == set()
+    await manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333, oid="next"))
+    assert [item["id"] for item in replacement.sent] == ["next"]
+    assert fallback.call_args.args[2] == {"v1"}
+
+
+@pytest.mark.asyncio
+async def test_cancelled_broadcast_cleans_up_inflight_send_and_preserves_socket(monkeypatch, manager):
+    from app.services import websocket
+
+    fallback = MagicMock()
+    monkeypatch.setattr(websocket, "_schedule_push", fallback)
+    started, cancelled = asyncio.Event(), asyncio.Event()
+
+    class HungWS(FakeWS):
+        async def send_text(self, _text):
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+
+    manager.register("v1", HungWS(), [76.7794, 30.7333])
+    alert = _alert("medical", 76.7794, 30.7333)
+    broadcast = asyncio.create_task(manager.broadcast_nearby(alert))
+    await asyncio.wait_for(started.wait(), timeout=0.5)
+    broadcast.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await broadcast
+    assert cancelled.is_set()
+    assert manager.count() == 1, "caller cancellation is not a failed connection"
+    fallback.assert_called_once_with(alert, DEFAULT_RADIUS_KM, set())

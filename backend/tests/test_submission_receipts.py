@@ -9,6 +9,7 @@ import asyncio
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -306,3 +307,82 @@ async def test_complete_rejects_wrong_alert_identity(db, identity):
     claim = await receipts.begin_submission(db, **identity)
     with pytest.raises(ValueError):
         await receipts.complete_submission(db, claim, {"id": str(ObjectId())})
+
+
+@pytest.mark.parametrize("mode", ["reporter", "reporter_merged", "anonymous"])
+@pytest.mark.parametrize("notification", ["hung", "failed"])
+async def test_creation_returns_durable_receipt_without_waiting_for_notifications(
+    client, db, monkeypatch, caplog, mode, notification,
+):
+    from app.core.security import create_token
+    from app.routes import alerts
+
+    http, _mock_db = client
+    reporter_id = ObjectId()
+    pending_tasks = set()
+    entered, release = asyncio.Event(), asyncio.Event()
+    broadcasts = []
+
+    async def broadcast(document):
+        # Fan-out can only start once a replayable receipt is stored.
+        assert all(row["state"] == "completed" for row in db.submission_receipts.docs.values())
+        broadcasts.append(document["id"])
+        entered.set()
+        if notification == "failed":
+            raise RuntimeError("private report contents must not appear in logs")
+        await release.wait()
+
+    monkeypatch.setattr(alerts, "get_db", lambda: db)
+    monkeypatch.setattr(alerts, "manager", SimpleNamespace(broadcast_nearby=broadcast))
+    monkeypatch.setattr(alerts, "_background_tasks", pending_tasks)
+    monkeypatch.setattr(alerts, "find_corroborating_alerts", AsyncMock(return_value=[]))
+    monkeypatch.setattr(alerts, "enrich_alert", AsyncMock())
+    monkeypatch.setattr(alerts, "fire_alert_created", MagicMock())
+    expected_broadcasts = 1
+    if mode == "reporter_merged":
+        canonical = {
+            "_id": ObjectId(), "reporter_id": ObjectId(), "category": "medical",
+            "description": "A synthetic mock report needs help", "urgency": "HIGH",
+            "location": {"type": "Point", "coordinates": [76.7794, 30.7333]},
+            "status": "open", "created_at": datetime.now(timezone.utc),
+        }
+        monkeypatch.setattr(alerts, "find_corroborating_alerts", AsyncMock(return_value=[canonical]))
+        monkeypatch.setattr(alerts, "filter_corroborating", lambda _text, items, **_kw: items)
+        monkeypatch.setattr(alerts, "bump_witness", AsyncMock(return_value=canonical))
+        monkeypatch.setattr(alerts, "refresh_score", AsyncMock(return_value=canonical))
+        expected_broadcasts = 2
+
+    payload = {
+        "category": "medical", "description": "A synthetic mock report needs help",
+        "location": {"type": "Point", "coordinates": [76.7794, 30.7333]},
+        "client_submission_id": str(uuid4()),
+    }
+    if mode == "anonymous":
+        path = "/api/alerts/anonymous"
+        headers = {"X-Anonymous-Client-ID": str(uuid4())}
+    else:
+        path = "/api/alerts/"
+        headers = {"Authorization": f"Bearer {create_token({'sub': str(reporter_id), 'role': 'reporter'})}"}
+    try:
+        response = await asyncio.wait_for(http.post(path, json=payload, headers=headers), timeout=0.5)
+        assert response.status_code == 201
+        body = response.json()
+        assert len(db.alerts.docs) == 1
+        receipt = next(iter(db.submission_receipts.docs.values()))
+        assert receipt["state"] == "completed"
+        assert body == receipt["response"]
+        await asyncio.wait_for(entered.wait(), timeout=0.5)
+        # Let both merged broadcasts start before asserting no retry fan-out.
+        await asyncio.sleep(0)
+        assert len(broadcasts) == expected_broadcasts
+        replay = await asyncio.wait_for(http.post(path, json=payload, headers=headers), timeout=0.5)
+        assert replay.status_code == 201 and replay.json() == body
+        assert len(db.alerts.docs) == 1
+        assert len(broadcasts) == expected_broadcasts
+    finally:
+        release.set()
+        await asyncio.gather(*list(pending_tasks), return_exceptions=True)
+        await asyncio.sleep(0)
+
+    assert not pending_tasks, "tracked notification tasks must be released when finished"
+    assert "private report contents" not in caplog.text

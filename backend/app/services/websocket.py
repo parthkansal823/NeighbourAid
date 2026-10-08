@@ -63,6 +63,9 @@ def _schedule_push(alert_dict: dict, radius_km: float, reached_live: Set[str]) -
 # gets the flood alert, but someone 50 km away doesn't get spammed.
 DEFAULT_RADIUS_KM = 5.0
 SKILL_RADIUS_KM = 15.0
+# A stalled device must not hold up the rest of an emergency fan-out. Failed
+# or timed-out writes remain eligible for the existing web-push fallback.
+SOCKET_SEND_TIMEOUT_SECONDS = 3.0
 
 
 class ConnectionManager:
@@ -157,6 +160,27 @@ class ConnectionManager:
         a_lng, a_lat = alert_dict["location"]["coordinates"]
 
         reached_live: set[str] = set()
+
+        async def send(vid, ws, distance, skill_match, has_vehicle):
+            try:
+                payload = public_workflow(dict(alert_dict))
+                payload.pop("_submission_key", None)
+                payload.pop("_submission_hash", None)
+                payload["is_skill_match"] = skill_match
+                payload["your_distance_km"] = round(distance, 2)
+                payload["your_has_vehicle"] = has_vehicle
+                payload["your_eta_minutes"] = eta_minutes(distance, has_vehicle)
+                await asyncio.wait_for(
+                    ws.send_text(json.dumps(payload, default=str)),
+                    timeout=SOCKET_SEND_TIMEOUT_SECONDS,
+                )
+                reached_live.add(vid)
+            except Exception:
+                # The failed socket may already have a replacement. Cleanup
+                # must never unregister that newer connection.
+                self.disconnect(vid, ws)
+
+        deliveries = []
         for vid, (ws, coords, skills, has_vehicle) in list(self._active.items()):
             v_lng, v_lat = coords
             distance = _haversine(a_lat, a_lng, v_lat, v_lng)
@@ -174,23 +198,15 @@ class ConnectionManager:
             # by someone's travel mode.
             if not eligible:
                 continue
-            try:
-                payload = public_workflow(dict(alert_dict))
-                payload.pop("_submission_key", None)
-                payload.pop("_submission_hash", None)
-                payload["is_skill_match"] = skill_match
-                payload["your_distance_km"] = round(distance, 2)
-                payload["your_has_vehicle"] = has_vehicle
-                # The number a volunteer can act on. "5.0 km" tells them
-                # nothing about whether they are the right person to go;
-                # "23 min" does.
-                payload["your_eta_minutes"] = eta_minutes(distance, has_vehicle)
-                await ws.send_text(json.dumps(payload, default=str))
-                reached_live.add(vid)
-            except Exception:
-                self.disconnect(vid, ws)
+            deliveries.append((vid, ws, distance, skill_match, has_vehicle))
 
-        _schedule_push(alert_dict, radius_km, reached_live)
+        try:
+            # All eligible volunteers start together, rather than waiting
+            # behind a slow connection. gather cancels child writes if this
+            # broadcast is cancelled, so no orphan socket sends remain.
+            await asyncio.gather(*(send(*recipient) for recipient in deliveries))
+        finally:
+            _schedule_push(alert_dict, radius_km, reached_live)
 
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

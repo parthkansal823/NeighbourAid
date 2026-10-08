@@ -66,6 +66,22 @@ ReporterPayload = Annotated[dict, Depends(require_role("reporter"))]
 _background_tasks: set = set()
 
 
+def _schedule_creation_broadcast(alert: dict) -> None:
+    """Notify after the durable receipt, without delaying its HTTP response."""
+    async def broadcast() -> None:
+        try:
+            await manager.broadcast_nearby(alert)
+        except Exception as exc:
+            # The report is already saved. A notification failure must not
+            # turn a successful submission into an HTTP error or log report
+            # contents from exception messages.
+            log.warning("alert creation broadcast failed (%s)", type(exc).__name__)
+
+    task = asyncio.create_task(broadcast())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 # Open alerts older than this with no volunteer accept are auto-resolved on
 # next /nearby read. Lazy cleanup avoids a cron/task runner for a single-op
 # chore and keeps the public feed from growing stale indefinitely.
@@ -578,7 +594,7 @@ async def _create_signed_alert(alert, payload, claim):
             witnessed = await bump_witness(db, canonical["_id"], reporter_id)
             if witnessed:
                 refreshed = await refresh_score(db, witnessed)
-                await manager.broadcast_nearby(_serialize({**refreshed}, include_photos=False))
+                _schedule_creation_broadcast(_serialize({**refreshed}, include_photos=False))
         except Exception:  # noqa: BLE001 — a failed merge must not lose the report
             log.info("could not add witness to canonical alert %s", canonical["_id"])
 
@@ -590,7 +606,7 @@ async def _create_signed_alert(alert, payload, claim):
     broadcast_doc = {k: v for k, v in doc.items() if k not in ("photos", "photo_checks", "flagged_by", "witnessed_by")}
     broadcast_doc["_id"] = doc["_id"]
     serialized_light = _serialize(broadcast_doc, include_photos=False)
-    await manager.broadcast_nearby(serialized_light)
+    _schedule_creation_broadcast(serialized_light)
 
     # Fan out to any external automation (n8n / Zapier / etc.). Fire-and-forget.
     # Address + weather run after the alert is live. `create_task` not
@@ -740,7 +756,7 @@ async def _create_anonymous_alert(alert, request, claim):
         return response
 
     serialized_light = _serialize({**doc}, include_photos=False)
-    await manager.broadcast_nearby(serialized_light)
+    _schedule_creation_broadcast(serialized_light)
     # Address + weather run after the alert is live. `create_task` not
     # `await`: the reporter's response must not wait on a third-party
     # lookup, and the enricher re-broadcasts when it lands so open feeds
