@@ -6,6 +6,8 @@ import { useI18n } from '../utils/i18n'
 import { SkeletonAlertList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import ResponderTracker from '../components/ResponderTracker'
+import OutcomeSummary from '../components/OutcomeSummary'
+import HelpRelay from '../components/HelpRelay'
 import { useTimeAgo } from '../hooks/useTimeAgo'
 import {
   AlertTriangle,
@@ -30,7 +32,7 @@ const STATUS_DOT = {
   resolved: 'bg-gray-500',
 }
 
-function AlertRow({ a, onCancel, cancelling }) {
+function AlertRow({ a, onCancel, cancelling, onChanged }) {
   const { t } = useI18n()
   const ago = useTimeAgo(a.created_at)
   return (
@@ -45,12 +47,13 @@ function AlertRow({ a, onCancel, cancelling }) {
           </span>
           <span className="text-xs px-2 py-1 rounded-md inline-flex items-center gap-1.5 capitalize bg-surface-2 text-app-ink">
             <span aria-hidden className={`inline-block w-1.5 h-1.5 rounded-full ${STATUS_DOT[a.status]}`} />
-            {a.status}
+            {a.status === 'resolved' ? 'Closed' : a.status}
           </span>
         </div>
         <span className="text-xs text-app-muted tabular-nums">{ago}</span>
       </div>
       <p className="text-app-ink text-[15px] leading-relaxed whitespace-pre-wrap wrap-break-word">{a.description}</p>
+      <OutcomeSummary alert={a} />
       {a.address && (
         <p className="text-app-muted text-sm leading-relaxed mt-3 flex gap-2">
           <MapPin className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
@@ -81,6 +84,7 @@ function AlertRow({ a, onCancel, cancelling }) {
         </div>
       )}
       {a.status === 'accepted' && <ResponderTracker alert={a} />}
+      {['accepted', 'resolved'].includes(a.status) && <HelpRelay alert={a} onChanged={onChanged} />}
     </div>
   )
 }
@@ -180,6 +184,7 @@ export default function MyAlerts() {
               a={a}
               onCancel={cancel}
               cancelling={cancelling === a.id}
+              onChanged={load}
             />
           ))}
         </div>

@@ -15,6 +15,7 @@ from pymongo.asynchronous.database import AsyncDatabase
 from pymongo.errors import ConfigurationError
 
 from ..core.config import settings
+from ..services.submission_receipts import ensure_receipt_indexes
 
 # Default DB name used when the connection string doesn't carry one.
 # Atlas users routinely paste a URL of the form
@@ -40,6 +41,7 @@ async def connect():
         _db = _client[_DEFAULT_DB_NAME]
     await _db.alerts.create_index([("location", "2dsphere")])
     await _db.users.create_index("email", unique=True)
+    await ensure_receipt_indexes(_db)
     # Offline push queries volunteers by their saved home location. MongoDB
     # requires a geospatial index for $nearSphere; the alert index cannot
     # serve a query against the users collection.

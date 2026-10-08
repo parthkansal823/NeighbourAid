@@ -26,6 +26,7 @@ describe('native Capacitor proxy bridge', () => {
     expect(response.status).toBe(204)
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://localhost')
     expect(response.headers.get('Access-Control-Allow-Headers')).toContain('Authorization')
+    expect(response.headers.get('Access-Control-Allow-Headers')).toContain('X-Anonymous-Client-ID')
   })
 
   it('allows the native health probe cache-control preflight without allowing a caller edge secret', async () => {

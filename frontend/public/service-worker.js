@@ -11,15 +11,20 @@
  * reloads is why we push through the SW instead of `new Notification()`.
  */
 
-const CACHE = 'neighbouraid-brand-v3'
+const CACHE = 'neighbouraid-shell-v4'
+const ASSET_CACHE = 'neighbouraid-assets-v4'
+const ASSET_LIMIT = 80
+const MAX_ASSET_BYTES = 5 * 1024 * 1024
+const noStore = headers => /(?:^|,)\s*no-store\s*(?:,|$)/i.test(headers?.get('Cache-Control') || '')
 const CORE = ['/', '/index.html', '/brand-logo.png', '/favicon-32.png', '/favicon-64.png', '/apple-touch-icon.png', '/icon-192.png', '/icon-512.png', '/badge-72.png', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE)
-      .then((c) => c.addAll(CORE).catch(() => undefined))
-      .then(() => self.skipWaiting())
+      .then((c) => Promise.all(CORE.map(async path => {
+        try { const response = await fetch(path, { cache: 'reload' }); if (response.ok && response.type !== 'opaque' && !noStore(response.headers)) await c.put(path, response) } catch { /* One missing icon must not prevent offline shell install. */ }
+      })))
   )
 })
 
@@ -28,11 +33,25 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+        Promise.all(keys.filter((k) => /^neighbouraid-(brand|shell|assets)-/.test(k) && k !== CACHE && k !== ASSET_CACHE).map((k) => caches.delete(k)))
       )
       .then(() => self.clients.claim())
   )
 })
+
+// A new website version activates only after the user approves a safe reload.
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') event.waitUntil(self.skipWaiting())
+})
+
+async function cacheAsset(req, response) {
+  if (!response.ok || response.type === 'opaque' || noStore(response.headers)) return
+  if ((await response.clone().blob()).size > MAX_ASSET_BYTES) return
+  const cache = await caches.open(ASSET_CACHE)
+  await cache.put(req, response.clone())
+  const keys = await cache.keys()
+  await Promise.all(keys.slice(0, Math.max(0, keys.length - ASSET_LIMIT)).map(key => cache.delete(key)))
+}
 
 self.addEventListener('fetch', (event) => {
   const req = event.request
@@ -40,18 +59,26 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url)
 
+  if (url.origin !== self.location.origin || req.headers?.has('Authorization') || req.cache === 'no-store' || noStore(req.headers)) return
+
   // Never cache API or WebSocket calls — they must be fresh.
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws')) return
 
+  // These were pre-cached at install and must actually remain available
+  // offline. HTML stays network-first; icons never contain live crisis data.
+  if (CORE.includes(url.pathname) && !['/', '/index.html'].includes(url.pathname)) {
+    event.respondWith(caches.open(CACHE).then(cache => cache.match(req)).catch(() => undefined).then(hit => hit || fetch(req)))
+    return
+  }
+
   // Same-origin static assets: cache-first.
-  if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
+  if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
-      caches.match(req).then(
+      caches.open(ASSET_CACHE).then(cache => cache.match(req)).catch(() => undefined).then(
         (hit) =>
           hit ||
           fetch(req).then((res) => {
-            const clone = res.clone()
-            caches.open(CACHE).then((c) => c.put(req, clone))
+            event.waitUntil(cacheAsset(req, res).catch(() => undefined))
             return res
           })
       )
@@ -62,7 +89,13 @@ self.addEventListener('fetch', (event) => {
   // Shell / navigations: network-first, falling back to cached index.html.
   if (req.mode === 'navigate') {
     event.respondWith(
-      fetch(req).catch(() => caches.match('/index.html'))
+      fetch(req).then(async response => {
+        if (response.ok && response.headers.get('Content-Type')?.includes('text/html') && !noStore(response.headers)) {
+          event.waitUntil(caches.open(CACHE).then(cache => cache.put('/index.html', response.clone())).catch(() => undefined))
+        }
+        if (response.status >= 500) return (await caches.open(CACHE).then(cache => cache.match('/index.html')).catch(() => null)) || response
+        return response
+      }).catch(async () => (await caches.open(CACHE).then(cache => cache.match('/index.html')).catch(() => null)) || new Response('NeighbourAid is offline and this screen is not saved yet. Reconnect and retry.', { status: 503, headers: { 'Content-Type': 'text/plain' } }))
     )
   }
 })
@@ -120,7 +153,11 @@ self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data || {}
   // Prefer the alert's share URL when one was supplied in the payload, so
   // volunteers land directly on the alert. Otherwise open the volunteer feed.
-  const target = data.url || (data.alertId ? `/alert/${data.alertId}` : '/volunteer')
+  let target = '/volunteer'
+  try {
+    const candidate = new URL(data.url || (data.alertId ? `/alert/${encodeURIComponent(data.alertId)}` : '/volunteer'), self.location.origin)
+    if (candidate.origin === self.location.origin && ['http:', 'https:'].includes(candidate.protocol)) target = `${candidate.pathname}${candidate.search}${candidate.hash}`
+  } catch { /* External/untrusted notification targets cannot navigate away. */ }
   event.waitUntil(
     (async () => {
       const allClients = await self.clients.matchAll({
@@ -156,6 +193,7 @@ self.addEventListener('notificationclick', (event) => {
  */
 const QUEUE_DB = 'neighbouraid-offline'
 const QUEUE_STORE = 'pending-alerts'
+const RECEIPT_STORE = 'delivery-receipts'
 const SYNC_TAG = 'neighbouraid-alert-queue'
 const QUEUE_LOCK = 'neighbouraid-alert-queue-flush'
 const ANON_ENDPOINT = '/api/alerts/anonymous'
@@ -202,13 +240,35 @@ function queueRows(db) {
   })
 }
 
-function dropRow(db, id) {
+function acknowledgeRow(db, row, receipt) {
   return new Promise((resolve, reject) => {
     if (!db.objectStoreNames.contains(QUEUE_STORE)) return resolve()
-    const tx = db.transaction(QUEUE_STORE, 'readwrite')
-    tx.objectStore(QUEUE_STORE).delete(id)
+    if (!db.objectStoreNames.contains(RECEIPT_STORE)) return reject(new Error('Open the app to upgrade receipt storage'))
+    const tx = db.transaction([QUEUE_STORE, RECEIPT_STORE], 'readwrite')
+    const receipts = tx.objectStore(RECEIPT_STORE)
+    receipts.put({ id: row.payload.client_submission_id, anonymous: true, accountId: null,
+      alertId: receipt.id, created_at: row.created_at, received_at: Date.now(), status: 'server_received' })
+    const all = receipts.getAll()
+    all.onsuccess = () => all.result.sort((a, b) => b.received_at - a.received_at).forEach((item, index) => {
+      if (index >= 100 || item.received_at < Date.now() - 30 * 24 * 60 * 60 * 1000) receipts.delete(item.id)
+    })
+    tx.objectStore(QUEUE_STORE).delete(row.id)
     tx.oncomplete = () => resolve()
     tx.onabort = tx.onerror = () => reject(tx.error || new Error('Queue deletion failed'))
+  })
+}
+
+function recordFailure(db, id, review) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(QUEUE_STORE, 'readwrite')
+    const store = tx.objectStore(QUEUE_STORE)
+    const request = store.get(id)
+    request.onsuccess = () => {
+      const row = request.result
+      if (row) store.put({ ...row, attempts: (row.attempts || 0) + 1, ...(review ? { deliveryState: 'needs_review' } : {}) })
+    }
+    tx.oncomplete = resolve
+    tx.onerror = tx.onabort = () => reject(tx.error || new Error('Could not save retry state'))
   })
 }
 
@@ -224,19 +284,33 @@ async function flushAnonymousQueue() {
     const rows = await queueRows(db)
     let failed = false
     for (const row of rows) {
-      if (row.anonymous !== true) continue
+      if (row.anonymous !== true || row.deliveryState === 'needs_review') continue
+      let review = false
       try {
+        // Legacy rows need the page's durable identity migration first.
+        if (!row.payload.client_submission_id || !row.anonymousClientId) throw new Error('Open the app to prepare this saved report')
         const res = await fetch(ANON_ENDPOINT, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Anonymous-Client-ID': row.anonymousClientId },
           body: JSON.stringify(row.payload),
         })
         // 408/429 and auth/server failures can recover. Retain every rejected
         // report until confirmed delivery; keep trying other rows in this batch.
-        if (!res.ok) throw new Error('alert delivery failed: ' + res.status)
-        await dropRow(db, row.id)
+        if (!res.ok) {
+          review = [400, 403, 404, 413, 415, 422].includes(res.status)
+          if (res.status === 409) {
+            let detail
+            try { detail = await res.json() } catch { /* Unknown conflicts require review. */ }
+            review = (detail?.detail?.code || detail?.code) !== 'SUBMISSION_PENDING'
+          }
+          throw new Error('alert delivery failed: ' + res.status)
+        }
+        const receipt = await res.json()
+        if (typeof receipt?.id !== 'string' || !receipt.id) throw new Error('Server receipt is missing')
+        await acknowledgeRow(db, row, receipt)
       } catch {
         failed = true
+        await recordFailure(db, row.id, review).catch(() => {})
       }
     }
     if (failed) throw new Error('Some queued alerts still need delivery')

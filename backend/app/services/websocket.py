@@ -2,10 +2,15 @@ import asyncio
 import json
 import logging
 import math
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Set, Tuple
 from fastapi import WebSocket
 
-from .dispatch import eta_minutes, radius_km_for
+from .dispatch import eta_minutes
+from .alert_workflow import public_workflow
+from .notification_matching import CATEGORY_PREFERRED_SKILLS, matching
+
+__all__ = ["CATEGORY_PREFERRED_SKILLS", "ConnectionManager", "DEFAULT_RADIUS_KM", "SKILL_RADIUS_KM", "manager"]
 
 log = logging.getLogger(__name__)
 
@@ -53,24 +58,6 @@ def _schedule_push(alert_dict: dict, radius_km: float, reached_live: Set[str]) -
 # Map category → preferred skill tags. Volunteers tagged with any listed
 # skill get the alert even if they're outside the normal radius (up to the
 # extended radius). Keeps useful helpers aware of alerts that match them.
-CATEGORY_PREFERRED_SKILLS: Dict[str, List[str]] = {
-    "medical": ["medical", "cpr", "elderly_care", "child_care"],
-    "fire": ["medical", "driver"],
-    "flood": ["swim", "driver"],
-    "accident": ["medical", "cpr", "driver"],
-    "missing": ["driver"],
-    # No "security" skill exists, and sending untrained volunteers toward
-    # violence would be worse than sending nobody. Medical covers the
-    # aftermath; the rest is a police matter, which the emergency dialer
-    # surfaces separately.
-    "violence": ["medical"],
-    "animal": [],
-    "gas": ["driver"],
-    "power": ["electrician"],
-    "water": [],
-    "structure": ["medical", "driver"],
-    "other": [],
-}
 
 # "Skill match" extends the broadcast radius so a swimmer 10 km away still
 # gets the flood alert, but someone 50 km away doesn't get spammed.
@@ -84,6 +71,8 @@ class ConnectionManager:
         self._active: Dict[
             str, Tuple[WebSocket, List[float], List[str], bool]
         ] = {}
+        self._positions: dict[str, dict] = {}
+        self._preferences: dict[str, dict] = {}
 
     def register(
         self,
@@ -92,6 +81,7 @@ class ConnectionManager:
         coordinates: List[float],
         skills: Optional[List[str]] = None,
         has_vehicle: bool = False,
+        notification_preferences: Optional[dict] = None,
     ):
         self._active[volunteer_id] = (
             ws,
@@ -99,6 +89,11 @@ class ConnectionManager:
             list(skills or []),
             bool(has_vehicle),
         )
+        self._positions[volunteer_id] = {
+            "coordinates": list(coordinates), "updated_at": datetime.now(timezone.utc),
+            "accuracy_m": None,
+        }
+        self._preferences[volunteer_id] = notification_preferences or {}
 
     def update_coordinates(
         self, volunteer_id: str, ws: WebSocket, coordinates: List[float],
@@ -110,6 +105,10 @@ class ConnectionManager:
         if current is None or current[0] is not ws:
             return
         self._active[volunteer_id] = (ws, coordinates, current[2], current[3])
+        self._positions[volunteer_id] = {
+            "coordinates": list(coordinates), "updated_at": datetime.now(timezone.utc),
+            "accuracy_m": None,
+        }
 
     def disconnect(self, volunteer_id: str, ws: Optional[WebSocket] = None):
         # A reconnect can register its replacement before the previous
@@ -119,6 +118,8 @@ class ConnectionManager:
         if ws is not None and (current is None or current[0] is not ws):
             return
         self._active.pop(volunteer_id, None)
+        self._positions.pop(volunteer_id, None)
+        self._preferences.pop(volunteer_id, None)
 
     def count(self) -> int:
         return len(self._active)
@@ -133,6 +134,17 @@ class ConnectionManager:
             return None
         return list(entry[1])
 
+    def position_for(self, volunteer_id: str) -> Optional[dict]:
+        """Observed socket position only; never substitutes profile/home data."""
+        position = self._positions.get(volunteer_id)
+        if volunteer_id not in self._active or not position:
+            return None
+        return {**position, "coordinates": list(position["coordinates"])}
+
+    def update_preferences(self, volunteer_id: str, notification_preferences: dict):
+        if volunteer_id in self._active:
+            self._preferences[volunteer_id] = dict(notification_preferences)
+
     async def broadcast_nearby(
         self,
         alert_dict: dict,
@@ -143,14 +155,15 @@ class ConnectionManager:
         Adds an `is_skill_match` flag so the client can render a stronger
         notification when the alert is a near-perfect fit."""
         a_lng, a_lat = alert_dict["location"]["coordinates"]
-        category = alert_dict.get("category", "other")
-        preferred = set(CATEGORY_PREFERRED_SKILLS.get(category, []))
 
         reached_live: set[str] = set()
         for vid, (ws, coords, skills, has_vehicle) in list(self._active.items()):
             v_lng, v_lat = coords
             distance = _haversine(a_lat, a_lng, v_lat, v_lng)
-            skill_match = bool(preferred.intersection(set(skills)))
+            eligible, skill_match, _prefs = matching(
+                alert_dict, distance_km=distance, skills=skills, has_vehicle=has_vehicle,
+                raw_preferences=self._preferences.get(vid), base_radius=radius_km,
+            )
             # How the volunteer travels now decides how far they are worth
             # paging. `has_vehicle` was collected at registration and only
             # ever displayed; someone with a car had the same 5 km as
@@ -159,13 +172,12 @@ class ConnectionManager:
             # `radius_km` from the caller is still honoured as a floor, so a
             # caller that deliberately widens the broadcast is not narrowed
             # by someone's travel mode.
-            effective_radius = max(
-                radius_km, radius_km_for(has_vehicle, skill_match)
-            )
-            if distance > effective_radius:
+            if not eligible:
                 continue
             try:
-                payload = dict(alert_dict)
+                payload = public_workflow(dict(alert_dict))
+                payload.pop("_submission_key", None)
+                payload.pop("_submission_hash", None)
                 payload["is_skill_match"] = skill_match
                 payload["your_distance_km"] = round(distance, 2)
                 payload["your_has_vehicle"] = has_vehicle

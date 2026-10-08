@@ -14,8 +14,8 @@ export default function EvidenceSummary({ alert }) {
   const { t } = useI18n()
   const evidence = evidenceFor(alert)
   return (
-    <details className="mt-2 text-xs leading-relaxed text-gray-400">
-      <summary className="flex min-h-11 cursor-pointer items-center text-gray-200 focus-visible:outline-2 focus-visible:outline-orange-400">{t('evidence_explain')}</summary>
+    <details className="mt-2 min-w-0 text-xs leading-relaxed text-app-muted">
+      <summary className="min-h-12 cursor-pointer rounded-lg py-3 text-sm font-medium text-app-ink wrap-break-word focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">{t('evidence_explain')}</summary>
       <p>{t('evidence_note')}</p>
       <p className="mt-1">{t(`evidence_photo_${evidence.photoReview}`)}</p>
       <p className="mt-1">{t('evidence_attachment')}</p>

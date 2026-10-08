@@ -77,16 +77,8 @@
       <div><img src="/brand-logo.png" width="96" height="96" alt="" /><span>NeighbourAid</span></div>
     </div>
     <script type="module" src="/src/main.jsx"></script>
-    <script>
-      // Register the service worker in production only — in dev Vite's HMR
-      // conflicts with aggressive caching.
-      if ('serviceWorker' in navigator && window.location.hostname !== 'localhost') {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker
-            .register('/service-worker.js')
-            .catch((err) => console.warn('SW register failed:', err))
-        })
-      }
-    </script>
+    <!-- WebUpdateNotice registers the worker only in production web builds.
+         The installed Capacitor shell uses its packaged assets, not a second
+         cached website or a service worker pointing /api at the phone. -->
   </body>
 </html>

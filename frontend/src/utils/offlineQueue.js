@@ -10,10 +10,14 @@
  */
 
 import { jwtDecode } from 'jwt-decode'
+import { getAnonymousClientId, newSubmissionId } from './submissionIdentity'
 
 const DB_NAME = 'neighbouraid-offline'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE = 'pending-alerts'
+const RECEIPTS = 'delivery-receipts'
+const RECEIPT_TTL = 30 * 24 * 60 * 60 * 1000
+const RECEIPT_LIMIT = 100
 
 // The service worker registers for this tag so the browser can flush the
 // queue with no tab open. Kept in one place because the worker reads the
@@ -53,8 +57,13 @@ function openDb() {
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true })
       }
+      if (!db.objectStoreNames.contains(RECEIPTS)) db.createObjectStore(RECEIPTS, { keyPath: 'id' })
     }
-    req.onsuccess = () => resolve(req.result)
+    req.onsuccess = () => {
+      req.result.onversionchange = () => { req.result.close(); dbPromise = null }
+      resolve(req.result)
+    }
+    req.onblocked = () => reject(new Error('Close older NeighbourAid tabs to upgrade saved reports'))
     req.onerror = () => reject(req.error)
   }).catch((error) => {
     dbPromise = null
@@ -65,14 +74,14 @@ function openDb() {
 
 // A request succeeding is not proof that its transaction committed. Only
 // acknowledge saves/deletes after commit, so aborted writes cannot lose a report.
-async function transaction(mode, run) {
+async function transaction(mode, run, stores = STORE) {
   const db = await openDb()
   return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, mode)
+    const tx = db.transaction(stores, mode)
     let result
     tx.oncomplete = () => resolve(result)
     tx.onabort = tx.onerror = () => reject(tx.error || new Error('Queue storage failed'))
-    run(tx.objectStore(STORE), (value) => { result = value })
+    run(tx.objectStore(Array.isArray(stores) ? stores[0] : stores), (value) => { result = value })
   })
 }
 
@@ -88,6 +97,10 @@ export function getCurrentAccountId(token) {
 }
 
 export function canDeliverQueuedAlert(row, accountId = getCurrentAccountId()) {
+  return row.deliveryState !== 'needs_review' && canReadQueuedAlert(row, accountId)
+}
+
+export function canReadQueuedAlert(row, accountId = getCurrentAccountId()) {
   return row.anonymous === true || (
     typeof row.accountId === 'string' && !!row.accountId && row.accountId === accountId
   )
@@ -131,11 +144,14 @@ export async function requestBackgroundFlush() {
  * Legacy signed-in rows without an owner are retained, never assigned to whoever
  * happens to open the app next. Tokens are never written to IndexedDB.
  */
-export async function enqueueAlert(payload, { anonymous, accountId } = {}) {
+export async function enqueueAlert(payload, { anonymous, accountId, anonymousClientId, requestSync = true } = {}) {
   const owner = anonymous === true ? null : accountId
+  const submissionId = payload.client_submission_id || newSubmissionId()
+  const clientId = anonymous === true ? anonymousClientId || getAnonymousClientId() : null
   const id = await transaction('readwrite', (store, done) => {
     const req = store.add({
-      payload,
+      payload: { ...payload, client_submission_id: submissionId },
+      anonymousClientId: clientId,
       anonymous: anonymous === true,
       accountId: typeof owner === 'string' && owner ? owner : null,
       created_at: Date.now(),
@@ -143,9 +159,9 @@ export async function enqueueAlert(payload, { anonymous, accountId } = {}) {
     })
     req.onsuccess = () => done(req.result)
   })
-  await publishQueueState({ type: 'enqueued' })
+  await publishQueueState({ type: requestSync ? 'enqueued' : 'prepared' })
   // After the row is safely stored, never before.
-  void requestBackgroundFlush()
+  if (requestSync) void requestBackgroundFlush()
   return id
 }
 
@@ -161,6 +177,98 @@ export async function removePending(id) {
     store.delete(id)
   })
   await publishQueueState({ type: 'removed' })
+}
+
+/** Receipt and queue deletion commit together. If storage aborts, the stable
+ * submission identity remains queued and the server can safely replay it. */
+export async function completeDelivery(id, response) {
+  const data = response?.data || response
+  if (typeof data?.id !== 'string' || !data.id) throw new Error('Server receipt is missing an alert ID')
+  await transaction('readwrite', store => {
+    const get = store.get(id)
+    get.onsuccess = () => {
+      const row = get.result
+      if (!row) return
+      store.transaction.objectStore(RECEIPTS).put({
+        id: row.payload.client_submission_id,
+        anonymous: row.anonymous === true,
+        accountId: row.accountId,
+        alertId: data.id,
+        created_at: row.created_at,
+        received_at: Date.now(),
+        status: 'server_received',
+      })
+      store.delete(id)
+    }
+  }, [STORE, RECEIPTS])
+  await pruneReceipts().catch(() => {})
+  await publishQueueState({ type: 'received' })
+}
+
+async function pruneReceipts() {
+  await transaction('readwrite', store => {
+    const request = store.getAll()
+    request.onsuccess = () => {
+      const sorted = request.result.sort((a, b) => b.received_at - a.received_at)
+      sorted.forEach((row, index) => {
+        if (index >= RECEIPT_LIMIT || row.received_at < Date.now() - RECEIPT_TTL) store.delete(row.id)
+      })
+    }
+  }, RECEIPTS)
+}
+
+export async function listReceipts(accountId = getCurrentAccountId()) {
+  await pruneReceipts()
+  return transaction('readonly', (store, done) => {
+    const request = store.getAll()
+    request.onsuccess = () => done(request.result
+      .filter(row => row.anonymous === true || (accountId && row.accountId === accountId))
+      .sort((a, b) => b.received_at - a.received_at))
+  }, RECEIPTS)
+}
+
+/** Explicit cancellation waits for delivery's shared lock before deleting. */
+export async function cancelPending(id) {
+  const cancel = async () => {
+    const rows = await listPending()
+    const row = rows.find(item => item.id === id)
+    if (!row || !canReadQueuedAlert(row)) return false
+    await removePending(id)
+    return true
+  }
+  return navigator.locks?.request ? navigator.locks.request(QUEUE_LOCK, cancel) : cancel()
+}
+
+export function needsDeliveryReview(error) {
+  const status = error?.response?.status
+  const code = error?.response?.data?.detail?.code || error?.response?.data?.code
+  return [400, 403, 404, 413, 415, 422].includes(status) || (status === 409 && code !== 'SUBMISSION_PENDING')
+}
+
+export async function markPendingForReview(id) {
+  await transaction('readwrite', store => {
+    const request = store.get(id)
+    request.onsuccess = () => {
+      if (!request.result) return
+      store.put({ ...request.result, deliveryState: 'needs_review' })
+    }
+  })
+  await publishQueueState({ type: 'review_required' })
+}
+
+async function ensureSubmissionIdentity(row) {
+  if (row.payload.client_submission_id && (row.anonymous !== true || row.anonymousClientId)) return row
+  return transaction('readwrite', (store, done) => {
+    const get = store.get(row.id)
+    get.onsuccess = () => {
+      const current = get.result
+      if (!current) return done(null)
+      current.payload = { ...current.payload, client_submission_id: current.payload.client_submission_id || newSubmissionId() }
+      if (current.anonymous === true) current.anonymousClientId ||= getAnonymousClientId()
+      store.put(current)
+      done(current)
+    }
+  })
 }
 
 /** Increment a row's failure counter. Resolves with the new count (or 0 if
@@ -194,7 +302,7 @@ export async function flushQueue(postFn) {
     let failed = 0
     let blocked = 0
 
-    for (const row of pending) {
+    for (let row of pending) {
       // Re-read the session for every row: logout/account switch may occur
       // during the preceding request. Unknown legacy owners are never inferred.
       if (!canDeliverQueuedAlert(row)) {
@@ -202,17 +310,21 @@ export async function flushQueue(postFn) {
         continue
       }
       try {
-        await postFn(row.payload, {
+        row = await ensureSubmissionIdentity(row)
+        if (!row) continue
+        const result = await postFn(row.payload, {
           anonymous: row.anonymous === true,
           accountId: row.accountId ?? null,
+          anonymousClientId: row.anonymousClientId ?? null,
         })
-        await removePending(row.id)
+        await completeDelivery(row.id, result)
         sent += 1
-      } catch {
+      } catch (error) {
         failed += 1
         // Even 4xx can be temporary (401/408/429). Retain rejected reports too:
         // without a review/edit flow, silently deleting emergency reports is unsafe.
         await bumpAttempts(row.id)
+        if (needsDeliveryReview(error)) await markPendingForReview(row.id)
       }
     }
 

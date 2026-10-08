@@ -2,6 +2,7 @@ import asyncio
 import logging
 import math
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -10,7 +11,15 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from ..core.limits import _client_ip, limit_write
 from ..core.security import decode_token_safe, get_current_user, require_role
 from ..db.client import get_db
-from ..models.alert import AlertCreate, AlertUpdateCreate, ETAUpdate
+from ..models.alert import (
+    AlertCreate, AlertUpdateCreate, BackupOffer, BackupRequest, ETAUpdate,
+    HandoffAccept, HandoffRequest, LocationSharingUpdate, ProgressUpdate,
+)
+from ..services.alert_workflow import (
+    HANDOFF_TTL, POSITION_MAX_AGE, aware, coordination_for, event_update,
+    now_utc, participant_roles, public_workflow, sharing_for,
+    workflow_event,
+)
 from ..services.ai import URGENCY_WEIGHT, generate_headline, triage as ai_triage
 from ..services.drill import DRILL_TTL_MINUTES
 from ..services.dispatch import MAX_DISPATCH_RADIUS_KM, eta_minutes, radius_km_for
@@ -18,6 +27,9 @@ from ..services.enrich import enrich_alert
 from ..services.matching import MATCH_RADIUS_M, nearby_resources
 from ..services.photo import analyze_photos
 from ..services.ratelimit import anonymous_alert_limiter
+from ..services.submission_receipts import (
+    begin_submission, complete_submission, insert_submission_alert, release_submission,
+)
 from ..services.verification import (
     WITNESS_RADIUS_M,
     bump_witness,
@@ -138,7 +150,9 @@ def _serialize(doc: dict, include_photos: bool = True) -> dict:
     doc.pop("witnessed_by", None)
     doc.pop("flagged_by", None)
     doc.pop("photo_checks", None)
-    return doc
+    doc.pop("_submission_key", None)
+    doc.pop("_submission_hash", None)
+    return public_workflow(doc)
 
 
 def _haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -172,7 +186,11 @@ async def _auto_resolve_stale(db) -> None:
     Best-effort — if the DB is unreachable we skip it and the next read
     retries."""
     now = datetime.now(timezone.utc)
-    closed = {"status": "resolved", "resolved_at": now, "auto_resolved": True}
+    closed = {
+        "status": "resolved", "resolved_at": now, "auto_resolved": True,
+        "outcome_at": now, "outcome_source": "automatic",
+        "location_sharing": {"enabled": False}, "handoff": None,
+    }
     try:
         await db.alerts.update_many(
             {
@@ -180,7 +198,8 @@ async def _auto_resolve_stale(db) -> None:
                 "is_drill": True,
                 "created_at": {"$lt": now - timedelta(minutes=DRILL_TTL_MINUTES)},
             },
-            {"$set": closed},
+            {"$set": {**closed, "outcome": "practice_ended"},
+             "$push": {"workflow_events": event_update("practice_ended", now=now)}},
         )
         await db.alerts.update_many(
             {
@@ -188,7 +207,8 @@ async def _auto_resolve_stale(db) -> None:
                 "accepted_by": None,
                 "created_at": {"$lt": now - AUTO_RESOLVE_AFTER},
             },
-            {"$set": closed},
+            {"$set": {**closed, "outcome": "expired_unconfirmed"},
+             "$push": {"workflow_events": event_update("expired_unconfirmed", now=now)}},
         )
     except Exception:  # noqa: BLE001 — cleanup must never break the request
         pass
@@ -429,8 +449,27 @@ async def heatmap(lat: float, lng: float, km: float = 25.0, hours: int = 72):
 @router.post("/", status_code=201)
 async def create_alert(
     alert: AlertCreate,
+    request: Request,
     payload: dict = Depends(require_role("reporter")),
 ):
+    db = get_db()
+    claim = await begin_submission(
+        db, client_submission_id=alert.client_submission_id,
+        payload=alert.model_dump(mode="json", exclude={"client_submission_id"}),
+        account_id=payload["sub"],
+    )
+    if claim and claim.replay is not None:
+        return claim.replay
+    if claim and claim.persisted_alert is not None:
+        return await complete_submission(db, claim, _serialize(claim.persisted_alert))
+    try:
+        return await _create_signed_alert(alert, payload, claim)
+    except Exception:
+        await release_submission(db, claim)
+        raise
+
+
+async def _create_signed_alert(alert, payload, claim):
     db = get_db()
     lng, lat = alert.location.coordinates[0], alert.location.coordinates[1]
     reporter_id = payload["sub"]
@@ -470,14 +509,6 @@ async def create_alert(
     # the public lists collapse to one card per incident.
     canonical = pick_canonical(corroborating)
     duplicate_of = canonical["_id"] if canonical else None
-    if canonical is not None:
-        try:
-            witnessed = await bump_witness(db, canonical["_id"], reporter_id)
-            if witnessed:
-                refreshed = await refresh_score(db, witnessed)
-                await manager.broadcast_nearby(_serialize({**refreshed}, include_photos=False))
-        except Exception:  # noqa: BLE001 — a failed merge must not lose the report
-            log.info("could not add witness to canonical alert %s", canonical["_id"])
 
     # Photos are optional; when supplied we validate each one and let the
     # visual evidence bump the overall verified_score.
@@ -530,8 +561,19 @@ async def create_alert(
         "flags": 0,
         "flagged_by": [],
     }
-    result = await db.alerts.insert_one(doc)
-    doc["_id"] = result.inserted_id
+    doc["workflow_events"] = [workflow_event("posted", reporter_id, doc["created_at"])]
+    doc, created = await insert_submission_alert(db, claim, doc)
+    response = await complete_submission(db, claim, _serialize({**doc}, include_photos=True))
+    if not created:
+        return response
+    if canonical is not None:
+        try:
+            witnessed = await bump_witness(db, canonical["_id"], reporter_id)
+            if witnessed:
+                refreshed = await refresh_score(db, witnessed)
+                await manager.broadcast_nearby(_serialize({**refreshed}, include_photos=False))
+        except Exception:  # noqa: BLE001 — a failed merge must not lose the report
+            log.info("could not add witness to canonical alert %s", canonical["_id"])
 
     # The canonical witness above is counted once. Do not also increment
     # every nearby score: that double-counted one author and exceeded 100.
@@ -568,11 +610,31 @@ async def create_alert(
     fire_alert_created(serialized_light)
 
     # Return the full doc with photos so the reporter can see what they posted
-    return _serialize(doc, include_photos=True)
+    return response
 
 
 @router.post("/anonymous", status_code=201)
 async def create_anonymous_alert(alert: AlertCreate, request: Request):
+    if alert.is_drill:
+        raise HTTPException(403, "Practice drills require a signed-in reporting account")
+    db = get_db()
+    claim = await begin_submission(
+        db, client_submission_id=alert.client_submission_id,
+        payload=alert.model_dump(mode="json", exclude={"client_submission_id"}),
+        anonymous_client_id=request.headers.get("X-Anonymous-Client-ID"),
+    )
+    if claim and claim.replay is not None:
+        return claim.replay
+    if claim and claim.persisted_alert is not None:
+        return await complete_submission(db, claim, _serialize(claim.persisted_alert))
+    try:
+        return await _create_anonymous_alert(alert, request, claim)
+    except Exception:
+        await release_submission(db, claim)
+        raise
+
+
+async def _create_anonymous_alert(alert, request, claim):
     """Public, unauthenticated alert creation for sensitive cases (domestic
     abuse, missing persons where the reporter can't safely identify
     themselves, bystander reports).
@@ -664,8 +726,11 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
         "flags": 0,
         "flagged_by": [],
     }
-    result = await db.alerts.insert_one(doc)
-    doc["_id"] = result.inserted_id
+    doc["workflow_events"] = [workflow_event("posted", now=doc["created_at"])]
+    doc, created = await insert_submission_alert(db, claim, doc)
+    response = await complete_submission(db, claim, _serialize({**doc}, include_photos=True))
+    if not created:
+        return response
 
     serialized_light = _serialize({**doc}, include_photos=False)
     await manager.broadcast_nearby(serialized_light)
@@ -691,11 +756,11 @@ async def create_anonymous_alert(alert: AlertCreate, request: Request):
     task.add_done_callback(_background_tasks.discard)
 
     fire_alert_created(serialized_light)
-    return _serialize(doc, include_photos=True)
+    return response
 
 
 @router.get("/{alert_id}")
-async def get_alert(alert_id: str):
+async def get_alert(alert_id: str, include_photos: bool = True):
     """Public fetch — used by the share link so anyone can open an alert."""
     db = get_db()
     oid = _oid(alert_id)
@@ -704,7 +769,7 @@ async def get_alert(alert_id: str):
         raise HTTPException(404, "Alert not found")
     if (doc.get("flags") or 0) >= FLAG_HIDE_THRESHOLD:
         raise HTTPException(404, "Alert not found")
-    return _serialize(doc, include_photos=True)
+    return _serialize(doc, include_photos=include_photos)
 
 
 @router.get("/{alert_id}/photos")
@@ -759,10 +824,9 @@ async def get_responder_position(
       - We expose coordinates only while `status == "accepted"`. Once the
         alert is resolved the volunteer's coords go cold immediately —
         you can't trail them around the city after the fact.
-      - We prefer the WebSocket's in-memory live coords (refreshed as the
-        volunteer moves) and only fall back to the user's stored "home
-        location" if they're offline. The `live` flag tells the client
-        which one it got.
+      - Explicit, incident-local, unexpired volunteer consent is required.
+        Only recent observed socket coordinates are released; profile/home
+        coordinates are never tracking data.
     """
     db = get_db()
     oid = _oid(alert_id)
@@ -775,6 +839,7 @@ async def get_responder_position(
             "eta_minutes": 1,
             "eta_set_at": 1,
             "is_anonymous": 1,
+            "location_sharing": 1,
         },
     )
     if not alert:
@@ -795,6 +860,12 @@ async def get_responder_position(
             "eta_minutes": alert.get("eta_minutes"),
             "eta_set_at": alert.get("eta_set_at"),
             "status": alert.get("status"),
+            "sharing_enabled": False,
+            "sharing_expires_at": None,
+            "position_updated_at": None,
+            "position_accuracy_m": None,
+            "position_state": "disabled",
+            "freshness_seconds": int(POSITION_MAX_AGE.total_seconds()),
         }
 
     user_id = payload["sub"]
@@ -802,19 +873,22 @@ async def get_responder_position(
         # Random users don't get to track random volunteers
         raise HTTPException(403, "Only the reporter or accepting volunteer can read this")
 
-    coords = manager.coords_for(str(accepted_by))
-    live = coords is not None
-
-    # One lookup covers three needs: the responder's display name always,
-    # their saved home location only when the live socket has nothing, and
-    # their number only when the caller is the reporter.
-    user = await db.users.find_one(
-        {"_id": accepted_by}, {"location": 1, "name": 1, "phone": 1}
+    now = now_utc()
+    sharing = sharing_for(alert, now)
+    position = manager.position_for(str(accepted_by)) if sharing["enabled"] else None
+    observed_at = aware(position.get("updated_at")) if position else None
+    fresh = bool(observed_at and timedelta(0) <= now - observed_at <= POSITION_MAX_AGE)
+    live = bool(sharing["enabled"] and position and fresh)
+    coords = position["coordinates"] if live else None
+    position_state = (
+        "disabled" if not sharing["enabled"] else "unavailable" if not position
+        else "live" if fresh else "stale"
     )
-    if not live and user and isinstance(user.get("location"), dict):
-        # Better than nothing, but stays marked stale so the UI doesn't
-        # render a "live" dot over a location that may be hours old.
-        coords = user["location"].get("coordinates") or None
+
+    # Contacts are incident-bound; home location is never a tracking fallback.
+    user = await db.users.find_one(
+        {"_id": accepted_by}, {"name": 1, "phone": 1}
+    )
 
     # Phone numbers, released in exactly one direction each and only once a
     # volunteer has accepted.
@@ -851,6 +925,12 @@ async def get_responder_position(
         "eta_minutes": alert.get("eta_minutes"),
         "eta_set_at": alert.get("eta_set_at"),
         "status": alert.get("status"),
+        "sharing_enabled": sharing["enabled"],
+        "sharing_expires_at": sharing["expires_at"],
+        "position_updated_at": observed_at,
+        "position_accuracy_m": position.get("accuracy_m") if position else None,
+        "position_state": position_state,
+        "freshness_seconds": int(POSITION_MAX_AGE.total_seconds()),
     }
 
 
@@ -1044,7 +1124,13 @@ async def accept_alert(
     oid = _oid(alert_id)
     result = await db.alerts.find_one_and_update(
         {"_id": oid, "status": "open"},
-        {"$set": {"status": "accepted", "accepted_by": ObjectId(payload["sub"])}},
+        {
+            "$set": {
+                "status": "accepted", "accepted_by": ObjectId(payload["sub"]),
+                "response_progress": "accepted", "location_sharing": {"enabled": False},
+            },
+            "$push": {"workflow_events": event_update("accepted", payload["sub"])},
+        },
         return_document=True,
         projection=_LIST_PROJECTION,
     )
@@ -1065,7 +1151,7 @@ async def set_eta(
     db = get_db()
     oid = _oid(alert_id)
     result = await db.alerts.find_one_and_update(
-        {"_id": oid, "accepted_by": ObjectId(payload["sub"])},
+        {"_id": oid, "status": "accepted", "accepted_by": ObjectId(payload["sub"])},
         {
             "$set": {
                 "eta_minutes": body.eta_minutes,
@@ -1090,11 +1176,217 @@ async def resolve_alert(
     db = get_db()
     oid = _oid(alert_id)
     result = await db.alerts.find_one_and_update(
-        {"_id": oid, "accepted_by": ObjectId(payload["sub"])},
-        {"$set": {"status": "resolved", "resolved_at": datetime.now(timezone.utc)}},
+        {"_id": oid, "status": "accepted", "accepted_by": ObjectId(payload["sub"])},
+        {
+            "$set": {
+                "status": "resolved", "resolved_at": now_utc(), "outcome_at": now_utc(),
+                "outcome": "volunteer_reported_resolved", "outcome_source": "volunteer",
+                "outcome_actor_id": payload["sub"], "auto_resolved": False,
+                "location_sharing": {"enabled": False}, "handoff": None,
+            },
+            "$push": {"workflow_events": event_update("volunteer_reported_resolved", payload["sub"])},
+        },
         return_document=True,
         projection=_LIST_PROJECTION,
     )
     if not result:
         raise HTTPException(404, "Alert not found or not accepted by you")
-    return _serialize(result, include_photos=False)
+    serialized = _serialize(result, include_photos=False)
+    await manager.broadcast_nearby(serialized)
+    return serialized
+
+
+async def _workflow_write(query, update, user_id):
+    result = await get_db().alerts.find_one_and_update(query, update, return_document=True)
+    if not result:
+        raise HTTPException(409, "Incident changed or this action is not available")
+    # Public broadcasts contain only summary flags, never private relay notes.
+    await manager.broadcast_nearby(_serialize({**result}, include_photos=False))
+    return coordination_for(result, user_id)
+
+
+async def _incident(alert_id):
+    alert = await get_db().alerts.find_one({"_id": _oid(alert_id)})
+    if not alert:
+        raise HTTPException(404, "Alert not found")
+    return alert
+
+
+@router.get("/coordination/mine")
+async def my_coordination(payload: dict = Depends(require_role("volunteer"))):
+    uid = ObjectId(payload["sub"])
+    cursor = get_db().alerts.find({
+        "status": "accepted",
+        "$or": [
+            {"accepted_by": uid},
+            {"handoff.to_volunteer_id": payload["sub"], "handoff.expires_at": {"$gt": now_utc()}},
+        ],
+    }, _LIST_PROJECTION).limit(100)
+    result = []
+    async for alert in cursor:
+        _reporter, lead, invited = participant_roles(alert, payload["sub"])
+        if not (lead or invited):
+            continue
+        public = _serialize({**alert}, include_photos=False)
+        public["handoff_offered_to_me"] = invited
+        result.append(public)
+    return result
+
+
+@router.get("/{alert_id}/coordination")
+async def get_coordination(alert_id: str, payload: dict = Depends(get_current_user)):
+    return coordination_for(await _incident(alert_id), payload["sub"])
+
+
+@router.patch("/{alert_id}/location-sharing", dependencies=[Depends(limit_write)])
+async def update_location_sharing(
+    alert_id: str, body: LocationSharingUpdate,
+    payload: dict = Depends(require_role("volunteer")),
+):
+    now = now_utc()
+    return await _workflow_write(
+        {"_id": _oid(alert_id), "status": "accepted", "accepted_by": ObjectId(payload["sub"])},
+        {
+            "$set": {"location_sharing": {
+                "enabled": body.enabled, "volunteer_id": payload["sub"],
+                "expires_at": now + timedelta(minutes=body.duration_minutes) if body.enabled else None,
+            }},
+            "$push": {"workflow_events": event_update("location_sharing_started" if body.enabled else "location_sharing_stopped", payload["sub"], now)},
+        }, payload["sub"],
+    )
+
+
+@router.post("/{alert_id}/backup", dependencies=[Depends(limit_write)])
+async def request_backup(alert_id: str, body: BackupRequest, payload: dict = Depends(get_current_user)):
+    uid = ObjectId(payload["sub"])
+    return await _workflow_write(
+        {"_id": _oid(alert_id), "status": "accepted", "$or": [{"reporter_id": uid}, {"accepted_by": uid}]},
+        {
+            "$set": {
+                "backup.requested": True, "backup.needed_skills": list(dict.fromkeys(s.value for s in body.needed_skills)),
+                "backup.note": body.note.strip(), "backup.requested_at": now_utc(),
+            },
+            "$push": {"workflow_events": event_update("backup_requested", payload["sub"])},
+        }, payload["sub"],
+    )
+
+
+@router.delete("/{alert_id}/backup", dependencies=[Depends(limit_write)])
+async def cancel_backup(alert_id: str, payload: dict = Depends(get_current_user)):
+    uid = ObjectId(payload["sub"])
+    return await _workflow_write(
+        {"_id": _oid(alert_id), "status": "accepted", "$or": [{"reporter_id": uid}, {"accepted_by": uid}]},
+        {"$set": {"backup": {"requested": False, "offers": []}, "handoff": None},
+         "$push": {"workflow_events": event_update("backup_cancelled", payload["sub"])}},
+        payload["sub"],
+    )
+
+
+@router.post("/{alert_id}/backup/offer", dependencies=[Depends(limit_write)])
+async def offer_backup(alert_id: str, body: BackupOffer, payload: dict = Depends(require_role("volunteer"))):
+    uid = ObjectId(payload["sub"])
+    user = await get_db().users.find_one({"_id": uid}, {"name": 1, "role": 1})
+    if not user or user.get("role") != "volunteer":
+        raise HTTPException(403, "An active volunteer account is required")
+    result = await get_db().alerts.find_one_and_update(
+        {
+            "_id": _oid(alert_id), "status": "accepted", "accepted_by": {"$ne": uid},
+            "backup.requested": True, "backup.offers.volunteer_id": {"$ne": payload["sub"]},
+            "backup.offers.19": {"$exists": False},
+        },
+        {"$push": {"backup.offers": {
+            "volunteer_id": payload["sub"], "name": user.get("name") or "Volunteer",
+            "note": body.note.strip(), "offered_at": now_utc(),
+        }}}, return_document=True,
+    )
+    if not result:
+        raise HTTPException(409, "Backup is unavailable, already offered or full")
+    return {"offered": True, "alert_id": alert_id, "volunteer_id": payload["sub"]}
+
+
+@router.post("/{alert_id}/handoff", dependencies=[Depends(limit_write)])
+async def offer_handoff(alert_id: str, body: HandoffRequest, payload: dict = Depends(require_role("volunteer"))):
+    uid = ObjectId(payload["sub"])
+    target = str(_oid(body.volunteer_id))
+    if target == payload["sub"]:
+        raise HTTPException(400, "Choose another volunteer")
+    now = now_utc()
+    return await _workflow_write(
+        {
+            "_id": _oid(alert_id), "status": "accepted", "accepted_by": uid,
+            "backup.requested": True, "backup.offers.volunteer_id": target,
+            "$or": [{"handoff": None}, {"handoff.expires_at": {"$lte": now}}],
+        },
+        {"$set": {"handoff": {
+            "id": str(uuid4()), "from_volunteer_id": payload["sub"],
+            "to_volunteer_id": target, "expires_at": now + HANDOFF_TTL,
+        }}, "$push": {"workflow_events": event_update("handoff_offered", payload["sub"], now)}},
+        payload["sub"],
+    )
+
+
+@router.post("/{alert_id}/handoff/accept", dependencies=[Depends(limit_write)])
+async def accept_handoff(alert_id: str, body: HandoffAccept, payload: dict = Depends(require_role("volunteer"))):
+    now = now_utc()
+    return await _workflow_write(
+        {
+            "_id": _oid(alert_id), "status": "accepted", "handoff.id": str(body.handoff_id),
+            "handoff.to_volunteer_id": payload["sub"], "handoff.expires_at": {"$gt": now},
+            "$expr": {"$eq": [{"$toString": "$accepted_by"}, "$handoff.from_volunteer_id"]},
+        },
+        {"$set": {
+            "accepted_by": ObjectId(payload["sub"]), "handoff": None,
+            "location_sharing": {"enabled": False}, "response_progress": "accepted",
+            "eta_minutes": None, "eta_set_at": None, "backup": {"requested": False, "offers": []},
+        }, "$push": {"workflow_events": event_update("handoff_accepted", payload["sub"], now)}},
+        payload["sub"],
+    )
+
+
+@router.patch("/{alert_id}/progress", dependencies=[Depends(limit_write)])
+async def update_progress(alert_id: str, body: ProgressUpdate, payload: dict = Depends(require_role("volunteer"))):
+    eligible = [None, "accepted"] if body.progress.value == "on_the_way" else [None, "accepted", "on_the_way"]
+    return await _workflow_write(
+        {"_id": _oid(alert_id), "status": "accepted", "accepted_by": ObjectId(payload["sub"]), "response_progress": {"$in": eligible}},
+        {"$set": {"response_progress": body.progress.value},
+         "$push": {"workflow_events": event_update(body.progress.value, payload["sub"])}},
+        payload["sub"],
+    )
+
+
+@router.delete("/{alert_id}/handoff", dependencies=[Depends(limit_write)])
+async def cancel_handoff(alert_id: str, payload: dict = Depends(require_role("volunteer"))):
+    return await _workflow_write(
+        {"_id": _oid(alert_id), "status": "accepted", "accepted_by": ObjectId(payload["sub"]), "handoff": {"$ne": None}},
+        {"$set": {"handoff": None}, "$push": {"workflow_events": event_update("handoff_cancelled", payload["sub"])}},
+        payload["sub"],
+    )
+
+
+@router.post("/{alert_id}/handoff/decline", dependencies=[Depends(limit_write)])
+async def decline_handoff(alert_id: str, body: HandoffAccept, payload: dict = Depends(require_role("volunteer"))):
+    now = now_utc()
+    result = await get_db().alerts.find_one_and_update(
+        {"_id": _oid(alert_id), "status": "accepted", "handoff.id": str(body.handoff_id),
+         "handoff.to_volunteer_id": payload["sub"], "handoff.expires_at": {"$gt": now}},
+        {"$set": {"handoff": None}, "$push": {"workflow_events": event_update("handoff_declined", payload["sub"], now)}},
+        return_document=True,
+    )
+    if not result:
+        raise HTTPException(409, "Handoff is no longer available")
+    return {"declined": True, "alert_id": alert_id}
+
+
+@router.patch("/{alert_id}/confirm-safe", dependencies=[Depends(limit_write)])
+async def confirm_safe(alert_id: str, payload: dict = Depends(require_role("reporter"))):
+    now = now_utc()
+    return await _workflow_write(
+        {"_id": _oid(alert_id), "reporter_id": ObjectId(payload["sub"]), "is_anonymous": {"$ne": True}, "is_drill": {"$ne": True}, "status": {"$in": ["accepted", "resolved"]}, "outcome": {"$ne": "reporter_confirmed_safe"}},
+        {"$set": {
+            "status": "resolved", "resolved_at": now, "outcome_at": now,
+            "outcome": "reporter_confirmed_safe", "outcome_source": "reporter",
+            "outcome_actor_id": payload["sub"], "auto_resolved": False,
+            "location_sharing": {"enabled": False}, "handoff": None,
+        }, "$push": {"workflow_events": event_update("reporter_confirmed_safe", payload["sub"], now)}},
+        payload["sub"],
+    )

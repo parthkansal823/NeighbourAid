@@ -11,6 +11,7 @@ import NativeOverlay from './NativeOverlay'
 import AutoDispatch from './AutoDispatch'
 import EvidenceSummary, { evidenceFor } from './EvidenceSummary'
 import { useTimeAgo } from '../hooks/useTimeAgo'
+import { useDialog } from '../hooks/useDialog'
 import {
   CategoryIcon,
   Clock,
@@ -34,6 +35,9 @@ import {
   X,
 } from './icons'
 import Button from './Button'
+import HelpRelay from './HelpRelay'
+import OutcomeSummary from './OutcomeSummary'
+import useTextFirst from '../hooks/useTextFirst'
 
 /**
  * Urgency shows as a 4px bar down the left edge, not as a tint across the
@@ -85,6 +89,14 @@ function detectScript(text) {
 
 function TranslatableText({ text, sourceLang }) {
   const { lang, autoTranslate } = useI18n()
+  const textFirst = useTextFirst()
+  // A translation belongs to exactly one source/reader-language identity.
+  // Remount on preference changes too: cancelled auto work must not leave a
+  // spinner stuck or render an old result after consent/text-first changes.
+  return <TranslationPanel key={JSON.stringify([text, sourceLang, lang, autoTranslate, textFirst])} text={text} sourceLang={sourceLang} lang={lang} autoTranslate={autoTranslate} textFirst={textFirst} />
+}
+
+function TranslationPanel({ text, sourceLang, lang, autoTranslate, textFirst }) {
   const [translated, setTranslated] = useState(null)
   const [showing, setShowing] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -97,7 +109,7 @@ function TranslatableText({ text, sourceLang }) {
   // limited data can leave it off.
   useEffect(() => {
     let cancelled = false
-    if (!autoTranslate || !needsTranslation) return undefined
+    if (!autoTranslate || textFirst || !needsTranslation) return undefined
     setLoading(true)
     translateText(text, lang, sourceLang)
       .then((out) => {
@@ -116,7 +128,7 @@ function TranslatableText({ text, sourceLang }) {
     // `sourceLang` is listed even though `needsTranslation` already derives
     // from it — the rule cannot see through that, and CI runs eslint with
     // --max-warnings 0, so an unlisted dependency fails the build.
-  }, [text, lang, sourceLang, autoTranslate, needsTranslation])
+  }, [text, lang, sourceLang, autoTranslate, needsTranslation, textFirst])
 
   const toggle = async () => {
     if (showing) {
@@ -124,6 +136,7 @@ function TranslatableText({ text, sourceLang }) {
       return
     }
     if (translated == null) {
+      if (!autoTranslate && !window.confirm('Translate this report? If on-device translation is unavailable, this text is sent to Google. Translations can be wrong and are not medical instructions.')) return
       setLoading(true)
       try {
         const out = await translateText(text, lang, sourceLang)
@@ -136,7 +149,7 @@ function TranslatableText({ text, sourceLang }) {
   }
 
   const display = showing && translated != null ? translated : text
-  const canTranslate = !!text && text.trim().length > 0
+  const canTranslate = needsTranslation || showing
 
   return (
     <div>
@@ -157,11 +170,14 @@ function TranslatableText({ text, sourceLang }) {
             : `Translate to ${lang.toUpperCase()}`}
         </button>
       )}
+      {showing && translated !== text && <p className="mt-1 text-xs leading-relaxed text-app-muted">Machine translation may be wrong. Check the original; this is not medical advice.</p>}
     </div>
   )
 }
 
 function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
+  const textFirst = useTextFirst()
+  const [chosen, setChosen] = useState(false)
   const [photos, setPhotos] = useState(inlinePhotos || [])
   const [loadedFor, setLoadedFor] = useState(inlinePhotos?.length ? alertId : null)
   const [loading, setLoading] = useState(false)
@@ -187,19 +203,22 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
 
   if (!photoCount) return null
 
-  if (loadedFor !== alertId) {
+  if (loadedFor !== alertId || (textFirst && !chosen)) {
     return (
+      <div className="mb-3">
+      {error && <p role="alert" className="mb-2 text-sm text-app-ink">{error}</p>}
       <button
         type="button"
-        onClick={fetchIfNeeded}
+        onClick={() => { setChosen(true); void fetchIfNeeded() }}
         disabled={loading}
-        className="tap app-secondary-button mb-3 w-full"
+        className="tap app-secondary-button w-full"
       >
         <ImageIcon className="h-3.5 w-3.5" aria-hidden />
         {loading
           ? 'Loading photos…'
           : `View ${photoCount} photo${photoCount !== 1 ? 's' : ''}`}
       </button>
+      </div>
     )
   }
 
@@ -229,13 +248,7 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
           </button>
         ))}
       </div>
-      {open != null && (<NativeOverlay>
-        <div
-          className="fixed inset-0 z-1050 bg-black/85 flex items-center justify-center p-4"
-          onClick={() => setOpen(null)}
-          role="dialog"
-          aria-modal="true"
-        >
+      {open != null && (<PhotoDialog onClose={() => setOpen(null)}>
           <img
             src={photos[open]}
             alt={`evidence ${open + 1}`}
@@ -273,10 +286,14 @@ function PhotoGallery({ alertId, photoCount, inlinePhotos }) {
               </button>
             </>
           )}
-        </div>
-      </NativeOverlay>)}
+      </PhotoDialog>)}
     </>
   )
+}
+
+function PhotoDialog({ children, onClose }) {
+  const dialog = useDialog(onClose)
+  return <NativeOverlay><div ref={dialog} tabIndex={-1} className="fixed inset-0 z-1050 bg-black/85 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label="Report photo">{children}</div></NativeOverlay>
 }
 
 function EtaStrip({ alert, onUpdate, canEdit }) {
@@ -435,6 +452,7 @@ function MatchingResources({ alertId, category }) {
 }
 
 export default function AlertCard({ alert, onUpdate }) {
+  const textFirst = useTextFirst()
   const { user } = useAuth()
   const { t } = useI18n()
   const { push: toast } = useToast()
@@ -506,7 +524,9 @@ export default function AlertCard({ alert, onUpdate }) {
   }
 
   const accept = () => run('accept', () => api.patch(`/api/alerts/${alert.id}/accept`))
-  const resolve = () => run('resolve', () => api.patch(`/api/alerts/${alert.id}/resolve`))
+  const resolve = () => {
+    if (window.confirm('Report that this emergency is resolved? This is a volunteer report, not a confirmation that the reporter is safe.')) return run('resolve', () => api.patch(`/api/alerts/${alert.id}/resolve`))
+  }
   const witness = () => run('witness', () => api.post(`/api/alerts/${alert.id}/witness`))
 
   const flag = async () => {
@@ -617,7 +637,7 @@ export default function AlertCard({ alert, onUpdate }) {
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-app-muted">
         <span className="inline-flex items-center gap-1.5 rounded-md bg-surface-2 px-2 py-1 font-medium capitalize text-app-ink">
           <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${alert.status === 'open' ? 'bg-blue-500' : alert.status === 'accepted' ? 'bg-purple-500' : 'bg-gray-500'}`} />
-          {alert.status}
+          {alert.status === 'resolved' ? 'Closed' : alert.status}
         </span>
           {/* Minutes, with the distance as the secondary figure. "4.2 km"
               tells a volunteer nothing about whether they are the right
@@ -645,6 +665,7 @@ export default function AlertCard({ alert, onUpdate }) {
       </div>
 
       <div className="mb-3">
+        <OutcomeSummary alert={alert} />
         <TranslatableText text={alert.description} sourceLang={alert.language} />
       </div>
 
@@ -835,13 +856,14 @@ export default function AlertCard({ alert, onUpdate }) {
               loading={loading === 'resolve'}
               className="w-full sm:w-auto"
             >
-              {t('card_resolve')}
+              Report resolved
             </Button>
           )}
         </div>
       </div>
 
       <MatchingResources alertId={alert.id} category={alert.category} />
+      <HelpRelay alert={alert} onChanged={async () => { const { data } = await api.get(`/api/alerts/${alert.id}`, { params: { include_photos: !textFirst } }); onUpdate?.(data) }} />
 
       {showUpdates && (
         <section id={updatesPanelId} aria-label={t('card_updates')} className="mt-4 border-t border-line pt-4">

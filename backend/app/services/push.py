@@ -55,6 +55,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 from ..core.config import settings
 from .availability import is_available
+from .dispatch import MAX_DISPATCH_RADIUS_KM
+from .notification_matching import distance_km, matching
 
 log = logging.getLogger(__name__)
 
@@ -196,7 +198,7 @@ async def send_to_subscription(
     return False
 
 
-def _notification(alert: dict[str, Any]) -> dict[str, Any]:
+def _notification(alert: dict[str, Any], include_sensitive_preview: bool = False) -> dict[str, Any]:
     """What the service worker renders. Kept small — push services cap the
     payload (4 KB is the safe assumption) and the body is encrypted, so
     every field costs."""
@@ -207,8 +209,8 @@ def _notification(alert: dict[str, Any]) -> dict[str, Any]:
         "urgency": urgency,
         "category": alert.get("category") or "other",
         "title": f"{urgency} · {alert.get('category') or 'alert'}",
-        "body": (alert.get("headline") or alert.get("description") or "")[:140],
-        "where": where[:80],
+        "body": (alert.get("headline") or alert.get("description") or "")[:140] if include_sensitive_preview else "A nearby community alert needs attention. Open NeighbourAid for details.",
+        "where": where[:80] if include_sensitive_preview else "",
     }
 
 
@@ -226,6 +228,9 @@ async def push_nearby(
     """
     if not is_enabled():
         return 0
+    # Do not page people toward an incident already accepted or closed.
+    if alert.get("status", "open") != "open" or alert.get("duplicate_of"):
+        return 0
 
     lng, lat = alert["location"]["coordinates"]
     skip = {str(x) for x in (skip_user_ids or ())}
@@ -239,23 +244,27 @@ async def push_nearby(
             "location": {
                 "$nearSphere": {
                     "$geometry": {"type": "Point", "coordinates": [lng, lat]},
-                    "$maxDistance": int(radius_km * 1000),
+                    "$maxDistance": int(max(radius_km, MAX_DISPATCH_RADIUS_KM) * 1000),
                 }
             },
         },
-        {"_id": 1, "availability": 1},
+        {"_id": 1, "availability": 1, "location": 1, "skills": 1, "has_vehicle": 1, "notification_preferences": 1},
     ).to_list(500)
 
     urgency_label = (alert.get("urgency") or "MEDIUM").upper()
     # Quiet hours gate push and nothing else. A volunteer with the feed open
     # at three in the morning is awake and looking at it; the setting is
     # about not buzzing a pocket, not about hiding an alert from a screen.
-    ids = [
-        u["_id"]
-        for u in nearby
-        if str(u["_id"]) not in skip
-        and is_available(u.get("availability"), urgency_label)
-    ]
+    users = {}
+    for user in nearby:
+        eligible, _skill_match, pref = matching(
+            alert, distance_km=distance_km(alert, user), skills=user.get("skills"),
+            has_vehicle=user.get("has_vehicle", False),
+            raw_preferences=user.get("notification_preferences"), base_radius=radius_km,
+        )
+        if eligible and str(user["_id"]) not in skip and is_available(user.get("availability"), urgency_label):
+            users[user["_id"]] = pref
+    ids = list(users)
     if not ids:
         return 0
 
@@ -263,13 +272,14 @@ async def push_nearby(
     if not subs:
         return 0
 
-    payload = _notification(alert)
-    urgency = URGENCY.get(payload["urgency"], "normal")
+    urgency = URGENCY.get(urgency_label, "normal")
     dead: list[ObjectId] = []
     sent = 0
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         for sub in subs:
+            pref = users.get(sub.get("user_id"), {})
+            payload = _notification(alert, pref.get("include_sensitive_preview", False))
             if await send_to_subscription(client, sub, payload, urgency):
                 dead.append(sub["_id"])
             else:

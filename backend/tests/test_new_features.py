@@ -296,9 +296,8 @@ async def test_responder_403_when_random_user_asks(client):
 
 
 @pytest.mark.asyncio
-async def test_responder_returns_coords_for_reporter(client):
-    """The reporter is allowed; if the volunteer is offline we fall back
-    to the volunteer's saved home location."""
+async def test_responder_never_substitutes_saved_home_for_observed_position(client):
+    """Participant contact access does not imply location-sharing consent."""
     c, db = client
     reporter = ObjectId()
     volunteer = ObjectId()
@@ -326,7 +325,9 @@ async def test_responder_returns_coords_for_reporter(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["live"] is False  # no live WS connection in this test
-    assert body["coordinates"] == [76.7, 30.7]
+    assert body["coordinates"] is None
+    assert body["sharing_enabled"] is False
+    assert body["position_state"] == "disabled"
     assert body["responder_name"] == "Aman"
     assert body["eta_minutes"] == 12
 

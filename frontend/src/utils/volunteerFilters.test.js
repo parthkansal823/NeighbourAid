@@ -106,6 +106,12 @@ describe('volunteer feed filtering', () => {
     expect(filterVolunteerAlerts({ alerts: [minimal] })).toEqual([minimal])
     expect(filterVolunteerAlerts({ alerts: [minimal], query: 'something' })).toEqual([])
   })
+  it('keeps another volunteer’s noncritical backup request discoverable without claiming it as mine', () => {
+    const backup = { ...other, backup_requested: true }
+    expect(filterVolunteerAlerts({ alerts: [backup], userId })).toEqual([backup])
+    expect(filterVolunteerAlerts({ alerts: [backup], userId, scope: 'mine' })).toEqual([])
+    expect(filterVolunteerAlerts({ alerts: [backup], userId, scope: 'open' })).toEqual([])
+  })
 })
 
 describe('shared filtering with the demo API', () => {

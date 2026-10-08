@@ -5,9 +5,12 @@ import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import {
   bumpAttempts,
+  cancelPending,
+  completeDelivery,
   enqueueAlert,
   flushQueue,
   listPending,
+  listReceipts,
   removePending,
   requestBackgroundFlush,
   QUEUE_LOCK,
@@ -29,12 +32,54 @@ afterEach(async () => {
 })
 
 describe('offlineQueue', () => {
+  it('retains a minimal durable receipt for only the reporting account', async () => {
+    const token = signIn('receipt-alice')
+    const id = await enqueueAlert({ description: 'Sensitive medical details' }, { accountId: 'receipt-alice' })
+    const [row] = await listPending()
+    await completeDelivery(id, { id: 'receipt-alert' })
+    const receipt = (await listReceipts()).find(item => item.id === row.payload.client_submission_id)
+    expect(receipt).toMatchObject({ alertId: 'receipt-alert', status: 'server_received', accountId: 'receipt-alice' })
+    expect(JSON.stringify(receipt)).not.toContain('Sensitive medical details')
+    expect(JSON.stringify(receipt)).not.toContain(token)
+    signIn('receipt-bob')
+    expect((await listReceipts()).some(item => item.id === receipt.id)).toBe(false)
+  })
+  it('keeps the same submission identity after a lost response and requires a real server receipt', async () => {
+    await enqueueAlert({ description: 'response lost' }, { anonymous: true })
+    const [row] = await listPending()
+    const post = vi.fn().mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce({}).mockResolvedValueOnce({ id: 'replayed-alert' })
+    expect(await flushQueue(post)).toMatchObject({ failed: 1, remaining: 1 })
+    expect(await flushQueue(post)).toMatchObject({ failed: 1, remaining: 1 })
+    expect(await flushQueue(post)).toMatchObject({ sent: 1, remaining: 0 })
+    expect(post.mock.calls.map(([payload]) => payload.client_submission_id)).toEqual(Array(3).fill(row.payload.client_submission_id))
+    expect((await listReceipts()).find(item => item.id === row.payload.client_submission_id)).toMatchObject({ alertId: 'replayed-alert' })
+  })
+  it('pauses rejected payloads for explicit review but retries an active server reservation', async () => {
+    await enqueueAlert({ description: 'rejected report' }, { anonymous: true })
+    const rejected = vi.fn().mockRejectedValue({ response: { status: 422 } })
+    await flushQueue(rejected)
+    await flushQueue(rejected)
+    expect(rejected).toHaveBeenCalledOnce()
+    const [row] = await listPending()
+    expect(row.deliveryState).toBe('needs_review')
+    expect(await cancelPending(row.id)).toBe(true)
+    await enqueueAlert({ description: 'still processing' }, { anonymous: true })
+    const pending = vi.fn().mockRejectedValueOnce({ response: { status: 409, data: { detail: { code: 'SUBMISSION_PENDING' } } } }).mockResolvedValueOnce({ id: 'eventually-received' })
+    await flushQueue(pending)
+    expect(await flushQueue(pending)).toMatchObject({ sent: 1 })
+  })
+  it('cannot cancel another reporting account’s saved report', async () => {
+    const id = await enqueueAlert({ description: 'private saved report' }, { accountId: 'owner' })
+    signIn('someone-else')
+    expect(await cancelPending(id)).toBe(false)
+    expect(await listPending()).toHaveLength(1)
+  })
   it('enqueues a payload and lists it back', async () => {
     const payload = { description: 'help', category: 'medical' }
     await enqueueAlert(payload)
     const pending = await listPending()
     expect(pending).toHaveLength(1)
-    expect(pending[0].payload).toEqual(payload)
+    expect(pending[0].payload).toEqual({ ...payload, client_submission_id: expect.any(String) })
     expect(pending[0].attempts).toBe(0)
   })
 
@@ -57,7 +102,7 @@ describe('offlineQueue', () => {
   it('flushQueue posts each pending alert and removes them on success', async () => {
     await enqueueAlert({ description: 'a' }, { anonymous: true })
     await enqueueAlert({ description: 'b' }, { anonymous: true })
-    const post = vi.fn(async () => ({ ok: true }))
+    const post = vi.fn(async () => ({ id: 'received-alert' }))
     const result = await flushQueue(post)
     expect(post).toHaveBeenCalledTimes(2)
     expect(result.sent).toBe(2)
@@ -98,7 +143,7 @@ describe('offlineQueue', () => {
     })
     const post = vi.fn(async () => {
       await gate
-      return { ok: true }
+      return { id: 'received-alert' }
     })
 
     const first = flushQueue(post)
@@ -120,10 +165,10 @@ describe('offlineQueue', () => {
     const pending = await listPending()
     expect(pending[1].accountId).toBe('alice')
     expect(JSON.stringify(pending)).not.toContain(token)
-    const post = vi.fn().mockResolvedValue({})
+    const post = vi.fn().mockResolvedValue({ id: 'received-alert' })
     await flushQueue(post)
-    expect(post).toHaveBeenNthCalledWith(1, { description: 'anonymous' }, { anonymous: true, accountId: null })
-    expect(post).toHaveBeenNthCalledWith(2, { description: 'attributed' }, { anonymous: false, accountId: 'alice' })
+    expect(post).toHaveBeenNthCalledWith(1, expect.objectContaining({ description: 'anonymous', client_submission_id: expect.any(String) }), { anonymous: true, accountId: null, anonymousClientId: expect.any(String) })
+    expect(post).toHaveBeenNthCalledWith(2, expect.objectContaining({ description: 'attributed', client_submission_id: expect.any(String) }), { anonymous: false, accountId: 'alice', anonymousClientId: null })
   })
 
   it.each(['signed out', 'another account', 'expired token'])(
@@ -132,7 +177,7 @@ describe('offlineQueue', () => {
     await enqueueAlert({ description: 'alice report' }, { accountId: 'alice' })
     if (session === 'signed out') localStorage.removeItem('token')
     else signIn(session === 'another account' ? 'bob' : 'alice', session === 'expired token' ? 1 : undefined)
-    const post = vi.fn().mockResolvedValue({})
+    const post = vi.fn().mockResolvedValue({ id: 'received-alert' })
     expect(await flushQueue(post)).toMatchObject({ sent: 0, failed: 0, blocked: 1, remaining: 1 })
     expect(post).not.toHaveBeenCalled()
     expect((await listPending())[0].attempts).toBe(0)
@@ -144,7 +189,7 @@ describe('offlineQueue', () => {
     await enqueueAlert({ description: 'unknown owner' })
     await enqueueAlert({ description: 'public report' }, { anonymous: true })
     signIn('alice')
-    const post = vi.fn().mockResolvedValue({})
+    const post = vi.fn().mockResolvedValue({ id: 'received-alert' })
     expect(await flushQueue(post)).toMatchObject({ sent: 1, blocked: 1, remaining: 1 })
     expect(post).toHaveBeenCalledOnce()
     expect((await listPending())[0].payload.description).toBe('unknown owner')
@@ -154,7 +199,7 @@ describe('offlineQueue', () => {
     signIn('alice')
     await enqueueAlert({ description: 'first' }, { accountId: 'alice' })
     await enqueueAlert({ description: 'second' }, { accountId: 'alice' })
-    const post = vi.fn(async () => { signIn('bob') })
+    const post = vi.fn(async () => { signIn('bob'); return { id: 'received-alert' } })
     expect(await flushQueue(post)).toMatchObject({ sent: 1, blocked: 1, remaining: 1 })
     expect(post).toHaveBeenCalledOnce()
     expect((await listPending())[0].accountId).toBe('alice')
@@ -180,7 +225,7 @@ describe('offlineQueue', () => {
   it('keeps a rejected row while successfully delivering later rows', async () => {
     await enqueueAlert({ description: 'rejected' }, { anonymous: true })
     await enqueueAlert({ description: 'valid' }, { anonymous: true })
-    const post = vi.fn().mockRejectedValueOnce({ response: { status: 422 } }).mockResolvedValueOnce({})
+    const post = vi.fn().mockRejectedValueOnce({ response: { status: 422 } }).mockResolvedValueOnce({ id: 'received-alert' })
     expect(await flushQueue(post)).toMatchObject({ sent: 1, failed: 1, remaining: 1 })
     expect((await listPending())[0].payload.description).toBe('rejected')
   })
@@ -204,7 +249,7 @@ describe('offlineQueue', () => {
       req.addEventListener('success', () => this.transaction.abort())
       return req
     })
-    expect(await flushQueue(vi.fn().mockResolvedValue({}))).toMatchObject({ sent: 0, failed: 1, remaining: 1 })
+    expect(await flushQueue(vi.fn().mockResolvedValue({ id: 'received-alert' }))).toMatchObject({ sent: 0, failed: 1, remaining: 1 })
     expect((await listPending())[0].payload.description).toBe('retained')
   })
 
@@ -212,7 +257,7 @@ describe('offlineQueue', () => {
     const request = vi.fn(async (_name, run) => run())
     vi.stubGlobal('navigator', { locks: { request } })
     await enqueueAlert({ description: 'locked' }, { anonymous: true })
-    await flushQueue(vi.fn().mockResolvedValue({}))
+    await flushQueue(vi.fn().mockResolvedValue({ id: 'received-alert' }))
     expect(request).toHaveBeenCalledWith(QUEUE_LOCK, expect.any(Function))
   })
 })
@@ -306,7 +351,7 @@ describe('service worker delivery', () => {
     await enqueueAlert({ description: 'rejected' }, { anonymous: true })
     await enqueueAlert({ description: 'valid' }, { anonymous: true })
     await enqueueAlert({ description: 'signed-in' }, { accountId: 'alice' })
-    const fetch = vi.fn().mockResolvedValueOnce({ ok: false, status }).mockResolvedValueOnce({ ok: true })
+    const fetch = vi.fn().mockResolvedValueOnce({ ok: false, status }).mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'worker-alert' }) })
     await expect(worker(fetch)()).rejects.toThrow('still need delivery')
     expect(fetch).toHaveBeenCalledTimes(2)
     expect((await listPending()).map((row) => row.payload.description)).toEqual(['rejected', 'signed-in'])
@@ -314,7 +359,7 @@ describe('service worker delivery', () => {
 
   it('retains rows when fetch throws, then sends on a later background sync', async () => {
     await enqueueAlert({ description: 'offline' }, { anonymous: true })
-    const fetch = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce({ ok: true })
+    const fetch = vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'worker-alert' }) })
     const sync = worker(fetch)
     await expect(sync()).rejects.toThrow()
     expect(await listPending()).toHaveLength(1)
@@ -343,10 +388,10 @@ describe('service worker delivery', () => {
     await enqueueAlert({ description: 'once' }, { anonymous: true })
     let release
     const gate = new Promise((resolve) => { release = resolve })
-    const post = vi.fn(async () => gate)
+    const post = vi.fn(async () => { await gate; return { id: 'received-alert' } })
     const page = flushQueue(post)
     await vi.waitFor(() => expect(post).toHaveBeenCalledOnce())
-    const fetch = vi.fn().mockResolvedValue({ ok: true })
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 'worker-alert' }) })
     const background = worker(fetch, [], request)()
     release()
     await Promise.all([page, background])
@@ -363,7 +408,7 @@ describe('service worker delivery', () => {
       req.addEventListener('success', () => this.transaction.abort())
       return req
     })
-    await expect(worker(vi.fn().mockResolvedValue({ ok: true }))()).rejects.toThrow()
+    await expect(worker(vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 'worker-alert' }) }))()).rejects.toThrow()
     expect(await listPending()).toHaveLength(1)
   })
 })

@@ -60,7 +60,7 @@ function capacitorCors(response, origin) {
   // The native health probe deliberately sends Cache-Control: no-cache.
   // It is not a CORS-safelisted request header, so omitting it blocks the
   // probe and makes a healthy server appear offline inside the APK.
-  headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, Cache-Control')
+  headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, Cache-Control, X-Anonymous-Client-ID')
   headers.set('Access-Control-Expose-Headers', 'X-Edge-Status')
   headers.set('Access-Control-Max-Age', '600')
   // Response caches must not reuse an answer allowed for one origin for a

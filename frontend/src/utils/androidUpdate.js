@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { NeighbourAidUpdater } from '@neighbouraid/app-updater'
-import { trustedUpdateDownload } from './appUpdate'
+import { normalizeUpdateSha256, trustedUpdateDownload, validUpdateSize } from './appUpdate'
 
 export const UPDATE_CHECK_EVENT = 'neighbouraid:check-update'
 export const UPDATE_RESULT_EVENT = 'neighbouraid:update-result'
@@ -15,10 +15,17 @@ function bridge() {
 }
 
 export async function startDirectUpdate(update) {
-  if (!trustedUpdateDownload(update?.downloadUrl) || !Number.isSafeInteger(update.versionCode) || update.versionCode <= __APP_BUILD__.versionCode) {
+  if (!trustedUpdateDownload(update?.downloadUrl) || !Number.isSafeInteger(update.versionCode) || update.versionCode <= __APP_BUILD__.versionCode || update.versionCode > 2100000000 ||
+      (update.expectedSize != null && !validUpdateSize(update.expectedSize)) ||
+      (update.sha256 != null && !normalizeUpdateSha256(update.sha256)) ||
+      (update.wifiOnly != null && typeof update.wifiOnly !== 'boolean')) {
     throw new Error('Invalid update')
   }
-  return bridge().startDownload({ url: update.downloadUrl, versionCode: update.versionCode })
+  const options = { url: update.downloadUrl, versionCode: update.versionCode }
+  if (update.expectedSize != null) options.expectedSize = update.expectedSize
+  if (update.sha256 != null) options.sha256 = normalizeUpdateSha256(update.sha256)
+  if (update.wifiOnly != null) options.wifiOnly = update.wifiOnly
+  return bridge().startDownload(options)
 }
 export function directUpdateStatus() { return bridge().getDownloadStatus() }
 export function installDirectUpdate() { return bridge().installUpdate() }
@@ -32,6 +39,7 @@ const en = {
   failed: 'Update download failed. Check your connection and free storage, then retry.',
   signature: 'This APK uses a different signing key. Your installed app and saved data have not been changed.',
   invalid: 'The downloaded APK failed the package or version check. Nothing was installed.',
+  integrity: 'The downloaded APK failed its checksum or file-size check. Nothing was installed. Cancel or retry the download.',
   missing: 'This installed APK does not contain the direct updater. Install the new APK once to enable future in-app updates.',
   opening: 'Checking the APK and opening Android’s installer…',
   installed: 'Installed version', check: 'Check for updates', checking: 'Checking for updates…',
@@ -49,6 +57,7 @@ export function androidUpdateCopy(lang) {
     failed: 'डाउनलोड नहीं हुआ। इंटरनेट और खाली स्टोरेज जाँचकर फिर कोशिश करें।',
     signature: 'इस APK की signing key अलग है। आपका ऐप और सहेजा गया डेटा नहीं बदला गया है।',
     invalid: 'APK का पैकेज या संस्करण सही नहीं है। कुछ इंस्टॉल नहीं किया गया।',
+    integrity: 'APK का checksum या फ़ाइल साइज़ सही नहीं है। कुछ इंस्टॉल नहीं किया गया। डाउनलोड रद्द करके फिर कोशिश करें।',
     missing: 'पुराने APK में direct updater नहीं है। आगे ऐप के अंदर अपडेट के लिए नया APK एक बार इंस्टॉल करें।',
     opening: 'APK की जाँच और Android installer खुल रहा है…',
     installed: 'इंस्टॉल किया गया संस्करण', check: 'अपडेट जाँचें', checking: 'अपडेट की जाँच हो रही है…',

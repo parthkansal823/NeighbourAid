@@ -3,6 +3,10 @@ import { Link, useParams } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
 import FirstAidButton from '../components/FirstAidGuide'
+import OutcomeSummary from '../components/OutcomeSummary'
+import HelpRelay from '../components/HelpRelay'
+import ShareAlert from '../components/ShareAlert'
+import useTextFirst from '../hooks/useTextFirst'
 import {
   ArrowRight,
   CategoryIcon,
@@ -22,14 +26,23 @@ const URGENCY_BADGE = {
 
 export default function AlertShare() {
   const { id } = useParams()
+  return <AlertSnapshot key={id} id={id} />
+}
+
+function AlertSnapshot({ id }) {
   const [alert, setAlert] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const textFirst = useTextFirst()
+  const [photosChosen, setPhotosChosen] = useState(false)
+  const [photos, setPhotos] = useState(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoError, setPhotoError] = useState('')
 
   useEffect(() => {
     let cancelled = false
     api
-      .get(`/api/alerts/${id}`)
+      .get(`/api/alerts/${id}`, { params: { include_photos: !textFirst } })
       .then(({ data }) => {
         if (!cancelled) setAlert(data)
       })
@@ -40,7 +53,17 @@ export default function AlertShare() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, textFirst])
+
+  const loadPhotos = async () => {
+    if (photoBusy) return
+    setPhotoBusy(true); setPhotoError('')
+    try {
+      const { data } = await api.get(`/api/alerts/${id}/photos`)
+      setPhotos(data.photos || []); setPhotosChosen(true)
+    } catch (err) { setPhotoError(apiError(err, 'Photos could not load. Try again.')) }
+    finally { setPhotoBusy(false) }
+  }
 
   if (loading) {
     return (
@@ -69,6 +92,8 @@ export default function AlertShare() {
 
   const [lng, lat] = alert.location?.coordinates ?? [0, 0]
   const mapsUrl = `/map?dest=${lat},${lng}&focus=${alert.id}`
+  const displayPhotos = photos || alert.photos || []
+  const photoCount = alert.photo_count ?? displayPhotos.length
 
   return (
     <div className="page-panel max-w-2xl mx-auto px-4 py-6 sm:py-8 space-y-6">
@@ -82,7 +107,8 @@ export default function AlertShare() {
             {alert.urgency}
           </span>
         </div>
-        {alert.status && <p className="mb-3 text-xs font-medium capitalize text-app-muted">{alert.status}</p>}
+        {alert.status && <p className="mb-3 text-xs font-medium capitalize text-app-muted">{alert.status === 'resolved' ? 'Closed' : alert.status}</p>}
+        <OutcomeSummary alert={alert} />
         <p className="text-[15px] leading-relaxed text-app-ink whitespace-pre-wrap wrap-break-word">{alert.description}</p>
         {alert.address && (
           <p className="text-app-muted text-sm leading-relaxed mt-4 flex items-start gap-2">
@@ -91,6 +117,7 @@ export default function AlertShare() {
           </p>
         )}
         <div className="alert-share-actions flex flex-wrap gap-2 mt-5 border-t border-line pt-4">
+          <ShareAlert alert={alert} />
           {['medical', 'fire', 'accident'].includes(alert.category) && <FirstAidButton />}
           <Link
             to={mapsUrl}
@@ -113,13 +140,16 @@ export default function AlertShare() {
         </div>
       </section>
 
-      {alert.photos?.length > 0 && (
+      <HelpRelay alert={alert} onChanged={async () => { const { data } = await api.get(`/api/alerts/${id}`, { params: { include_photos: !textFirst } }); setAlert(data) }} />
+      {photoCount > 0 && textFirst && !photosChosen && <button type="button" disabled={photoBusy} onClick={() => { void loadPhotos() }} className="tap app-secondary-button w-full">{photoBusy ? 'Loading photos…' : 'Load report photos'}</button>}
+      {photoError && <p role="alert" className="text-sm text-app-muted">{photoError}</p>}
+      {displayPhotos.length > 0 && (!textFirst || photosChosen) && (
         <section>
           <h2 className="text-base font-semibold text-app-ink mb-3">
             Photos
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {alert.photos.map((src, i) => (
+            {displayPhotos.map((src, i) => (
               <img
                 key={i}
                 src={src}

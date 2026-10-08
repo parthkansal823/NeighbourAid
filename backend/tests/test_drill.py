@@ -76,15 +76,26 @@ class TestCreation:
         )
         assert alert.is_drill is False
 
-    def test_the_anonymous_endpoint_cannot_mint_a_drill(self):
+    @pytest.mark.asyncio
+    async def test_the_anonymous_endpoint_cannot_mint_a_drill(self):
         """An unauthenticated endpoint that can create alerts excluded from
         the public counts is a way to make the numbers lie, for free. The
-        anonymous path writes no drill flag at all, so every alert it
-        creates is counted."""
-        from app.routes import alerts
+        anonymous path rejects the drill before creating a report, rather
+        than silently publishing a practice report as a real emergency."""
+        from fastapi import HTTPException
+        from starlette.requests import Request
+        from app.models.alert import AlertCreate
+        from app.routes.alerts import create_anonymous_alert
 
-        src = inspect.getsource(alerts.create_anonymous_alert)
-        assert "is_drill" not in src
+        alert = AlertCreate(
+            category="medical",
+            description="Practice drill at the park gate",
+            location={"type": "Point", "coordinates": [76.7794, 30.7333]},
+            is_drill=True,
+        )
+        with pytest.raises(HTTPException) as failure:
+            await create_anonymous_alert(alert, Request({"type": "http", "headers": []}))
+        assert failure.value.status_code == 403
 
 
 class TestNoCountingSiteIsMissed:

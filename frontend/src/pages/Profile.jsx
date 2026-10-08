@@ -5,6 +5,8 @@ import { AlertTriangle, CheckCircle2 } from '../components/icons'
 import Button from '../components/Button'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
+import DevicePreferences from '../components/DevicePreferences'
+import NotificationPreferencesEditor from '../components/NotificationPreferencesEditor'
 import {
   EmergencyContactsEditor,
   SKILL_OPTIONS,
@@ -34,6 +36,12 @@ function fmtHour(h) {
 }
 
 export default function Profile() {
+  const { user, token } = useAuth()
+  if (!user) return null
+  return <ProfileDetails key={`${user.id}:${token || ''}`} />
+}
+
+function ProfileDetails() {
   const { user } = useAuth()
   const { t } = useI18n()
   const [me, setMe] = useState(null)
@@ -291,6 +299,8 @@ export default function Profile() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 items-start gap-4">
+      <DevicePreferences />
+      {me?.role === 'volunteer' && <NotificationPreferencesEditor value={me.notification_preferences} onSaved={setMe} disabled={saving} />}
       <section id="identity" className={sectionCls}>
         <h2 className="text-base font-semibold text-app-ink mb-4">
           {t('profile_identity')}
@@ -504,13 +514,13 @@ export default function Profile() {
           <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
             <Stat label={t('profile_stat_posted')} value={stats.posted} />
             <Stat label={t('profile_stat_open')} value={stats.open} />
-            <Stat label={t('profile_stat_resolved')} value={stats.resolved} />
+            <Stat label="Reports closed" value={stats.resolved} />
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
             <Stat label={t('profile_stat_accepted')} value={stats?.accepted ?? 0} />
             <Stat label={t('profile_stat_inprogress')} value={stats?.in_progress ?? 0} />
-            <Stat label={t('profile_stat_resolved')} value={stats?.resolved ?? 0} />
+            <Stat label="Reports closed" value={stats?.resolved ?? 0} />
           </div>
         )}
       </section>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { UPDATE_CHECK_EVENT, UPDATE_RESULT_EVENT } from '../utils/androidUpdate'
 import { isNativeApp } from '../utils/runtime'
 import { latestAppUpdate } from '../utils/appUpdate'
@@ -7,12 +7,14 @@ import { useI18n } from '../utils/i18n'
 import { listenForUpdateTap, notifyAppUpdate } from '../utils/updateNotification'
 import AndroidUpdateAction from './AndroidUpdateAction'
 import { RefreshCw, X } from './icons'
+import { lockDialogScroll, registerDialogDismissal } from '../utils/androidBack'
 
 const CHECK_INTERVAL = 4 * 60 * 60 * 1000
 const DISMISSED_KEY = 'neighbouraid-dismissed-release'
 
 export default function AppUpdateNotice() {
   const { lang, t } = useI18n()
+  const { pathname } = useLocation()
   const [update, setUpdate] = useState(null)
   const dialogRef = useRef(null)
   const dismiss = useCallback(() => {
@@ -25,14 +27,17 @@ export default function AppUpdateNotice() {
   // it is open, can be dismissed with Escape, and never strands keyboard
   // focus behind the overlay.
   useEffect(() => {
-    if (!update) return undefined
+    if (!update || pathname === '/post-alert') return undefined
     const previousFocus = document.activeElement
+    const unlock = lockDialogScroll()
+    const dismissal = registerDialogDismissal(() => dialogRef.current, dismiss)
     const focusDialog = () => {
       const primaryAction = dialogRef.current?.querySelector('[data-update-primary]')
       ;(primaryAction || dialogRef.current)?.focus()
     }
     const timer = window.setTimeout(focusDialog, 0)
     const onKeyDown = event => {
+      if (!dismissal.isTop()) return
       if (event.key === 'Escape') {
         event.preventDefault()
         dismiss()
@@ -55,9 +60,12 @@ export default function AppUpdateNotice() {
     return () => {
       window.clearTimeout(timer)
       document.removeEventListener('keydown', onKeyDown)
-      previousFocus?.focus?.()
+      const top = dismissal.isTop()
+      dismissal.remove()
+      unlock()
+      if (top && previousFocus?.isConnected) previousFocus.focus()
     }
-  }, [dismiss, update])
+  }, [dismiss, update, pathname])
 
   useEffect(() => {
     if (!isNativeApp() || import.meta.env.MODE === 'demo') return undefined
@@ -117,6 +125,9 @@ export default function AppUpdateNotice() {
   }, [t])
 
   if (!update) return null
+  // A release must not interrupt an emergency draft. It remains available
+  // on the update screen and will prompt after leaving the report form.
+  if (pathname === '/post-alert') return null
   return (
     <div className="app-update-prompt-layer" role="presentation">
       <section ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="app-update-prompt-title" aria-describedby="app-update-prompt-description" tabIndex="-1" className="app-update-prompt">

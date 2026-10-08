@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../utils/api'
 import { apiError } from '../utils/error'
@@ -13,11 +13,19 @@ import { approxKb, compressImage } from '../utils/photo'
 import {
   OFFLINE_QUEUE_EVENT,
   enqueueAlert,
+  completeDelivery,
+  cancelPending,
+  markPendingForReview,
+  needsDeliveryReview,
+  requestBackgroundFlush,
   getCurrentAccountId,
   listPending,
 } from '../utils/offlineQueue'
+import { getAnonymousClientId, newSubmissionId } from '../utils/submissionIdentity'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
+import { useLatest } from '../hooks/useLatest'
+import { registerScreenNavigationGuard } from '../utils/androidBack'
 import {
   AlertTriangle,
   Camera,
@@ -48,6 +56,19 @@ const CATEGORIES = [
   'other',
 ]
 const MAX_PHOTOS = 3
+const LEAVE_REPORT_COPY = {
+  en: 'This report has not been sent. Leave this screen and discard your changes?',
+  hi: 'यह रिपोर्ट अभी भेजी नहीं गई है। इस स्क्रीन से बाहर जाकर अपने बदलाव हटाएँ?',
+  pa: 'ਇਹ ਰਿਪੋਰਟ ਹਾਲੇ ਭੇਜੀ ਨਹੀਂ ਗਈ। ਕੀ ਇਸ ਸਕ੍ਰੀਨ ਤੋਂ ਬਾਹਰ ਜਾ ਕੇ ਆਪਣੀਆਂ ਤਬਦੀਲੀਆਂ ਮਿਟਾਉਣੀਆਂ ਹਨ?',
+  gu: 'આ રિપોર્ટ હજુ મોકલાયો નથી. આ સ્ક્રીન છોડીને તમારા ફેરફારો કાઢી નાખવા છે?',
+  bn: 'এই রিপোর্ট এখনও পাঠানো হয়নি। এই স্ক্রিন ছেড়ে আপনার পরিবর্তনগুলি মুছে ফেলবেন?',
+  ta: 'இந்த அறிக்கை இன்னும் அனுப்பப்படவில்லை. இந்தத் திரையை விட்டு வெளியேறி உங்கள் மாற்றங்களை நீக்கவா?',
+  te: 'ఈ నివేదిక ఇంకా పంపబడలేదు. ఈ స్క్రీన్‌ను వదిలి మీ మార్పులను తొలగించాలా?',
+  kn: 'ಈ ವರದಿಯನ್ನು ಇನ್ನೂ ಕಳುಹಿಸಿಲ್ಲ. ಈ ಪರದೆಯಿಂದ ಹೊರಹೋಗಿ ನಿಮ್ಮ ಬದಲಾವಣೆಗಳನ್ನು ಅಳಿಸಬೇಕೇ?',
+  ml: 'ഈ റിപ്പോർട്ട് ഇതുവരെ അയച്ചിട്ടില്ല. ഈ സ്ക്രീനിൽ നിന്ന് പുറത്തുകടന്ന് നിങ്ങളുടെ മാറ്റങ്ങൾ ഒഴിവാക്കണോ?',
+  mr: 'हा अहवाल अजून पाठवलेला नाही. या स्क्रीनमधून बाहेर पडून तुमचे बदल काढून टाकायचे?',
+  or: 'ଏହି ରିପୋର୍ଟ ଏପର୍ଯ୍ୟନ୍ତ ପଠାଯାଇନାହିଁ। ଏହି ସ୍କ୍ରିନ୍ ଛାଡ଼ି ଆପଣଙ୍କ ପରିବର୍ତ୍ତନଗୁଡ଼ିକ ହଟାଇବେ?',
+}
 
 export default function PostAlert() {
   const navigate = useNavigate()
@@ -85,6 +106,8 @@ export default function PostAlert() {
   const [online, setOnline] = useState(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   )
+  const operations = useRef({ submitting: false, photoProcessing: false, saved: false })
+  const submission = useRef(null)
 
   // Recognition locale follows the language the reporter actually chose.
   // Hard-coding this to a 3-way check meant Tamil, Telugu, Bengali,
@@ -102,6 +125,18 @@ export default function PostAlert() {
       }
     },
   })
+
+  // A hardware/header/tab navigation must not silently erase an emergency
+  // draft. An in-flight operation cannot be discarded, even by confirmation.
+  // Register once; the callback reads committed state rather than stale input.
+  const reportGuard = useLatest(() => {
+    if (operations.current.submitting || operations.current.photoProcessing) return false
+    if (operations.current.saved) return true
+    const dirty = Boolean(form.description.trim() || photos.length || isDrill ||
+      form.category !== 'medical' || voice.listening)
+    return !dirty || window.confirm(LEAVE_REPORT_COPY[lang] || LEAVE_REPORT_COPY.en)
+  })
+  useEffect(() => registerScreenNavigationGuard(() => reportGuard.current()), [reportGuard])
 
   useEffect(() => {
     const refreshPending = () => {
@@ -172,6 +207,7 @@ export default function PostAlert() {
   }, [detectLocation])
 
   const onCameraCapture = async (dataUrl) => {
+    operations.current.photoProcessing = true
     setPhotoProcessing(true)
     setError('')
     try {
@@ -184,6 +220,7 @@ export default function PostAlert() {
     } catch (err) {
       setError(err.message || 'Could not process photo')
     } finally {
+      operations.current.photoProcessing = false
       setPhotoProcessing(false)
     }
   }
@@ -208,30 +245,93 @@ export default function PostAlert() {
       return
     }
     setError('')
+    operations.current.submitting = true
     setSubmitting(true)
     // Preserve ownership from submission time, even if the session changes
     // while the request is in flight. Never save a bearer token in IndexedDB.
     const reportingToken = isAnonymous ? null : localStorage.getItem('token')
     const reportingAccountId = isAnonymous ? null : getCurrentAccountId(reportingToken)
+    if (!isAnonymous && (!reportingToken || !reportingAccountId || reportingAccountId !== user.id)) {
+      operations.current.submitting = false
+      setSubmitting(false)
+      setError('Your reporting session changed. Sign in to the original account before sending. Your draft has not been sent.')
+      return
+    }
     const payload = { ...form, photos }
     if (!isAnonymous && isDrill) payload.is_drill = true
+    const fingerprint = JSON.stringify({ payload, accountId: reportingAccountId, anonymous: isAnonymous })
     try {
+      if (submission.current?.fingerprint !== fingerprint) {
+        if (submission.current?.queueId != null) {
+          const confirmed = window.confirm('An earlier copy is saved for retry. Cancel its saved retry and submit these changes? A report already received by the server is not withdrawn.')
+          if (!confirmed) {
+            operations.current.submitting = false
+            setSubmitting(false)
+            return
+          }
+          if (!await cancelPending(submission.current.queueId)) {
+            operations.current.submitting = false
+            setSubmitting(false)
+            setError('The earlier report may already have been received or needs its original account. Check Delivery receipts before posting another report.')
+            return
+          }
+        }
+        submission.current = {
+          fingerprint,
+          id: newSubmissionId(),
+          anonymousClientId: isAnonymous ? getAnonymousClientId() : null,
+          queueId: null,
+        }
+      }
+    } catch {
+      operations.current.submitting = false
+      setSubmitting(false)
+      setError('Could not prepare a secure report identity. Please retry in a supported browser.')
+      return
+    }
+    const delivery = submission.current
+    payload.client_submission_id = delivery.id
+    try {
+      // Save before the first request: a lost response/app close can replay
+      // this exact report, without creating another emergency alert.
+      if (delivery.queueId === null) {
+        try {
+          delivery.queueId = await enqueueAlert(payload, {
+            anonymous: isAnonymous, accountId: reportingAccountId,
+            anonymousClientId: delivery.anonymousClientId, requestSync: false,
+          })
+        } catch {
+          toast({ variant: 'warning', title: 'Device storage unavailable', body: 'Sending online. This report cannot be saved for offline retry on this device.' })
+        }
+      }
       const { data } = await api.post(endpoint, payload, {
         skipAuth: isAnonymous,
-        headers: reportingToken ? { Authorization: `Bearer ${reportingToken}` } : {},
+        headers: isAnonymous
+          ? { 'X-Anonymous-Client-ID': delivery.anonymousClientId }
+          : reportingToken ? { Authorization: `Bearer ${reportingToken}` } : {},
       })
+      if (delivery.queueId !== null) {
+        try { await completeDelivery(delivery.queueId, data) } catch {
+          toast({ variant: 'warning', title: 'Server received your report', body: 'The local receipt could not be saved. A retry will use the same submission identity.' })
+        }
+      }
       // Anonymous reporters have no /my-alerts to return to — send them to the
       // alert's own page so they can still watch it get picked up and share it.
+      operations.current.saved = true
       navigate(isAnonymous ? `/alert/${data.id}` : '/my-alerts')
     } catch (err) {
       // If we're offline or the network is unreachable, queue it for later
       const isNetwork =
         err?.code === 'ERR_NETWORK' ||
+        err?.code === 'ECONNABORTED' || err?.code === 'ETIMEDOUT' ||
         err?.message === 'Network Error' ||
         !navigator.onLine
       if (isNetwork) {
         try {
-          await enqueueAlert(payload, { anonymous: isAnonymous, accountId: reportingAccountId })
+          if (delivery.queueId === null) {
+            delivery.queueId = await enqueueAlert(payload, { anonymous: isAnonymous, accountId: reportingAccountId, anonymousClientId: delivery.anonymousClientId })
+          }
+          void requestBackgroundFlush()
           const rows = await listPending()
           setPendingCount(rows.length)
           toast({
@@ -241,15 +341,18 @@ export default function PostAlert() {
           })
           // /my-alerts is reporter-only; sending an anonymous reporter there
           // would bounce them straight back to the login screen.
+          operations.current.saved = true
           navigate(isAnonymous ? '/' : '/my-alerts')
           return
         } catch {
           setError('Could not queue alert offline — try again.')
         }
       } else {
+        if (delivery.queueId !== null && needsDeliveryReview(err)) await markPendingForReview(delivery.queueId).catch(() => {})
         setError(apiError(err, t('post_failed')))
       }
     } finally {
+      operations.current.submitting = false
       setSubmitting(false)
     }
   }
@@ -271,8 +374,8 @@ export default function PostAlert() {
           <div className="rounded-xl bg-surface-2 text-app-muted text-sm leading-relaxed px-3 py-3 mb-4 flex items-start gap-2">
             <UserRoundX className="h-4 w-4 shrink-0 mt-px" aria-hidden />
             <span>
-              Posting anonymously — no account needed. Volunteers nearby are
-              alerted immediately, but they won&apos;t be able to call you back
+              Posting anonymously — no account needed. After the server receives
+              your report, nearby volunteers can see it, but they won&apos;t be able to call you back
               for details.{' '}
               <Link to="/login" className="font-medium text-app-ink underline underline-offset-2">
                 Sign in

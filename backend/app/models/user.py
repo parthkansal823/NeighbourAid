@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from .alert import VolunteerSkill  # shared enum
+from .alert import AlertCategory, VolunteerSkill  # shared enums
 
 
 class UserRole(str, Enum):
@@ -164,6 +164,16 @@ class Availability(BaseModel):
     busy_until: Optional[datetime] = None
 
 
+class NotificationPreferences(BaseModel):
+    """Filters for opted-in subscriptions; never grants delivery permission."""
+
+    enabled: bool = True
+    categories: List[AlertCategory] = Field(default_factory=list, max_length=12)
+    skill_matching: bool = True
+    radius_km: float = Field(default=25, ge=1, le=25)
+    include_sensitive_preview: bool = False
+
+
 class ProfileUpdate(BaseModel):
     """Partial update for fields a user can change post-registration. Any
     None field is left untouched."""
@@ -176,6 +186,7 @@ class ProfileUpdate(BaseModel):
     # clear a field is a field you can only ever add.
     phone: Optional[str] = Field(default=None, max_length=32)
     availability: Optional[Availability] = None
+    notification_preferences: Optional[NotificationPreferences] = None
 
     @field_validator("phone")
     @classmethod

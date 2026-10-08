@@ -14,10 +14,9 @@
  *
  * Two rules follow from that:
  *   1. Bulk auto-translation stays gated behind the `autoTranslate`
- *      preference. It defaults to ON — a volunteer who can't read the report
- *      can't act on it — so the disclosure carries the weight the default
- *      used to: the toggle in the language menu states where the text goes
- *      and switches it off. Never call this outside that gate.
+ *      preference. It defaults to OFF, and the language/device settings
+ *      disclose where text goes before a user enables it. A manual request
+ *      likewise needs an explicit disclosure at the call site.
  *   2. Do not widen what gets sent. Pass the single string being displayed,
  *      never the whole alert object (location, reporter, contact details).
  *
@@ -36,6 +35,7 @@
 const LS_KEY = 'neighbouraid:tx-cache'
 const memCache = new Map()
 let lsHydrated = false
+let generation = 0
 
 function hydrateFromLS() {
   if (lsHydrated) return
@@ -153,18 +153,23 @@ export async function translateText(text, target, source) {
 
   const key = cacheKey(trimmed, target)
   if (memCache.has(key)) return memCache.get(key)
+  const currentGeneration = generation
 
   const onDevice = await translateOnDevice(trimmed, target, source)
   if (onDevice) {
-    memCache.set(key, onDevice)
-    persistToLS()
+    if (currentGeneration === generation) {
+      memCache.set(key, onDevice)
+      persistToLS()
+    }
     return onDevice
   }
 
   try {
     const out = (await callGtx([trimmed], target)) || trimmed
-    memCache.set(key, out)
-    persistToLS()
+    if (currentGeneration === generation) {
+      memCache.set(key, out)
+      persistToLS()
+    }
     return out
   } catch {
     // Deliberately NOT cached.
@@ -205,6 +210,10 @@ export async function translateMany(texts, target, concurrency = 4) {
 }
 
 export function clearTranslationCache() {
+  generation += 1
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = null
+  lsHydrated = true
   memCache.clear()
   try {
     localStorage.removeItem(LS_KEY)

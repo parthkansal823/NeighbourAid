@@ -215,6 +215,7 @@ async def test_connect_falls_back_to_default_db_name():
     fake_db.users.create_index = AsyncMock()
     fake_db.medical_reviews.create_index = AsyncMock()
     fake_db.clinicians.create_index = AsyncMock()
+    fake_db.submission_receipts.create_index = AsyncMock()
 
     fake_client = MagicMock()
     fake_client.get_default_database = MagicMock(

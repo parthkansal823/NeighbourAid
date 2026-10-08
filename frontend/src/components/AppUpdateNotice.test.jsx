@@ -32,6 +32,11 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks(); vi.clearAllMocks() })
 
 describe('app update prompt', () => {
+  it('defers the update modal while someone is reporting an emergency', async () => {
+    render(<MemoryRouter initialEntries={['/post-alert']}><AppUpdateNotice /></MemoryRouter>)
+    await waitFor(() => expect(latestAppUpdate).toHaveBeenCalledOnce())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
   it('does not check for APKs on the website', () => {
     isNativeApp.mockReturnValue(false)
     renderNotice()

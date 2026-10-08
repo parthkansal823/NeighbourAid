@@ -233,6 +233,7 @@ class TestUrgencyMapping:
 class TestFanOut:
     @staticmethod
     def _db(volunteers, subs):
+        volunteers = [{"location": TestFanOut.ALERT["location"], **volunteer} for volunteer in volunteers]
         db = MagicMock()
         cur = MagicMock()
         cur.to_list = AsyncMock(return_value=volunteers)

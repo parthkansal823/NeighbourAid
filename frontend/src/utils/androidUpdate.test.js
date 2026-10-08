@@ -28,4 +28,12 @@ describe('Android updater bridge guard', () => {
     await expect(startDirectUpdate(update)).rejects.toMatchObject({ code: 'UPDATER_MISSING' })
     expect(mocks.start).not.toHaveBeenCalled()
   })
+  it('passes checksum, exact size and explicit Wi-Fi preference to native storage', async () => {
+    await startDirectUpdate({ ...update, sha256: 'A'.repeat(64), expectedSize: 4096, wifiOnly: true })
+    expect(mocks.start).toHaveBeenCalledWith({ url: update.downloadUrl, versionCode: nextVersionCode, sha256: 'a'.repeat(64), expectedSize: 4096, wifiOnly: true })
+  })
+  it.each([{ sha256: 'bad' }, { expectedSize: 0 }, { expectedSize: 1.5 }, { expectedSize: 101 * 1024 * 1024 }, { wifiOnly: 'yes' }, { versionCode: 2100000001 }])('rejects invalid integrity/size/preferences before native calls: %j', async metadata => {
+    await expect(startDirectUpdate({ ...update, ...metadata })).rejects.toThrow('Invalid update')
+    expect(mocks.start).not.toHaveBeenCalled()
+  })
 })

@@ -163,7 +163,7 @@ app.add_middleware(
     ),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Inbound-Token"],
+    allow_headers=["Authorization", "Content-Type", "X-Inbound-Token", "X-Anonymous-Client-ID"],
     expose_headers=[],
     max_age=600,
 )
@@ -303,7 +303,7 @@ async def volunteer_ws(websocket: WebSocket, token: str):
     db = get_db()
     profile = await db.users.find_one(
         {"_id": ObjectId(vol_id)},
-        {"skills": 1, "has_vehicle": 1},
+        {"skills": 1, "has_vehicle": 1, "notification_preferences": 1},
     )
     skills = list((profile or {}).get("skills") or [])
     has_vehicle = bool((profile or {}).get("has_vehicle", False))
@@ -323,7 +323,8 @@ async def volunteer_ws(websocket: WebSocket, token: str):
             await websocket.close(code=4002)
             return
 
-        manager.register(vol_id, websocket, [lng, lat], skills=skills, has_vehicle=has_vehicle)
+        manager.register(vol_id, websocket, [lng, lat], skills=skills, has_vehicle=has_vehicle,
+                         notification_preferences=(profile or {}).get("notification_preferences"))
         while True:
             raw = await websocket.receive_text()
             try:

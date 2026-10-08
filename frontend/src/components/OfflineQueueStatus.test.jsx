@@ -29,16 +29,16 @@ describe('queued alert delivery and status', () => {
   it('sends an anonymous report through the public endpoint even while signed in', async () => {
     signIn('alice')
     await enqueueAlert({ description: 'anonymous' }, { anonymous: true })
-    axios.post.mockResolvedValue({})
+    axios.post.mockResolvedValue({ data: { id: 'received-alert' } })
     render(<OfflineQueueStatus />)
     await waitFor(() => expect(toast).toHaveBeenCalledOnce())
-    expect(axios.post).toHaveBeenCalledWith('/api/alerts/anonymous', { description: 'anonymous' }, { timeout: 20000, headers: {} })
+    expect(axios.post).toHaveBeenCalledWith('/api/alerts/anonymous', expect.objectContaining({ description: 'anonymous', client_submission_id: expect.any(String) }), { timeout: 20000, headers: { 'X-Anonymous-Client-ID': expect.any(String) } })
     expect(await listPending()).toHaveLength(0)
   })
 
   it('offers a manual retry after a server failure without a new online event', async () => {
     await enqueueAlert({ description: 'saved' }, { anonymous: true })
-    axios.post.mockRejectedValueOnce({ response: { status: 503 } }).mockResolvedValueOnce({})
+    axios.post.mockRejectedValueOnce({ response: { status: 503 } }).mockResolvedValueOnce({ data: { id: 'received-alert' } })
     render(<OfflineQueueStatus />)
     await waitFor(() => expect(axios.post).toHaveBeenCalledOnce())
     await waitFor(() => expect(screen.getByRole('button', { name: 'Retry now' })).toBeEnabled())
@@ -63,7 +63,7 @@ describe('queued alert delivery and status', () => {
   it('shows saved reports offline and resumes delivery on reconnect', async () => {
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
     await enqueueAlert({ description: 'offline' }, { anonymous: true })
-    axios.post.mockResolvedValue({})
+    axios.post.mockResolvedValue({ data: { id: 'received-alert' } })
     render(<OfflineQueueStatus />)
     expect(await screen.findByRole('status')).toHaveTextContent('reconnect')
     expect(screen.getByRole('button', { name: 'Retry now' })).toBeDisabled()
@@ -76,14 +76,14 @@ describe('queued alert delivery and status', () => {
 
   it('resumes an attributed report when its original account signs back in', async () => {
     await enqueueAlert({ description: 'alice report' }, { accountId: 'alice' })
-    axios.post.mockResolvedValue({})
+    axios.post.mockResolvedValue({ data: { id: 'received-alert' } })
     const { rerender } = render(<OfflineQueueStatus />)
     expect(await screen.findByRole('status')).toHaveTextContent('original account')
     const token = signIn('alice')
     auth.user = { id: 'alice' }
     rerender(<OfflineQueueStatus />)
     await waitFor(() => expect(toast).toHaveBeenCalledOnce())
-    expect(axios.post).toHaveBeenCalledWith('/api/alerts/', { description: 'alice report' }, {
+    expect(axios.post).toHaveBeenCalledWith('/api/alerts/', expect.objectContaining({ description: 'alice report', client_submission_id: expect.any(String) }), {
       timeout: 20000, headers: { Authorization: `Bearer ${token}` },
     })
     expect(await listPending()).toHaveLength(0)

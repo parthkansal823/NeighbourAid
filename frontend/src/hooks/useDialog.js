@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useLatest } from './useLatest'
+import { lockDialogScroll, registerDialogDismissal } from '../utils/androidBack'
 
 /** Keep emergency dialogs reachable with a keyboard and restore the trigger. */
 export function useDialog(onClose) {
@@ -7,11 +8,12 @@ export function useDialog(onClose) {
   const close = useLatest(onClose)
   useEffect(() => {
     const previous = document.activeElement
-    const overflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const unlock = lockDialogScroll()
+    const dismissal = registerDialogDismissal(() => ref.current, () => close.current())
     const nodes = () => [...(ref.current?.querySelectorAll('button:not(:disabled), a[href], input, select, textarea, [tabindex="0"]') || [])]
     ;(nodes()[0] || ref.current)?.focus()
     const key = event => {
+      if (!dismissal.isTop()) return
       if (event.key === 'Escape') close.current()
       if (event.key !== 'Tab') return
       const items = nodes(), first = items[0], last = items.at(-1)
@@ -22,8 +24,10 @@ export function useDialog(onClose) {
     document.addEventListener('keydown', key)
     return () => {
       document.removeEventListener('keydown', key)
-      document.body.style.overflow = overflow
-      if (previous?.isConnected) previous.focus()
+      const wasTop = dismissal.isTop()
+      dismissal.remove()
+      unlock()
+      if (wasTop && previous?.isConnected) previous.focus()
     }
   }, [close])
   return ref

@@ -2,166 +2,81 @@ import { useEffect, useState } from 'react'
 import { MapContainer, Marker, TileLayer, Tooltip } from 'react-leaflet'
 import L from 'leaflet'
 import api from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
-import { AlertTriangle, PhoneCall } from './icons'
+import useTextFirst from '../hooks/useTextFirst'
+import { PhoneCall } from './icons'
 
-/**
- * Live tracker for an accepted alert. Polls /api/alerts/{id}/responder
- * every 8 seconds while visible and shows the responder's position
- * relative to the alert location, an Uber-style "your volunteer is on
- * the way" widget.
- *
- * Polling cadence is deliberately slow (8s) because exact-second
- * precision isn't useful — the volunteer's coords already only update
- * over WS when they've moved more than a few metres.
- */
+const responderIcon = L.divIcon({ html: '<div style="width:18px;height:18px;border-radius:50%;background:#52677b;border:3px solid white"></div>', className: '', iconSize: [18, 18], iconAnchor: [9, 9] })
+const targetIcon = L.divIcon({ html: '<div style="width:14px;height:14px;border-radius:50%;background:#b42318;border:3px solid white"></div>', className: '', iconSize: [14, 14], iconAnchor: [7, 7] })
+const point = coords => Array.isArray(coords) && coords.length === 2 && coords.every(Number.isFinite) && Math.abs(coords[0]) <= 180 && Math.abs(coords[1]) <= 90
 
-const responderIcon = L.divIcon({
-  html: `<div style="
-    width:18px;height:18px;border-radius:50%;
-    background:#10b981;border:3px solid white;
-    box-shadow:0 0 0 3px rgba(16,185,129,0.4);
-  "></div>`,
-  className: '',
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-})
+export function positionState(responder, now) {
+  if (!responder?.sharing_enabled || !Number.isFinite(Date.parse(responder.sharing_expires_at)) || Date.parse(responder.sharing_expires_at) <= now) return 'disabled'
+  const at = Date.parse(responder.position_updated_at)
+  const freshness = Number.isFinite(responder.freshness_seconds) && responder.freshness_seconds > 0 ? responder.freshness_seconds : 90
+  if (responder.position_state === 'stale' || (Number.isFinite(at) && now - at >= freshness * 1000)) return 'stale'
+  if (responder.position_state !== 'live' || !Number.isFinite(at) || at > now + 5000 || !point(responder.coordinates)) return 'unavailable'
+  return 'live'
+}
 
-const targetIcon = L.divIcon({
-  html: `<div style="
-    width:14px;height:14px;border-radius:50%;
-    background:#ef4444;border:3px solid white;
-    box-shadow:0 0 0 3px rgba(239,68,68,0.4);
-  "></div>`,
-  className: '',
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
-})
-
+/** Account/lead-scoped polling; no saved-home or unknown-freshness map fallback. */
 export default function ResponderTracker({ alert }) {
+  const { user } = useAuth()
+  return <Tracker key={`${user?.id || 'public'}:${alert.id}:${alert.accepted_by || ''}`} alert={alert} />
+}
+function Tracker({ alert }) {
   const { t } = useI18n()
+  const textFirst = useTextFirst()
+  const [mapChosen, setMapChosen] = useState(false)
   const [responder, setResponder] = useState(null)
+  const [clock, setClock] = useState(() => Date.now())
   const [error, setError] = useState('')
-
   useEffect(() => {
-    let cancelled = false
-    let id = null
+    if (alert.status !== 'accepted') return undefined
+    let cancelled = false, running = false
     const tick = async () => {
-      if (document.visibilityState !== 'visible') return
+      if (document.visibilityState !== 'visible' || running) return
+      running = true
       try {
         const { data } = await api.get(`/api/alerts/${alert.id}/responder`)
-        if (!cancelled) {
-          setResponder(data)
-          setError('')
-        }
-      } catch (err) {
-        if (!cancelled)
-          setError(err?.response?.data?.detail || 'Could not load responder position')
-      }
+        if (!cancelled) { setResponder(data); setClock(Date.now()); setError('') }
+      } catch {
+        if (!cancelled) { setResponder(null); setError('Responder details could not refresh. No position is shown.') }
+      } finally { running = false }
     }
-    tick()
-    id = setInterval(tick, 8000)
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        void tick()
-      }
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => {
-      cancelled = true
-      if (id) clearInterval(id)
-      document.removeEventListener('visibilitychange', onVisible)
-    }
-  }, [alert.id])
-
+    void tick()
+    const timer = setInterval(tick, 8000)
+    document.addEventListener('visibilitychange', tick)
+    return () => { cancelled = true; clearInterval(timer); document.removeEventListener('visibilitychange', tick) }
+  }, [alert.id, alert.status])
+  useEffect(() => {
+    if (!responder) return undefined
+    const freshness = Number.isFinite(responder.freshness_seconds) && responder.freshness_seconds > 0 ? responder.freshness_seconds : 90
+    const deadline = Math.min(Date.parse(responder.sharing_expires_at), Date.parse(responder.position_updated_at) + freshness * 1000)
+    const refreshClock = () => setClock(Date.now())
+    const delay = deadline - Date.now()
+    const timer = Number.isFinite(delay) && delay > 0 ? setTimeout(refreshClock, delay + 1) : null
+    window.addEventListener('focus', refreshClock)
+    document.addEventListener('visibilitychange', refreshClock)
+    return () => { if (timer !== null) clearTimeout(timer); window.removeEventListener('focus', refreshClock); document.removeEventListener('visibilitychange', refreshClock) }
+  }, [responder])
   if (alert.status !== 'accepted') return null
-  if (error)
-    return (
-      <p className="text-xs text-amber-300 mt-2 inline-flex items-center gap-1">
-        <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-        {error}
-      </p>
-    )
-  if (!responder) return null
-
-  // Exactly one of these is ever non-null for a given viewer, so a single
-  // button covers both sides of the call.
+  if (error) return <p role="status" className="mt-3 text-sm text-app-muted">{error}</p>
+  if (!responder) return <p role="status" className="mt-3 text-sm text-app-muted">Checking responder details…</p>
+  const state = positionState(responder, clock)
   const callNumber = responder.responder_phone || responder.reporter_phone
-  const [aLng, aLat] = alert.location?.coordinates ?? [0, 0]
-  const responderCoords = responder.coordinates // [lng, lat]
-  const center = responderCoords
-    ? [
-        (aLat + responderCoords[1]) / 2,
-        (aLng + responderCoords[0]) / 2,
-      ]
-    : [aLat, aLng]
-
-  return (
-    <div className="mt-3 border border-emerald-800 rounded-lg overflow-hidden">
-      <div className="bg-emerald-950/60 text-emerald-200 text-[11px] px-3 py-1.5 flex items-center justify-between gap-2 flex-wrap">
-        <span className="flex items-center gap-1.5">
-          <span
-            className={`w-2 h-2 rounded-full ${
-              responder.live ? 'bg-emerald-400 animate-pulse' : 'bg-gray-500'
-            }`}
-            aria-hidden
-          />
-          <span>
-            {responder.responder_name || 'Volunteer'} ·{' '}
-            {responder.live ? 'live' : 'last known'}
-          </span>
-        </span>
-        <span className="flex items-center gap-2">
-          {responder.eta_minutes != null && (
-            <span className="text-emerald-300 font-semibold">
-              ETA {responder.eta_minutes} min
-            </span>
-          )}
-          {/* The server decides which number, if either, this viewer may
-              have — the reporter gets the volunteer's, the volunteer gets
-              the reporter's, and an anonymous reporter has none to give.
-              Whichever it released is the one to dial, so the component
-              does not re-derive a rule it cannot enforce anyway. */}
-          {callNumber && (
-            <a
-              href={`tel:${callNumber}`}
-              className="tap inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 text-white
-                         transition-colors hover:bg-emerald-500"
-            >
-              <PhoneCall className="h-3.5 w-3.5" aria-hidden />
-              {t('responder_call')}
-            </a>
-          )}
-        </span>
-      </div>
-      <div className="h-40 relative">
-        <MapContainer
-          center={center}
-          zoom={14}
-          scrollWheelZoom={false}
-          dragging={false}
-          touchZoom={false}
-          doubleClickZoom={false}
-          zoomControl={false}
-          className="w-full h-full"
-        >
-          <TileLayer
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution=""
-          />
-          <Marker position={[aLat, aLng]} icon={targetIcon}>
-            <Tooltip>Crisis location</Tooltip>
-          </Marker>
-          {responderCoords && (
-            <Marker
-              position={[responderCoords[1], responderCoords[0]]}
-              icon={responderIcon}
-            >
-              <Tooltip>{responder.responder_name || 'Volunteer'}</Tooltip>
-            </Marker>
-          )}
-        </MapContainer>
-      </div>
+  const target = alert.location?.coordinates
+  const showMap = state === 'live' && point(target) && (!textFirst || mapChosen)
+  const labels = { disabled: 'Live location sharing is off or has expired.', unavailable: 'Sharing is on, but no fresh position is available.', stale: 'Last position is stale. It is not shown as a live position.', live: 'Fresh position shared with consent.' }
+  return <section className="mt-3 overflow-hidden rounded-xl border border-line bg-surface-2" aria-label="Responder location">
+    <div className="space-y-2 p-3 text-sm text-app-ink">
+      <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{responder.responder_name || 'Volunteer'}</span>{callNumber && <a href={`tel:${callNumber}`} className="tap app-secondary-button"><PhoneCall className="h-4 w-4" aria-hidden />{t('responder_call')}</a>}</div>
+      <p role="status" className="text-xs leading-relaxed text-app-muted">{labels[state]}</p>
+      {responder.position_updated_at && Number.isFinite(Date.parse(responder.position_updated_at)) && state !== 'disabled' && <p className="text-xs text-app-muted">Position recorded <time dateTime={responder.position_updated_at}>{new Date(responder.position_updated_at).toLocaleTimeString()}</time>{Number.isFinite(responder.position_accuracy_m) && responder.position_accuracy_m >= 0 ? `; reported accuracy ±${Math.round(responder.position_accuracy_m)} m` : '; accuracy not reported'}</p>}
+      {Number.isFinite(responder.eta_minutes) && <p className="text-xs text-app-muted">Volunteer&apos;s estimate: {responder.eta_minutes} min. Not a confirmed arrival.</p>}
+      {state === 'live' && textFirst && !mapChosen && <button type="button" onClick={() => setMapChosen(true)} className="tap app-secondary-button w-full">Load responder map</button>}
     </div>
-  )
+    {showMap && <div className="relative h-40"><MapContainer center={[(target[1] + responder.coordinates[1]) / 2, (target[0] + responder.coordinates[0]) / 2]} zoom={14} scrollWheelZoom={false} dragging={false} touchZoom={false} doubleClickZoom={false} zoomControl={false} className="h-full w-full"><TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" /><Marker position={[target[1], target[0]]} icon={targetIcon}><Tooltip>Reported incident location</Tooltip></Marker><Marker position={[responder.coordinates[1], responder.coordinates[0]]} icon={responderIcon}><Tooltip>{responder.responder_name || 'Volunteer'}</Tooltip></Marker></MapContainer></div>}
+  </section>
 }

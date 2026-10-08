@@ -20,6 +20,14 @@
 .native-app .app-content :is(input, select, textarea):not([type='checkbox']):not([type='radio']) { font-size: 16px; min-height: 48px; background-color: var(--color-surface-1); border-color: var(--color-line); }
 .native-app .app-content :is(h1, h2, h3, p, dd) { overflow-wrap: break-word; }
 .native-app .mobile-nav[hidden] { display: none; }
+/* Native events and VisualViewport share the actual visible height. Only
+   add bottom occlusion that the WebView has not already resized away. */
+html[data-keyboard-open='true'] { scroll-padding-bottom: calc(var(--app-keyboard-inset, 0px) + 1rem); }
+html[data-keyboard-open='true'] .native-app { min-height: var(--app-viewport-height, 100dvh); }
+html[data-keyboard-open='true'] .native-app .app-content { padding-bottom: calc(var(--app-keyboard-inset, 0px) + 1rem); }
+html[data-keyboard-open='true'] .native-map-app { height: var(--app-viewport-height, 100dvh); }
+html[data-keyboard-open='true'] .app-overlay { bottom: auto; height: var(--app-viewport-height, 100dvh); }
+html[data-keyboard-open='true'] .native-toasts { bottom: calc(var(--app-keyboard-inset, 0px) + 1rem); }
 .native-app .mobile-nav { padding-left: max(.5rem, var(--app-safe-left)); padding-right: max(.5rem, var(--app-safe-right)); padding-bottom: var(--app-safe-bottom); }
 .native-app .page-panel { padding-top: 1.5rem; }
 .native-app .app-update-notice > div { gap: .5rem; }

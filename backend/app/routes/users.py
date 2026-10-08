@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..core.security import get_current_user
 from ..db.client import get_db
-from ..models.user import LocationUpdate, ProfileUpdate
+from ..models.user import LocationUpdate, NotificationPreferences, ProfileUpdate
 from ..services.availability import normalise as normalise_availability
 from ..services.drill import NOT_A_DRILL
+from ..services.websocket import manager
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -31,6 +32,7 @@ def _serialize_user(user: dict) -> dict:
         # Normalised rather than returned raw so the client always gets
         # a complete record, including for users who predate the field.
         "availability": normalise_availability(user.get("availability")),
+        "notification_preferences": NotificationPreferences.model_validate(user.get("notification_preferences") or {}).model_dump(mode="json"),
         "created_at": user["created_at"],
     }
 
@@ -82,6 +84,8 @@ async def update_profile(
         updates["emergency_contacts"] = [c.model_dump() for c in body.emergency_contacts]
     if body.availability is not None:
         updates["availability"] = body.availability.model_dump()
+    if body.notification_preferences is not None:
+        updates["notification_preferences"] = body.notification_preferences.model_dump(mode="json")
     if body.phone is not None:
         # `or None` rather than storing "": the release check in
         # routes/alerts.py treats any truthy value as a reachable number, and
@@ -98,6 +102,8 @@ async def update_profile(
     )
     if not result:
         raise HTTPException(404, "User not found")
+    if body.notification_preferences is not None:
+        manager.update_preferences(payload["sub"], updates["notification_preferences"])
     return _serialize_user(result)
 
 

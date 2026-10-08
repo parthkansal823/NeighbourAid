@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, UUID4, field_validator
 
 
 class AlertCategory(str, Enum):
@@ -100,6 +100,8 @@ class AlertCreate(BaseModel):
     # real flow, but is excluded from every public count, the leaderboard
     # and trust scores. See services/drill.py.
     is_drill: bool = False
+    # Optional for older clients; stable across every retry of one submission.
+    client_submission_id: Optional[UUID4] = None
 
     @field_validator("description")
     @classmethod
@@ -158,3 +160,40 @@ class AlertOut(BaseModel):
     flags: int = 0
     created_at: datetime
     resolved_at: Optional[datetime]
+    outcome: Optional[str] = None
+    outcome_at: Optional[datetime] = None
+    outcome_source: Optional[str] = None
+    response_progress: Optional[str] = None
+    backup_requested: bool = False
+    backup_needed_skills: List[VolunteerSkill] = Field(default_factory=list)
+
+
+class LocationSharingUpdate(BaseModel):
+    enabled: bool
+    duration_minutes: int = Field(default=30, ge=1, le=120)
+
+
+class BackupRequest(BaseModel):
+    needed_skills: List[VolunteerSkill] = Field(default_factory=list, max_length=8)
+    note: str = Field(default="", max_length=300)
+
+
+class BackupOffer(BaseModel):
+    note: str = Field(default="", max_length=300)
+
+
+class HandoffRequest(BaseModel):
+    volunteer_id: str = Field(pattern=r"^[0-9a-fA-F]{24}$")
+
+
+class HandoffAccept(BaseModel):
+    handoff_id: UUID4
+
+
+class ResponseProgress(str, Enum):
+    on_the_way = "on_the_way"
+    arrived = "arrived"
+
+
+class ProgressUpdate(BaseModel):
+    progress: ResponseProgress

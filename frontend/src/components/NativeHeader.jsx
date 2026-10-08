@@ -6,6 +6,8 @@ import { LanguageMenu } from './Navbar'
 import { ArrowLeft, Menu, X } from './icons'
 import BrandLogo from './BrandLogo'
 import NativeUpdateSettings from './NativeUpdateSettings'
+import { Capacitor } from '@capacitor/core'
+import { allowScreenNavigation, ANDROID_KEYBOARD_DISMISS_EVENT } from '../utils/androidBack'
 
 /** Compact Android header. The website keeps its existing Navbar. */
 export default function NativeHeader({ onOpenEmergency }) {
@@ -16,6 +18,24 @@ export default function NativeHeader({ onOpenEmergency }) {
   const menuButton = useRef(null)
   const { pathname } = useLocation()
   const navigate = useNavigate()
+
+  const goBack = () => {
+    if (Capacitor.isNativePlatform()) {
+      const dismissKeyboard = new CustomEvent(ANDROID_KEYBOARD_DISMISS_EVENT, { cancelable: true })
+      window.dispatchEvent(dismissKeyboard)
+      if (dismissKeyboard.defaultPrevented || !allowScreenNavigation()) return
+    }
+    setOpen(false)
+    const index = window.history.state?.idx
+    if (Number.isSafeInteger(index) && index > 0) navigate(-1)
+    else navigate('/', { replace: true })
+  }
+  const signOut = () => {
+    if (Capacitor.isNativePlatform() && !allowScreenNavigation()) return
+    logout()
+    setOpen(false)
+    navigate('/', { replace: true })
+  }
 
   const screenTitle = {
     '/map': t('nav_map'),
@@ -64,7 +84,7 @@ export default function NativeHeader({ onOpenEmergency }) {
       <div className="native-header-row mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-2 px-3">
         {screenTitle ? (
           <div className="flex min-w-0 items-center gap-1">
-            <button type="button" onClick={() => { setOpen(false); window.history.length > 1 ? navigate(-1) : navigate('/') }} className="tap inline-flex shrink-0 items-center justify-center rounded-lg text-app-ink hover:bg-surface-2" aria-label="Go back"><ArrowLeft className="h-5 w-5" aria-hidden /></button>
+            <button type="button" onClick={goBack} className="tap inline-flex shrink-0 items-center justify-center rounded-lg text-app-ink hover:bg-surface-2" aria-label="Go back"><ArrowLeft className="h-5 w-5" aria-hidden /></button>
             <p className="native-header-title truncate text-base font-semibold text-app-ink">{screenTitle}</p>
           </div>
         ) : (
@@ -83,7 +103,7 @@ export default function NativeHeader({ onOpenEmergency }) {
       </div>
       {open && <nav id="native-menu" aria-label="More navigation" className="native-more-menu absolute inset-x-0 top-full max-h-[calc(100dvh-10rem)] overflow-y-auto border-b border-line bg-surface p-3 shadow-lg">
         {links.map(({ to, key }) => <Link key={to} to={to} onClick={() => setOpen(false)} className="flex min-h-12 items-center rounded-lg px-3 text-base text-app-ink hover:bg-surface-2">{t(key)}</Link>)}
-        {user && <button type="button" onClick={() => { logout(); setOpen(false); navigate('/') }} className="flex min-h-12 w-full items-center rounded-lg px-3 text-base text-app-muted">{t('nav_logout')}</button>}
+        {user && <button type="button" onClick={signOut} className="flex min-h-12 w-full items-center rounded-lg px-3 text-base text-app-muted">{t('nav_logout')}</button>}
         <NativeUpdateSettings />
       </nav>}
     </header>

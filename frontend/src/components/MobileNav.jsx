@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import { HeartHandshake, Home, Inbox, Map, ShieldCheck, Siren, User } from './icons'
 import { useAuth } from '../context/AuthContext'
 import { useI18n } from '../utils/i18n'
+import useKeyboardInsets from '../hooks/useKeyboardInsets'
 
 const itemClass = (native) => ({ isActive }) =>
   `${native ? 'native-tab min-h-16 text-xs leading-tight' : 'text-[11px]'} flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 font-medium transition-colors ${
@@ -18,7 +19,7 @@ const itemClass = (native) => ({ isActive }) =>
 export default function MobileNav({ native = false }) {
   const { user } = useAuth()
   const { t } = useI18n()
-  const [keyboardOpen, setKeyboardOpen] = useState(false)
+  const { keyboardOpen } = useKeyboardInsets()
   const nav = useRef(null)
 
   useEffect(() => {
@@ -34,28 +35,6 @@ export default function MobileNav({ native = false }) {
     return () => { observer?.disconnect(); window.removeEventListener('resize', measure); shell.style.removeProperty('--app-nav-height') }
   }, [native, keyboardOpen])
 
-  useEffect(() => {
-    if (!native) return undefined
-    const viewport = window.visualViewport
-    let restingHeight = viewport?.height ?? window.innerHeight
-    const update = () => {
-      const height = viewport?.height ?? window.innerHeight
-      const editing = document.activeElement?.matches('input:not([type="checkbox"]):not([type="radio"]), textarea, select')
-      if (!editing) restingHeight = Math.max(restingHeight, height)
-      setKeyboardOpen(Boolean(editing && restingHeight - height > 140))
-    }
-    const onBlur = () => setKeyboardOpen(false)
-    viewport?.addEventListener('resize', update)
-    window.addEventListener('resize', update)
-    document.addEventListener('focusin', update)
-    document.addEventListener('focusout', onBlur)
-    return () => {
-      viewport?.removeEventListener('resize', update)
-      window.removeEventListener('resize', update)
-      document.removeEventListener('focusin', update)
-      document.removeEventListener('focusout', onBlur)
-    }
-  }, [native])
   const action = user?.role === 'volunteer'
     ? { to: '/volunteer', label: t(native ? 'nav_respond_short' : 'nav_volunteer'), Icon: HeartHandshake }
     : { to: '/post-alert', label: t(native ? 'nav_report_short' : 'nav_report'), Icon: Siren }

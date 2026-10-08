@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import EvidenceSummary, { evidenceFor } from './EvidenceSummary'
 import { I18nProvider } from '../utils/i18n'
 
@@ -17,5 +18,20 @@ describe('Evidence explanation', () => {
     expect(screen.getByText(/not proof/i)).toBeInTheDocument()
     expect(screen.getByText(/contents have not been checked/i)).toBeInTheDocument()
     expect(screen.queryByText(/100%|high confidence/i)).not.toBeInTheDocument()
+  })
+  it('uses theme-aware colors and keeps a touch-sized native disclosure', async () => {
+    const user = userEvent.setup()
+    render(<I18nProvider><EvidenceSummary alert={{}} /></I18nProvider>)
+    const summary = screen.getByText('What this score means')
+    const details = summary.closest('details')
+    expect(summary).toHaveClass('text-app-ink', 'min-h-12')
+    expect(details).toHaveClass('text-app-muted', 'min-w-0')
+    expect(summary.className).not.toMatch(/text-gray-|text-white|flex/)
+    expect(details).not.toHaveAttribute('open')
+    await user.click(summary)
+    expect(details).toHaveAttribute('open')
+    expect(screen.getByText(/not proof/i)).toBeVisible()
+    await user.click(summary)
+    expect(details).not.toHaveAttribute('open')
   })
 })

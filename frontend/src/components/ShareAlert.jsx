@@ -1,159 +1,47 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { MessageCircle, Share2 } from './icons'
+import { useMemo, useState } from 'react'
+import { MessageCircle, Share2, X } from './icons'
 import { useToast } from './Toast'
 import NativeOverlay from './NativeOverlay'
+import { useDialog } from '../hooks/useDialog'
 import { nativeShareAlert, publicAlertUrl } from '../utils/nativeShare'
 
-/**
- * Share an alert outside the app — WhatsApp, SMS, anywhere someone has a
- * phone. Uses the Web Share API when available (native sheet on mobile),
- * and falls back to a modal with copy-to-clipboard + QR code on desktop.
- *
- * QR codes are rendered via the free goqr.me endpoint — no npm dep, no
- * build-time asset. If the endpoint is blocked, the link and Copy button
- * still work.
- */
+/** Review the public link before opening another app. No private report text. */
 export default function ShareAlert({ alert }) {
-  const { push: toast } = useToast()
   const [open, setOpen] = useState(false)
-  const firstFocusRef = useRef(null)
+  return <><button type="button" onClick={() => setOpen(true)} className="tap app-secondary-button" title="Share this alert"><Share2 className="h-4 w-4" aria-hidden />Share</button>{open && <ShareDialog alert={alert} onClose={() => setOpen(false)} />}</>
+}
 
-  const shareUrl = useMemo(() => {
-    return publicAlertUrl(alert?.id)
-  }, [alert?.id])
-
-  const shareText = useMemo(() => {
-    const urgency = alert?.urgency ? `${alert.urgency} · ` : ''
-    const cat = alert?.category ? `${alert.category}` : 'crisis'
-    // Plain text, not an emoji pin: this string is handed to WhatsApp/SMS,
-    // and some SMS gateways transcode a non-GSM-7 character into a UCS-2
-    // message, which halves the per-segment length and can split the alert.
-    const where = alert?.address ? `\nLocation: ${alert.address}` : ''
-    const desc = alert?.description ? `\n${alert.description}` : ''
-    return `${urgency}${cat} on NeighbourAid${desc}${where}\n${shareUrl}`
-  }, [alert, shareUrl])
-
-  const canNativeShare =
-    typeof navigator !== 'undefined' && typeof navigator.share === 'function'
-
-  useEffect(() => {
-    if (!open) return undefined
-    firstFocusRef.current?.focus?.()
-    const onKey = (e) => e.key === 'Escape' && setOpen(false)
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open])
-
-  const onClick = async () => {
-    try { if (await nativeShareAlert(alert?.id)) return }
-    catch (err) { if (/cancel/i.test(err.message || '')) return }
-    if (canNativeShare) {
-      try {
-        await navigator.share({
-          title: `${alert?.urgency || ''} ${alert?.category || 'Crisis'} alert`.trim(),
-          text: shareText,
-          url: shareUrl,
-        })
-        return
-      } catch {
-        // user cancelled or share failed — fall through to modal
-      }
-    }
-    setOpen(true)
-  }
-
-  const copy = async () => {
+function ShareDialog({ alert, onClose }) {
+  const { push: toast } = useToast()
+  const dialog = useDialog(onClose)
+  const [qr, setQr] = useState(false)
+  const [qrFailed, setQrFailed] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const shareUrl = useMemo(() => publicAlertUrl(alert?.id), [alert?.id])
+  const share = async () => {
+    setBusy(true)
     try {
-      await navigator.clipboard.writeText(shareUrl)
-      toast({ variant: 'success', title: 'Link copied', body: shareUrl })
-    } catch {
-      toast({ variant: 'warning', title: 'Copy failed', body: 'Long-press the link to copy manually.' })
-    }
+      if (await nativeShareAlert(alert?.id)) return
+      if (typeof navigator.share === 'function') await navigator.share({ title: 'NeighbourAid alert', url: shareUrl })
+      else toast({ variant: 'info', title: 'Use Copy link or WhatsApp below' })
+    } catch (err) {
+      if (err?.name !== 'AbortError' && !/cancel/i.test(err?.message || '')) toast({ variant: 'warning', title: 'Could not open sharing', body: 'Copy the link instead.' })
+    } finally { setBusy(false) }
   }
-
-  const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(shareUrl); toast({ variant: 'success', title: 'Link copied' }) }
+    catch { toast({ variant: 'warning', title: 'Copy failed', body: 'Long-press the link to copy manually.' }) }
+  }
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(shareUrl)}`
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encodeURIComponent(shareUrl)}`
-
-  return (
-    <>
-      <button
-        onClick={onClick}
-        className="text-xs text-gray-400 hover:text-white px-2 py-1 rounded-lg transition-colors inline-flex items-center gap-1"
-        title="Share this alert"
-      >
-        <Share2 className="h-3.5 w-3.5" aria-hidden />
-        Share
-      </button>
-      {open && (<NativeOverlay>
-        <div
-          className="fixed inset-0 z-950 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 sm:p-4"
-          onClick={() => setOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Share alert"
-        >
-          <div
-            className="surface-float w-full sm:max-w-md p-5 sm:p-6 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base sm:text-lg font-bold text-white">Share this alert</h2>
-              <button
-                onClick={() => setOpen(false)}
-                className="text-gray-500 hover:text-gray-200 text-2xl leading-none px-2 -mr-2"
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="flex justify-center mb-4">
-              <img
-                src={qrUrl}
-                alt="QR code for alert link"
-                width={220}
-                height={220}
-                className="rounded-lg border border-gray-800 bg-white p-2"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
-            </div>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={shareUrl}
-                  ref={firstFocusRef}
-                  onFocus={(e) => e.target.select()}
-                  className="flex-1 min-w-0 bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-xs"
-                />
-                <button
-                  onClick={copy}
-                  className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-3 py-2 rounded-lg whitespace-nowrap"
-                >
-                  Copy
-                </button>
-              </div>
-              <a
-                href={waUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex w-full items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 rounded-lg text-sm"
-              >
-                <MessageCircle className="h-4 w-4" aria-hidden />
-                Share via WhatsApp
-              </a>
-            </div>
-
-            <p className="text-[11px] text-gray-500 leading-relaxed">
-              Anyone with this link can view the alert — useful for tagging neighbours who
-              aren&apos;t on NeighbourAid yet.
-            </p>
-          </div>
-        </div>
-      </NativeOverlay>)}
-    </>
-  )
+  return <NativeOverlay><div className="flex h-full items-end justify-center bg-black/60 p-3 sm:items-center" onClick={onClose}>
+    <section ref={dialog} role="dialog" aria-modal="true" aria-labelledby="share-alert-title" tabIndex={-1} className="surface-float max-h-full w-full max-w-md overflow-y-auto p-4 sm:p-6" onClick={event => event.stopPropagation()}>
+      <header className="mb-3 flex items-center justify-between gap-2"><h2 id="share-alert-title" className="text-lg font-semibold text-app-ink">Share public alert link</h2><button type="button" className="tap app-secondary-button h-12 w-12 shrink-0" aria-label="Close" onClick={onClose}><X className="h-5 w-5" aria-hidden /></button></header>
+      <p className="text-sm leading-relaxed text-app-muted">Anyone with this link can see the public report and its reported location. The shared message contains only this link, not phone numbers, live responder positions or your account details.</p>
+      <label htmlFor="share-alert-url" className="app-form-label mt-4">Public link</label>
+      <input id="share-alert-url" readOnly value={shareUrl} onFocus={event => event.target.select()} className="app-field mt-2 w-full text-sm" />
+      <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => { void share() }} className="tap app-primary-button w-full sm:w-auto"><Share2 className="h-4 w-4" aria-hidden />{busy ? 'Opening…' : 'Choose an app'}</button><button type="button" onClick={() => { void copy() }} className="tap app-secondary-button w-full sm:w-auto">Copy link</button><a href={waUrl} target="_blank" rel="noopener noreferrer" className="tap app-secondary-button w-full sm:w-auto"><MessageCircle className="h-4 w-4" aria-hidden />WhatsApp</a></div>
+      <div className="mt-4 border-t border-line pt-4"><p className="mb-3 text-xs leading-relaxed text-app-muted">QR generation sends this public link to an external QR service. It is optional; copying the link needs no QR service.</p><button type="button" className="tap app-secondary-button w-full" onClick={() => { setQr(true); setQrFailed(false) }}>{qr ? 'Regenerate QR code' : 'Generate QR code'}</button>{qr && !qrFailed && <img src={qrUrl} alt="QR code for the public alert link" width={220} height={220} className="mx-auto mt-3 max-w-full rounded-xl bg-white p-2" onError={() => setQrFailed(true)} />}{qrFailed && <p role="status" className="mt-3 text-sm text-app-muted">QR service unavailable. Copy the link instead.</p>}</div>
+    </section>
+  </div></NativeOverlay>
 }

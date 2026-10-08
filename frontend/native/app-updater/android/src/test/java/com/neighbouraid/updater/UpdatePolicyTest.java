@@ -10,7 +10,9 @@ public class UpdatePolicyTest {
         for (String bad : new String[] {null, "", url.replace("https:", "http:"), url + "?redirect=x", url + "#x",
                 url.replace("github.com", "github.com.evil.test"), url.replace("github.com", "user@github.com"),
                 url.replace("NeighbourAid", "OtherRepo"), url.replace("app-release.apk", "app-debug.apk"),
-                url.replace("android-23", "../android-23"), url.replace("android-23", "android%2F23")}) {
+                url.replace("android-23", "../android-23"), url.replace("android-23", "android%2F23"),
+                url.replace("android-23", "android..23"), url.replace("android-23", ".hidden"),
+                url.replace("android-23", "android-23/extra"), url + "?", url + "#", url.replace("github.com", "github.com:443")}) {
             assertFalse(bad, UpdatePolicy.trustedDownload(bad));
         }
     }

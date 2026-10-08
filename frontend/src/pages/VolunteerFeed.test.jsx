@@ -18,6 +18,7 @@ vi.mock('../context/AuthContext', () => ({ useAuth: () => mocks.auth }))
 vi.mock('../utils/api', () => ({ default: { get: mocks.get } }))
 vi.mock('../hooks/useWebSocket', () => ({ useVolunteerSocket: mocks.socket }))
 vi.mock('../components/Toast', () => ({ useToast: () => ({ push: mocks.toast }) }))
+vi.mock('../components/RelayInbox', () => ({ default: () => null }))
 vi.mock('../hooks/useNotifications', () => ({
   useNotifications: () => ({ permission: 'granted', pushSupported: false, notify: mocks.notify, ...mocks.notifications }),
 }))

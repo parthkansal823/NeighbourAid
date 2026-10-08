@@ -27,7 +27,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
+from copy import deepcopy
 
 import httpx
 
@@ -57,6 +59,10 @@ SEARCH_RADIUS_M = 3000
 _CACHE: dict[tuple[float, float], tuple[float, list[dict]]] = {}
 _CACHE_TTL_SECONDS = 6 * 60 * 60
 _CACHE_MAX = 256
+_FAILURE_TTL_SECONDS = 30
+_IN_FLIGHT: dict[tuple[float, float], asyncio.Task] = {}
+_MAX_IN_FLIGHT = 32
+_UPSTREAM_SLOTS = asyncio.Semaphore(4)
 
 
 def _cache_key(lat: float, lng: float) -> tuple[float, float]:
@@ -105,7 +111,7 @@ def _parse(payload: dict, lat: float, lng: float) -> list[dict]:
     # routes/alerts.py, the latter in metres). Imported here rather than at
     # module scope only to keep this optional service off the import path of
     # anything that does not ask for it.
-    from .websocket import _haversine  # noqa: PLC0415
+    from .websocket import _haversine
 
     out: list[dict] = []
     for el in payload.get("elements", []):
@@ -145,12 +151,79 @@ async def nearby_hospitals(
 ) -> list[dict]:
     """Hospitals and clinics within SEARCH_RADIUS_M, nearest first.
 
-    Returns [] on any failure. Cached for six hours per ~110 m cell.
+    Returns [] on any failure. Cached for six hours per ~110 m cell; failures
+    only for 30 seconds. Shared loads are bounded and caller cancellation does
+    not cancel another caller's lookup. The timeout includes queue/mirrors.
     """
+    if not (math.isfinite(lat) and math.isfinite(lng) and -90 <= lat <= 90 and -180 <= lng <= 180):
+        return []
+    if not math.isfinite(timeout) or timeout <= 0:
+        return []
+    timeout = min(timeout, 25.0)
     key = _cache_key(lat, lng)
     hit = _CACHE.get(key)
-    if hit and (time.monotonic() - hit[0]) < _CACHE_TTL_SECONDS:
-        return hit[1]
+    if hit and time.monotonic() < hit[0]:
+        # Promote the hit without discarding every other neighbourhood.
+        _CACHE.pop(key)
+        _CACHE[key] = hit
+        return _for_caller(hit[1], lat, lng)
+    _CACHE.pop(key, None)
+    pending = _IN_FLIGHT.get(key)
+    if pending is None:
+        if len(_IN_FLIGHT) >= _MAX_IN_FLIGHT:
+            return []  # Do not allocate an unbounded queue on a public read.
+        pending = asyncio.create_task(_load_cached(key, lat, lng, timeout))
+        _IN_FLIGHT[key] = pending
+        pending.add_done_callback(lambda task: _forget_load(key, task))
+    try:
+        found = await asyncio.wait_for(asyncio.shield(pending), timeout=timeout)
+        return _for_caller(found, lat, lng)
+    except asyncio.TimeoutError:
+        return []
+
+
+def _for_caller(rows: list[dict], lat: float, lng: float) -> list[dict]:
+    # A coarse cache must not reuse the first caller's distance/ranking, and
+    # callers must never mutate the cached list or another response.
+    from .websocket import _haversine
+
+    result = deepcopy(rows)
+    for row in result:
+        row["distance_km"] = round(_haversine(lat, lng, row["lat"], row["lng"]), 2)
+    result.sort(key=lambda row: (not row["emergency"], row["distance_km"]))
+    return result
+
+
+def _forget_load(key: tuple[float, float], task: asyncio.Task) -> None:
+    if _IN_FLIGHT.get(key) is task:
+        _IN_FLIGHT.pop(key, None)
+    if not task.cancelled():
+        task.exception()  # Observe unexpected failures even if every waiter left.
+
+
+async def _load_cached(key: tuple[float, float], lat: float, lng: float, timeout: float) -> list[dict]:
+    async def limited_fetch():
+        async with _UPSTREAM_SLOTS:
+            return await _fetch_hospitals(lat, lng, timeout)
+
+    try:
+        found, succeeded = await asyncio.wait_for(limited_fetch(), timeout=timeout)
+    except asyncio.TimeoutError:
+        found, succeeded = [], False
+    now = time.monotonic()
+    # Expired cells do not consume the bounded LRU budget.
+    for old_key, (expires, _) in list(_CACHE.items()):
+        if expires <= now:
+            _CACHE.pop(old_key, None)
+    _CACHE.pop(key, None)
+    if len(_CACHE) >= _CACHE_MAX:
+        _CACHE.pop(next(iter(_CACHE)))
+    ttl = _CACHE_TTL_SECONDS if succeeded else _FAILURE_TTL_SECONDS
+    _CACHE[key] = (now + ttl, found)
+    return found
+
+
+async def _fetch_hospitals(lat: float, lng: float, timeout: float) -> tuple[list[dict], bool]:
 
     body = _query(lat, lng)
     for url in _ENDPOINTS:
@@ -168,12 +241,6 @@ async def nearby_hospitals(
             log.info("Overpass %s unexpected failure: %s", url, exc)
             continue
 
-        # Cache even an empty result: a genuinely hospital-free 3 km is a
-        # fact about the area, and re-asking Overpass on every card open
-        # would be the same wasted round trip repeated.
-        if len(_CACHE) >= _CACHE_MAX:
-            _CACHE.clear()
-        _CACHE[key] = (time.monotonic(), found)
-        return found
+        return found, True
 
-    return []
+    return [], False

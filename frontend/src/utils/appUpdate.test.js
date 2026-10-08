@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { latestAppUpdate, RELEASES_API, updateFromRelease } from './appUpdate'
+import { latestAppUpdate, RELEASES_API, trustedUpdateDownload, updateFromRelease } from './appUpdate'
 
 const downloadUrl = 'https://github.com/parthkansal823/NeighbourAid/releases/download/android-12/app-release.apk'
 const releaseUrl = 'https://github.com/parthkansal823/NeighbourAid/releases/tag/android-12'
@@ -14,7 +14,7 @@ function release(overrides = {}) {
 
 describe('Android release metadata', () => {
   it('offers only a newer uploaded APK from this repository', () => {
-    expect(updateFromRelease(release(), 11)).toEqual({ versionCode: 12, versionName: 'build-12', downloadUrl, releaseUrl })
+    expect(updateFromRelease(release(), 11)).toEqual({ versionCode: 12, versionName: 'build-12', downloadUrl, releaseUrl, expectedSize: 4096, sha256: null })
     expect(updateFromRelease(release(), 12)).toBeNull()
     expect(updateFromRelease(release(), 13)).toBeNull()
   })
@@ -48,6 +48,41 @@ describe('Android release metadata', () => {
       expect(updateFromRelease(release({ assets: [{ ...item, ...change }] }), 1)).toBeNull()
     }
     expect(updateFromRelease(release({ html_url: 'https://evil.test/release' }), 1)).toBeNull()
+  })
+
+  it.each(['extra/path', '../android-12', 'android%2F12', 'android..12', '.hidden', 'android-12/other'])('rejects ambiguous release paths: %s', tag => {
+    expect(trustedUpdateDownload(downloadUrl.replace('android-12', tag))).toBeNull()
+  })
+
+  it('requires the download, release page and optional tag name to match exactly', () => {
+    expect(updateFromRelease(release({ html_url: releaseUrl.replace('android-12', 'android-13') }), 1)).toBeNull()
+    expect(updateFromRelease(release({ tag_name: 'android-13' }), 1)).toBeNull()
+    expect(updateFromRelease(release({ html_url: `${releaseUrl}/other` }), 1)).toBeNull()
+    expect(trustedUpdateDownload(`${downloadUrl}?`)).toBeNull()
+    expect(trustedUpdateDownload(`${downloadUrl}#`)).toBeNull()
+  })
+
+  it('uses GitHub asset SHA-256 and checks CI metadata consistency', () => {
+    const sha256 = 'a'.repeat(64)
+    const asset = { ...release().assets[0], digest: `sha256:${sha256}` }
+    const body = `<!-- neighbouraid-update:${JSON.stringify({ versionCode: 12, versionName: 'build-12', sha256, expectedSize: 4096 })} -->`
+    expect(updateFromRelease(release({ assets: [asset], body }), 1)).toMatchObject({ sha256, expectedSize: 4096 })
+    expect(updateFromRelease(release({ assets: [asset] }), 1)).toMatchObject({ sha256 })
+    expect(updateFromRelease(release({ body }), 1)).toMatchObject({ sha256 })
+    expect(updateFromRelease(release({ assets: [{ ...asset, digest: `sha256:${'b'.repeat(64)}` }], body }), 1)).toBeNull()
+    expect(updateFromRelease(release({ body: body.replace('4096', '4097') }), 1)).toBeNull()
+  })
+
+  it.each(['sha512:' + 'a'.repeat(64), 'sha256:bad', '', 42])('rejects corrupt advertised digest instead of claiming legacy availability: %s', digest => {
+    expect(updateFromRelease(release({ assets: [{ ...release().assets[0], digest }] }), 1)).toBeNull()
+  })
+
+  it('rejects duplicate metadata markers, duplicate APKs and invalid checksum/size body values', () => {
+    expect(updateFromRelease(release({ body: release().body + release().body }), 1)).toBeNull()
+    expect(updateFromRelease(release({ assets: [release().assets[0], release().assets[0]] }), 1)).toBeNull()
+    for (const field of [{ sha256: 'bad' }, { expectedSize: 0 }, { expectedSize: 1.5 }]) {
+      expect(updateFromRelease(release({ body: `<!-- neighbouraid-update:${JSON.stringify({ versionCode: 12, versionName: 'build-12', ...field })} -->` }), 1)).toBeNull()
+    }
   })
 })
 

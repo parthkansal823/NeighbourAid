@@ -116,9 +116,9 @@ feed would silently receive nothing while every REST route kept working.`
       channel: process.env.ANDROID_RELEASE_CHANNEL || 'debug',
     }),
   },
-  // Split the bundle by responsibility so the user only downloads the
-  // map-related code on first visit to /map, not on /login. Cuts the
-  // initial JS payload roughly in half on the auth pages.
+  // Split common libraries by responsibility. Map routes are lazy imports;
+  // leave their dependencies to the bundler so shared runtime helpers do
+  // not accidentally pull a manually named map chunk into the entry page.
   //
   // Written as a function rather than the old object form: Vite 8 bundles
   // with Rolldown, which only accepts the callback signature.
@@ -135,9 +135,6 @@ feed would silently receive nothing while every REST route kept working.`
           if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) {
             return 'react-vendor'
           }
-          if (/[\\/]node_modules[\\/](leaflet|react-leaflet|@react-leaflet)[\\/]/.test(id)) {
-            return 'leaflet-vendor'
-          }
           if (/[\\/]node_modules[\\/](axios|jwt-decode)[\\/]/.test(id)) {
             return 'auth-vendor'
           }
@@ -153,6 +150,9 @@ feed would silently receive nothing while every REST route kept working.`
     chunkSizeWarningLimit: 600,
   },
   test: {
+    // Avoid jsdom/test-transform oversubscription on Windows and small CI
+    // runners. Keep timeouts meaningful rather than masking slow races.
+    maxWorkers: process.env.CI ? 2 : 4,
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.js'],

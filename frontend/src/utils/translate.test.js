@@ -114,3 +114,33 @@ describe('a failed translation is not cached', () => {
     expect(calls).toBe(1)
   })
 })
+
+describe('privacy cache clearing', () => {
+  it('cancels the deferred persistence timer instead of recreating a cleared cache', async () => {
+    vi.useFakeTimers()
+    try {
+      mockGtxOnce('translation')
+      await translateText('sensitive synthetic text', 'hi')
+      clearTranslationCache()
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(localStorage.getItem('neighbouraid:tx-cache')).toBeNull()
+    } finally { vi.useRealTimers() }
+  })
+  it('does not repopulate device cache with an in-flight translation after clearing', async () => {
+    vi.useFakeTimers()
+    try {
+      let resolve
+      global.fetch = vi.fn().mockImplementationOnce(() => new Promise(done => { resolve = done }))
+        .mockResolvedValue({ ok: true, json: async () => [[['new translation']]] })
+      const pending = translateText('sensitive synthetic text', 'hi')
+      await Promise.resolve()
+      clearTranslationCache()
+      resolve({ ok: true, json: async () => [[['old translation']]] })
+      await pending
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(localStorage.getItem('neighbouraid:tx-cache')).toBeNull()
+      expect(await translateText('sensitive synthetic text', 'hi')).toBe('new translation')
+      expect(global.fetch).toHaveBeenCalledTimes(2)
+    } finally { vi.useRealTimers() }
+  })
+})

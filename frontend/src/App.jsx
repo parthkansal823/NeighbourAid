@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useState } from 'react'
+import { Fragment, lazy, Suspense, useCallback, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './components/Toast'
@@ -11,23 +11,30 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import PostAlert from './pages/PostAlert'
-import MapDashboard from './pages/MapDashboard'
-import VolunteerFeed from './pages/VolunteerFeed'
-import MyAlerts from './pages/MyAlerts'
-import Profile from './pages/Profile'
-import Safety from './pages/Safety'
-import Resources from './pages/Resources'
-import News from './pages/News'
-import Help from './pages/Help'
-import AlertShare from './pages/AlertShare'
 import ServerOfflineBanner from './components/ServerOfflineBanner'
 import OfflineQueueStatus from './components/OfflineQueueStatus'
 import AppUpdateNotice from './components/AppUpdateNotice'
 import NativeHeader from './components/NativeHeader'
 import useCompactAppShell from './hooks/useCompactAppShell'
 import useSystemAppearance from './hooks/useSystemAppearance'
-import AppUpdates from './pages/AppUpdates'
 import LaunchScreen from './components/LaunchScreen'
+import NativePlatformEffects from './components/NativePlatformEffects'
+import DeliveryReceipts from './components/DeliveryReceipts'
+import AppQueryProvider from './context/AppQueryProvider'
+import WebUpdateNotice from './components/WebUpdateNotice'
+
+// Keep the report form in the core bundle. Heavy maps and optional screens
+// load only when opened; a text-first visit need not download Leaflet.
+const MapDashboard = lazy(() => import('./pages/MapDashboard'))
+const VolunteerFeed = lazy(() => import('./pages/VolunteerFeed'))
+const MyAlerts = lazy(() => import('./pages/MyAlerts'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Safety = lazy(() => import('./pages/Safety'))
+const Resources = lazy(() => import('./pages/Resources'))
+const News = lazy(() => import('./pages/News'))
+const Help = lazy(() => import('./pages/Help'))
+const AlertShare = lazy(() => import('./pages/AlertShare'))
+const AppUpdates = lazy(() => import('./pages/AppUpdates'))
 
 function PrivateRoute({ children, role }) {
   const { user } = useAuth()
@@ -57,23 +64,27 @@ export default function App() {
   const [dialerOpen, setDialerOpen] = useState(false)
   const openDialer = useCallback(() => setDialerOpen(true), [])
   const closeDialer = useCallback(() => setDialerOpen(false), [])
-  const statuses = <><ServerOfflineBanner native={compactShell} /><OfflineQueueStatus /><DemoModeBanner /></>
+  const statuses = <><ServerOfflineBanner native={compactShell} /><OfflineQueueStatus /><DeliveryReceipts /><DemoModeBanner /></>
   return (
     <ErrorBoundary>
     <I18nProvider>
     <AuthProvider>
+      <AppQueryProvider>
       <ToastProvider>
         <LaunchScreen />
         <BrowserRouter
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
         >
+          <NativePlatformEffects />
           <Shell>
           {!compactShell && statuses}
           {compactShell ? <NativeHeader onOpenEmergency={openDialer} /> : <Navbar />}
           <AppUpdateNotice />
+          <WebUpdateNotice />
           <main id="main-content" className={compactShell ? 'app-content' : 'web-content pb-[5.5rem] lg:pb-0'}>
             {/* Status strips stay in flow, below the persistent app header. */}
             {compactShell && statuses}
+            <Suspense fallback={<div role="status" className="page-panel mx-auto max-w-2xl px-4 py-6 text-sm text-app-muted">Loading screen…</div>}>
             <Routes>
               <Route path="/" element={<Home compactShell={compactShell} />} />
               <Route path="/login" element={<Login />} />
@@ -119,12 +130,14 @@ export default function App() {
               <Route path="/alert/:id" element={<AlertShare />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </Suspense>
           </main>
           <MobileNav native={compactShell} />
           <EmergencyDialer native={compactShell} open={dialerOpen} onOpen={openDialer} onClose={closeDialer} />
           </Shell>
         </BrowserRouter>
       </ToastProvider>
+      </AppQueryProvider>
     </AuthProvider>
     </I18nProvider>
     </ErrorBoundary>

@@ -10,6 +10,9 @@ const config: CapacitorConfig = {
     // DEFAULT follows the device light/dark preference. The React shell also
     // updates it live if that preference changes while the app is open.
     SystemBars: { style: 'DEFAULT', insetsHandling: 'css' },
+    // Keep forms inside the usable WebView in fullscreen Android. Do not
+    // force a keyboard colour; its appearance follows the device theme.
+    Keyboard: { resizeOnFullScreen: true },
   },
 }
 

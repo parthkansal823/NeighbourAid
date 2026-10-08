@@ -11,6 +11,7 @@ import { haptic } from '../utils/haptics'
 import { useI18n } from '../utils/i18n'
 import AlertCard from '../components/AlertCard'
 import NotificationReadiness from '../components/NotificationReadiness'
+import RelayInbox from '../components/RelayInbox'
 import { SkeletonAlertList } from '../components/Skeleton'
 import EmptyState from '../components/EmptyState'
 import api from '../utils/api'
@@ -231,7 +232,9 @@ export default function VolunteerFeed() {
         })
         notifyRef.current?.({
           title,
-          body: `${incoming.description.slice(0, 140)}${distance}`,
+          // OS previews stay minimal. Detailed browser push uses the explicit
+          // account opt-in on the server, never this report-body fallback.
+          body: 'A matched community alert needs attention. Open NeighbourAid for details.',
           tag: `alert-${incoming.id}`,
           // CRITICAL alerts stay visible until the volunteer interacts
           requireInteraction: incoming.urgency === 'CRITICAL',
@@ -276,7 +279,7 @@ export default function VolunteerFeed() {
         toast({ variant: 'error', title: t('vol_push_failed') })
       } else {
         setPushResult('ready')
-        toast({ variant: 'success', title: 'Background alerts are ready', body: 'This device can now receive matched alerts when NeighbourAid is closed.' })
+        toast({ variant: 'success', title: 'Browser push subscription saved', body: 'Delivery depends on your browser, network and server. It is not emergency-service confirmation.' })
       }
     } finally {
       setPushBusy(false)
@@ -311,7 +314,7 @@ export default function VolunteerFeed() {
   const acceptedAlerts = visibleAlerts.filter((a) => isMyAcceptedAlert(a, user?.id))
   // Critical alerts accepted by another responder must also have a render path.
   const criticalInProgress = visibleAlerts.filter(
-    (a) => a.urgency === 'CRITICAL' && a.status === 'accepted' && !isMyAcceptedAlert(a, user?.id)
+    (a) => (a.urgency === 'CRITICAL' || a.backup_requested === true) && a.status === 'accepted' && !isMyAcceptedAlert(a, user?.id)
   )
   const hasFilters = Boolean(query.trim() || scope !== 'all')
   const clearFilters = () => {
@@ -362,6 +365,7 @@ export default function VolunteerFeed() {
         onDisable={disablePush}
       />
 
+      <p className="mb-4 text-xs leading-relaxed text-app-muted">Your location matches nearby alerts. It is not shared with a reporter unless you enable timed sharing for an accepted alert.</p>
       {voiceAlert.supported && (
         <button
           type="button"
@@ -378,6 +382,7 @@ export default function VolunteerFeed() {
           <span>Voice alerts {voiceAlert.enabled ? 'on' : 'off'}</span>
         </button>
       )}
+      <RelayInbox visibleAlertIds={alerts.map(alert => alert.id)} />
 
       {geoError ? (
         <EmptyState
@@ -451,7 +456,7 @@ export default function VolunteerFeed() {
             {criticalInProgress.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-base font-semibold text-app-ink mb-3">
-                  {t('vol_critical_in_progress')} — <span className="tabular-nums">{criticalInProgress.length}</span>
+                  Critical and backup requests — <span className="tabular-nums">{criticalInProgress.length}</span>
                 </h2>
                 <div className="space-y-3">
                   {criticalInProgress.map((a) => (

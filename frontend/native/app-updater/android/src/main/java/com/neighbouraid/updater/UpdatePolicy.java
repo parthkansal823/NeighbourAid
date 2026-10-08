@@ -10,10 +10,13 @@ final class UpdatePolicy {
     static boolean trustedDownload(String raw) {
         try {
             URI uri = new URI(raw);
+            String[] segments = uri.getRawPath().split("/");
+            String tag = segments.length == 7 ? segments[5] : "";
             return "https".equals(uri.getScheme()) && "github.com".equals(uri.getHost())
-                && uri.getUserInfo() == null && (uri.getPort() == -1 || uri.getPort() == 443)
+                && uri.getUserInfo() == null && uri.getPort() == -1
                 && uri.getQuery() == null && uri.getFragment() == null
-                && uri.getRawPath().matches("/parthkansal823/NeighbourAid/releases/download/[A-Za-z0-9._-]+/app-release\\.apk");
+                && uri.equals(uri.normalize()) && !tag.contains("..")
+                && uri.getRawPath().matches("/parthkansal823/NeighbourAid/releases/download/[A-Za-z0-9][A-Za-z0-9._-]{0,127}/app-release\\.apk");
         } catch (Exception ignored) { return false; }
     }
 

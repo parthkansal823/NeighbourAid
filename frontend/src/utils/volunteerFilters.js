@@ -30,7 +30,7 @@ export function filterVolunteerAlerts({
     const mine = isMyAcceptedAlert(alert, userId)
     if (scope === 'open' && alert.status !== 'open') return false
     if (scope === 'mine' && !mine) return false
-    if (alert.status !== 'open' && !mine) return false
+    if (alert.status !== 'open' && !mine && alert.backup_requested !== true) return false
     if (terms.length === 0) return true
 
     const text = [

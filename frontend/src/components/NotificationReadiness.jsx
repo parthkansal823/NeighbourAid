@@ -1,12 +1,13 @@
 import { useId } from 'react'
 import { Bell, BellRing, CheckCircle2, Info, ShieldCheck } from './icons'
 import { useI18n } from '../utils/i18n'
+import { isNativeApp } from '../utils/runtime'
 
 const COPY = {
   ready: {
     icon: CheckCircle2,
-    title: 'Background alerts are ready',
-    body: 'Nearby emergencies can reach this device even when the app is closed.',
+    title: 'Browser push subscription active',
+    body: 'A browser subscription is saved. Delivery depends on the browser, network and server; this is not emergency-service confirmation.',
   },
   blocked: {
     icon: Bell,
@@ -30,8 +31,8 @@ const COPY = {
   },
   foreground: {
     icon: ShieldCheck,
-    title: 'Live alerts are active in this app',
-    body: 'This device cannot receive background emergency alerts here. Keep NeighbourAid open to stay connected.',
+    title: 'Live alerts while this app is open',
+    body: 'Background emergency delivery is not connected here. Keep NeighbourAid open and connected. Local update notices are separate from emergency push.',
   },
   off: {
     icon: BellRing,
@@ -58,21 +59,22 @@ export default function NotificationReadiness({
 }) {
   const { t } = useI18n()
   const titleId = useId()
-  const state = result === 'unsubscribe-failed'
+  const supported = pushSupported && !isNativeApp()
+  const state = permission === 'denied' || result === 'denied'
+    ? 'blocked'
+    : !supported
+      ? 'foreground'
+      : result === 'unsubscribe-failed'
     ? 'stopFailed'
     : pushEnabled || result === 'ready'
       ? 'ready'
-      : permission === 'denied' || result === 'denied'
-      ? 'blocked'
       : result === 'not-configured'
         ? 'setup'
         : result === 'failed'
           ? 'failed'
-          : !pushSupported
-            ? 'foreground'
-            : 'off'
+          : 'off'
   const { icon: Icon, title, body } = COPY[state]
-  const canEnable = pushSupported && !pushEnabled && permission !== 'denied'
+  const canEnable = supported && !pushEnabled && permission !== 'denied'
 
   return (
     <section className={`notification-readiness notification-readiness--${state}`} aria-labelledby={titleId} aria-busy={busy}>
@@ -90,7 +92,7 @@ export default function NotificationReadiness({
         {connected ? 'Live connection' : 'Reconnecting'}
       </p>
 
-      {pushEnabled && (
+      {pushEnabled && supported && (
         <button type="button" onClick={onDisable} disabled={busy} className="tap app-secondary-button notification-readiness-secondary w-full sm:w-auto">
           {busy ? 'Turning off…' : 'Turn off background alerts'}
         </button>

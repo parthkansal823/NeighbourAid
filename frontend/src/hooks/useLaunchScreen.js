@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import useReducedMotion from './useReducedMotion'
 
 // A launch screen should affirm that the app opened, but never delay someone
 // who may be trying to report or respond to an emergency. The hard limit is
@@ -6,12 +7,6 @@ import { useCallback, useEffect, useState } from 'react'
 export const LAUNCH_VISIBLE_MS = 820
 export const LAUNCH_EXIT_MS = 180
 export const LAUNCH_MAX_MS = 2200
-
-function prefersReducedMotion() {
-  return typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
 
 /**
  * Controls the short, one-time in-app launch transition.
@@ -23,23 +18,18 @@ function prefersReducedMotion() {
 export default function useLaunchScreen({ visibleFor = LAUNCH_VISIBLE_MS } = {}) {
   const [phase, setPhase] = useState('entering')
   const [entered, setEntered] = useState(false)
-  const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion)
+  const reducedMotion = useReducedMotion()
   const dismiss = useCallback(() => {
     setPhase(current => current === 'done' ? current : 'exiting')
   }, [])
 
   useEffect(() => {
-    const media = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-    const syncMotion = () => setReducedMotion(Boolean(media?.matches))
-    syncMotion()
-    media?.addEventListener?.('change', syncMotion)
-
     // Waiting one frame lets the initial, small mark paint before it settles
     // into place. The CSS transition is automatically removed for reduced
     // motion users.
     const enterFrame = window.requestAnimationFrame?.(() => setEntered(true))
       ?? window.setTimeout(() => setEntered(true), 0)
-    const duration = media?.matches ? 0 : Math.min(Math.max(0, visibleFor), LAUNCH_MAX_MS)
+    const duration = reducedMotion ? 0 : Math.min(Math.max(0, visibleFor), LAUNCH_MAX_MS)
     const dismissTimer = window.setTimeout(dismiss, duration)
     const failSafeTimer = window.setTimeout(() => setPhase('done'), LAUNCH_MAX_MS + LAUNCH_EXIT_MS)
 
@@ -48,9 +38,8 @@ export default function useLaunchScreen({ visibleFor = LAUNCH_VISIBLE_MS } = {})
       else window.clearTimeout(enterFrame)
       window.clearTimeout(dismissTimer)
       window.clearTimeout(failSafeTimer)
-      media?.removeEventListener?.('change', syncMotion)
     }
-  }, [dismiss, visibleFor])
+  }, [dismiss, visibleFor, reducedMotion])
 
   useEffect(() => {
     if (phase !== 'exiting') return undefined

@@ -9,7 +9,7 @@ vi.mock('../utils/androidUpdate', async original => ({ ...(await original()),
   startDirectUpdate: mocks.start, directUpdateStatus: mocks.status, installDirectUpdate: mocks.install, cancelDirectUpdate: mocks.cancel,
 }))
 const update = { versionCode: 42, versionName: 'build-42', downloadUrl: 'https://github.com/parthkansal823/NeighbourAid/releases/download/android-42/app-release.apk' }
-const renderAction = () => render(<I18nProvider><AndroidUpdateAction update={update} /></I18nProvider>)
+const renderAction = (candidate = update) => render(<I18nProvider><AndroidUpdateAction update={candidate} /></I18nProvider>)
 beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
@@ -75,6 +75,37 @@ describe('direct Android update', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Install update' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('saved data have not been changed')
     expect(screen.queryByText(/^Updated successfully$/)).not.toBeInTheDocument()
+  })
+  it.each(['CHECKSUM_MISMATCH', 'SIZE_MISMATCH'])('lets the user discard a %s failure and download a fresh APK', async code => {
+    const candidate = { ...update, sha256: 'a'.repeat(64), expectedSize: 4096 }
+    mocks.status.mockResolvedValue({ state: 'ready', versionCode: 42, checksumAvailable: true })
+    mocks.install.mockRejectedValueOnce(Object.assign(new Error('Integrity mismatch'), { code }))
+    renderAction(candidate)
+    await userEvent.click(await screen.findByRole('button', { name: 'Install update' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('checksum or file-size check')
+    expect(screen.getByRole('alert')).toHaveTextContent('Nothing was installed')
+    expect(screen.queryByText(/Confirm the update in the Android installer/)).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Discard downloaded APK' }))
+    expect(mocks.cancel).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Discard downloaded APK' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Update now' })).toBeEnabled()
+
+    mocks.status.mockResolvedValue({ state: 'downloading', percent: 10, versionCode: 42, checksumAvailable: true })
+    await userEvent.click(screen.getByRole('button', { name: 'Update now' }))
+    expect(mocks.start).toHaveBeenCalledExactlyOnceWith(candidate)
+    expect(await screen.findByRole('button', { name: 'Cancel download' })).toBeEnabled()
+    expect(mocks.install).toHaveBeenCalledOnce() // Never retry the discarded APK.
+  })
+  it('reports a resumed legacy download without checksum even when the latest release advertises one', async () => {
+    mocks.status.mockResolvedValue({ state: 'ready', versionCode: 42, checksumAvailable: false, checksumVerified: false })
+    renderAction({ ...update, sha256: 'a'.repeat(64), expectedSize: 4096 })
+    expect(await screen.findByRole('button', { name: 'Install update' })).toBeInTheDocument()
+    expect(screen.getByText(/This download does not include a checksum/)).toBeInTheDocument()
+    expect(screen.queryByText(/^SHA-256, package, version and signing key are checked before installation\.$/)).not.toBeInTheDocument()
+    expect(mocks.start).not.toHaveBeenCalled()
+    expect(mocks.install).not.toHaveBeenCalled()
   })
   it('does not open the installer after the update UI unmounts', async () => {
     let finish

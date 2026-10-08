@@ -92,10 +92,16 @@ class TestAgreementBetweenTheTwoDispatchPaths:
         import inspect
 
         from app.routes import alerts
-        from app.services import websocket
+        from app.services import notification_matching, push, websocket
 
-        for module in (alerts, websocket):
+        for module in (alerts, notification_matching):
             src = inspect.getsource(module)
             assert "radius_km_for(" in src, module.__name__
             # ...and neither reintroduces its own ladder.
             assert "SKILL_RADIUS_KM if skill_match" not in src, module.__name__
+        for module in (websocket, push):
+            assert "matching(" in inspect.getsource(module), module.__name__
+        radius = d.radius_km_for(has_vehicle, skill_match)
+        kwargs = {"skills": ["medical"] if skill_match else [], "has_vehicle": has_vehicle}
+        assert notification_matching.matching({"category": "medical"}, distance_km=radius, **kwargs)[0]
+        assert not notification_matching.matching({"category": "medical"}, distance_km=radius + .01, **kwargs)[0]

@@ -4,8 +4,8 @@ from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock
 
-from bson import ObjectId
 import pytest
+from bson import ObjectId
 
 
 @pytest.mark.asyncio
@@ -13,7 +13,7 @@ async def test_startup_indexes_volunteer_location_for_offline_push(monkeypatch):
     from app.db import client as db_client
 
     db = MagicMock()
-    for collection in (db.alerts, db.users, db.medical_reviews, db.clinicians):
+    for collection in (db.alerts, db.users, db.medical_reviews, db.clinicians, db.submission_receipts):
         collection.create_index = AsyncMock()
     mongo = MagicMock()
     mongo.get_default_database.return_value = db
@@ -26,6 +26,7 @@ async def test_startup_indexes_volunteer_location_for_offline_push(monkeypatch):
     # push_nearby uses $nearSphere on users.location, which MongoDB rejects
     # without a geospatial index even when all alert indexes exist.
     db.users.create_index.assert_any_await([("location", "2dsphere")])
+    db.submission_receipts.create_index.assert_any_await("expires_at", expireAfterSeconds=0)
 
 
 class EscalationStore:
