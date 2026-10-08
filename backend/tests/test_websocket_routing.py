@@ -26,11 +26,16 @@ class FakeWS:
     def __init__(self):
         self.sent: list[dict[str, Any]] = []
         self.closed = False
+        self.close_codes: list[int] = []
 
     async def send_text(self, text: str) -> None:
         if self.closed:
             raise RuntimeError("WS closed")
         self.sent.append(json.loads(text))
+
+    async def close(self, code=1000):
+        self.close_codes.append(code)
+        self.closed = True
 
 
 def _alert(category: str, lng: float, lat: float, oid: str = "abc") -> dict:
@@ -262,7 +267,8 @@ async def test_hung_socket_does_not_delay_healthy_volunteer_or_lose_push_fallbac
             healthy_sent.set()
 
     healthy = HealthyWS()
-    manager.register("hung", HungWS(), [76.7794, 30.7333])
+    hung = HungWS()
+    manager.register("hung", hung, [76.7794, 30.7333])
     manager.register("healthy", healthy, [76.7794, 30.7333])
     alert = _alert("medical", 76.7794, 30.7333)
     broadcast = asyncio.create_task(manager.broadcast_nearby(alert))
@@ -276,6 +282,8 @@ async def test_hung_socket_does_not_delay_healthy_volunteer_or_lose_push_fallbac
         await asyncio.gather(broadcast, return_exceptions=True)
 
     assert hung_cancelled.is_set()
+    assert hung.close_codes == [1011], "a retryable close lets the client reconnect"
+    assert healthy.close_codes == []
     assert manager.count() == 1
     assert manager.coords_for("hung") is None
     assert healthy.sent[0]["id"] == "abc"
@@ -296,9 +304,12 @@ async def test_timed_out_old_socket_does_not_unregister_replacement(monkeypatch,
             manager.register("v1", replacement, [76.7794, 30.7333])
             await asyncio.Event().wait()
 
-    manager.register("v1", ReplacedHungWS(), [76.7794, 30.7333])
+    old = ReplacedHungWS()
+    manager.register("v1", old, [76.7794, 30.7333])
     await asyncio.wait_for(manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333)), timeout=0.5)
     assert manager.count() == 1
+    assert old.close_codes == [1011]
+    assert replacement.close_codes == []
     assert fallback.call_args.args[2] == set()
     await manager.broadcast_nearby(_alert("medical", 76.7794, 30.7333, oid="next"))
     assert [item["id"] for item in replacement.sent] == ["next"]
@@ -331,3 +342,70 @@ async def test_cancelled_broadcast_cleans_up_inflight_send_and_preserves_socket(
     assert cancelled.is_set()
     assert manager.count() == 1, "caller cancellation is not a failed connection"
     fallback.assert_called_once_with(alert, DEFAULT_RADIUS_KM, set())
+
+
+@pytest.mark.asyncio
+async def test_hung_close_handshake_is_bounded_and_does_not_block_other_volunteers(monkeypatch, manager):
+    from app.services import websocket
+
+    monkeypatch.setattr(websocket, "SOCKET_CLOSE_TIMEOUT_SECONDS", 0.01)
+    fallback = MagicMock()
+    monkeypatch.setattr(websocket, "_schedule_push", fallback)
+    close_cancelled = asyncio.Event()
+
+    class HungCloseWS(FakeWS):
+        async def send_text(self, _text):
+            raise RuntimeError("failed transport")
+
+        async def close(self, code=1000):
+            self.close_codes.append(code)
+            try:
+                await asyncio.Event().wait()
+            finally:
+                close_cancelled.set()
+
+    failed, healthy = HungCloseWS(), FakeWS()
+    manager.register("failed", failed, [76.7794, 30.7333])
+    manager.register("healthy", healthy, [76.7794, 30.7333])
+    alert = _alert("medical", 76.7794, 30.7333)
+    await asyncio.wait_for(manager.broadcast_nearby(alert), timeout=0.5)
+    assert failed.close_codes == [1011]
+    assert close_cancelled.is_set()
+    assert len(healthy.sent) == 1
+    assert manager.count() == 1
+    fallback.assert_called_once_with(alert, DEFAULT_RADIUS_KM, {"healthy"})
+
+
+@pytest.mark.asyncio
+async def test_overlapping_broadcasts_keep_creation_before_enriched_update(monkeypatch, manager):
+    from app.services import websocket
+
+    monkeypatch.setattr(websocket, "_schedule_push", lambda *_args: None)
+    base_started, release_base, enriched_started = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    class OrderedWS(FakeWS):
+        async def send_text(self, text):
+            if json.loads(text)["revision"] == "base":
+                base_started.set()
+                await release_base.wait()
+            else:
+                enriched_started.set()
+            await super().send_text(text)
+
+    socket = OrderedWS()
+    manager.register("v1", socket, [76.7794, 30.7333])
+    alert = _alert("medical", 76.7794, 30.7333)
+    base = asyncio.create_task(manager.broadcast_nearby({**alert, "revision": "base"}))
+    enriched = None
+    try:
+        await asyncio.wait_for(base_started.wait(), timeout=0.5)
+        enriched = asyncio.create_task(manager.broadcast_nearby({**alert, "revision": "enriched"}))
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert not enriched_started.is_set(), "newer frames must queue behind the creation frame"
+        release_base.set()
+        await asyncio.wait_for(asyncio.gather(base, enriched), timeout=0.5)
+    finally:
+        release_base.set()
+        await asyncio.gather(base, *([enriched] if enriched else []), return_exceptions=True)
+    assert [message["revision"] for message in socket.sent] == ["base", "enriched"]

@@ -66,6 +66,7 @@ SKILL_RADIUS_KM = 15.0
 # A stalled device must not hold up the rest of an emergency fan-out. Failed
 # or timed-out writes remain eligible for the existing web-push fallback.
 SOCKET_SEND_TIMEOUT_SECONDS = 3.0
+SOCKET_CLOSE_TIMEOUT_SECONDS = 1.0
 
 
 class ConnectionManager:
@@ -76,6 +77,9 @@ class ConnectionManager:
         ] = {}
         self._positions: dict[str, dict] = {}
         self._preferences: dict[str, dict] = {}
+        # Registration-scoped locks preserve update order on each device,
+        # without making unrelated volunteers wait for that device's writes.
+        self._send_locks: dict[str, asyncio.Lock] = {}
 
     def register(
         self,
@@ -97,6 +101,7 @@ class ConnectionManager:
             "accuracy_m": None,
         }
         self._preferences[volunteer_id] = notification_preferences or {}
+        self._send_locks[volunteer_id] = asyncio.Lock()
 
     def update_coordinates(
         self, volunteer_id: str, ws: WebSocket, coordinates: List[float],
@@ -123,6 +128,7 @@ class ConnectionManager:
         self._active.pop(volunteer_id, None)
         self._positions.pop(volunteer_id, None)
         self._preferences.pop(volunteer_id, None)
+        self._send_locks.pop(volunteer_id, None)
 
     def count(self) -> int:
         return len(self._active)
@@ -161,24 +167,37 @@ class ConnectionManager:
 
         reached_live: set[str] = set()
 
-        async def send(vid, ws, distance, skill_match, has_vehicle):
+        async def send(vid, ws, lock, distance, skill_match, has_vehicle):
             try:
-                payload = public_workflow(dict(alert_dict))
-                payload.pop("_submission_key", None)
-                payload.pop("_submission_hash", None)
-                payload["is_skill_match"] = skill_match
-                payload["your_distance_km"] = round(distance, 2)
-                payload["your_has_vehicle"] = has_vehicle
-                payload["your_eta_minutes"] = eta_minutes(distance, has_vehicle)
-                await asyncio.wait_for(
-                    ws.send_text(json.dumps(payload, default=str)),
-                    timeout=SOCKET_SEND_TIMEOUT_SECONDS,
-                )
-                reached_live.add(vid)
+                async with lock:
+                    # A queued write must not resume on a removed/replaced
+                    # socket after an earlier write failed or timed out.
+                    current = self._active.get(vid)
+                    if current is None or current[0] is not ws:
+                        return
+                    payload = public_workflow(dict(alert_dict))
+                    payload.pop("_submission_key", None)
+                    payload.pop("_submission_hash", None)
+                    payload["is_skill_match"] = skill_match
+                    payload["your_distance_km"] = round(distance, 2)
+                    payload["your_has_vehicle"] = has_vehicle
+                    payload["your_eta_minutes"] = eta_minutes(distance, has_vehicle)
+                    await asyncio.wait_for(
+                        ws.send_text(json.dumps(payload, default=str)),
+                        timeout=SOCKET_SEND_TIMEOUT_SECONDS,
+                    )
+                    reached_live.add(vid)
             except Exception:
                 # The failed socket may already have a replacement. Cleanup
                 # must never unregister that newer connection.
                 self.disconnect(vid, ws)
+                try:
+                    # The client reconnects on close, not on registration
+                    # removal. Close only this failed transport, with a
+                    # retryable code; even its close handshake is bounded.
+                    await asyncio.wait_for(ws.close(code=1011), timeout=SOCKET_CLOSE_TIMEOUT_SECONDS)
+                except Exception:
+                    pass
 
         deliveries = []
         for vid, (ws, coords, skills, has_vehicle) in list(self._active.items()):
@@ -198,7 +217,7 @@ class ConnectionManager:
             # by someone's travel mode.
             if not eligible:
                 continue
-            deliveries.append((vid, ws, distance, skill_match, has_vehicle))
+            deliveries.append((vid, ws, self._send_locks[vid], distance, skill_match, has_vehicle))
 
         try:
             # All eligible volunteers start together, rather than waiting
