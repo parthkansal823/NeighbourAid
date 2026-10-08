@@ -168,7 +168,7 @@ class NotificationPreferences(BaseModel):
     """Filters for opted-in subscriptions; never grants delivery permission."""
 
     enabled: bool = True
-    categories: List[AlertCategory] = Field(default_factory=list, max_length=12)
+    categories: list[AlertCategory] = Field(default_factory=list, max_length=12)
     skill_matching: bool = True
     radius_km: float = Field(default=25, ge=1, le=25)
     include_sensitive_preview: bool = False
@@ -186,7 +186,7 @@ class ProfileUpdate(BaseModel):
     # clear a field is a field you can only ever add.
     phone: Optional[str] = Field(default=None, max_length=32)
     availability: Optional[Availability] = None
-    notification_preferences: Optional[NotificationPreferences] = None
+    notification_preferences: NotificationPreferences | None = None
 
     @field_validator("phone")
     @classmethod

@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel, Field, UUID4, field_validator
+from pydantic import UUID4, BaseModel, Field, field_validator
 
 
 class AlertCategory(str, Enum):
@@ -101,7 +101,7 @@ class AlertCreate(BaseModel):
     # and trust scores. See services/drill.py.
     is_drill: bool = False
     # Optional for older clients; stable across every retry of one submission.
-    client_submission_id: Optional[UUID4] = None
+    client_submission_id: UUID4 | None = None
 
     @field_validator("description")
     @classmethod
@@ -160,12 +160,12 @@ class AlertOut(BaseModel):
     flags: int = 0
     created_at: datetime
     resolved_at: Optional[datetime]
-    outcome: Optional[str] = None
-    outcome_at: Optional[datetime] = None
-    outcome_source: Optional[str] = None
-    response_progress: Optional[str] = None
+    outcome: str | None = None
+    outcome_at: datetime | None = None
+    outcome_source: str | None = None
+    response_progress: str | None = None
     backup_requested: bool = False
-    backup_needed_skills: List[VolunteerSkill] = Field(default_factory=list)
+    backup_needed_skills: list[VolunteerSkill] = Field(default_factory=list)
 
 
 class LocationSharingUpdate(BaseModel):
@@ -174,7 +174,7 @@ class LocationSharingUpdate(BaseModel):
 
 
 class BackupRequest(BaseModel):
-    needed_skills: List[VolunteerSkill] = Field(default_factory=list, max_length=8)
+    needed_skills: list[VolunteerSkill] = Field(default_factory=list, max_length=8)
     note: str = Field(default="", max_length=300)
 
 

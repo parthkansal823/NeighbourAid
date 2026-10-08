@@ -2,6 +2,7 @@ import asyncio
 import logging
 import math
 from datetime import datetime, timedelta, timezone
+from typing import Annotated
 from uuid import uuid4
 
 from bson import ObjectId
@@ -52,6 +53,12 @@ from ..services.websocket import (
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+
+# Typed dependency aliases for new workflow endpoints. Dependency providers
+# remain role-checked by FastAPI; direct unit callers still pass plain dicts.
+CurrentUserPayload = Annotated[dict, Depends(get_current_user)]
+VolunteerPayload = Annotated[dict, Depends(require_role("volunteer"))]
+ReporterPayload = Annotated[dict, Depends(require_role("reporter"))]
 
 # Strong references to in-flight background tasks. asyncio only holds a weak
 # reference to a task, so without this a running enrichment can be collected
@@ -1213,7 +1220,7 @@ async def _incident(alert_id):
 
 
 @router.get("/coordination/mine")
-async def my_coordination(payload: dict = Depends(require_role("volunteer"))):
+async def my_coordination(payload: VolunteerPayload):
     uid = ObjectId(payload["sub"])
     cursor = get_db().alerts.find({
         "status": "accepted",
@@ -1234,14 +1241,14 @@ async def my_coordination(payload: dict = Depends(require_role("volunteer"))):
 
 
 @router.get("/{alert_id}/coordination")
-async def get_coordination(alert_id: str, payload: dict = Depends(get_current_user)):
+async def get_coordination(alert_id: str, payload: CurrentUserPayload):
     return coordination_for(await _incident(alert_id), payload["sub"])
 
 
 @router.patch("/{alert_id}/location-sharing", dependencies=[Depends(limit_write)])
 async def update_location_sharing(
     alert_id: str, body: LocationSharingUpdate,
-    payload: dict = Depends(require_role("volunteer")),
+    payload: VolunteerPayload,
 ):
     now = now_utc()
     return await _workflow_write(
@@ -1257,7 +1264,7 @@ async def update_location_sharing(
 
 
 @router.post("/{alert_id}/backup", dependencies=[Depends(limit_write)])
-async def request_backup(alert_id: str, body: BackupRequest, payload: dict = Depends(get_current_user)):
+async def request_backup(alert_id: str, body: BackupRequest, payload: CurrentUserPayload):
     uid = ObjectId(payload["sub"])
     return await _workflow_write(
         {"_id": _oid(alert_id), "status": "accepted", "$or": [{"reporter_id": uid}, {"accepted_by": uid}]},
@@ -1272,7 +1279,7 @@ async def request_backup(alert_id: str, body: BackupRequest, payload: dict = Dep
 
 
 @router.delete("/{alert_id}/backup", dependencies=[Depends(limit_write)])
-async def cancel_backup(alert_id: str, payload: dict = Depends(get_current_user)):
+async def cancel_backup(alert_id: str, payload: CurrentUserPayload):
     uid = ObjectId(payload["sub"])
     return await _workflow_write(
         {"_id": _oid(alert_id), "status": "accepted", "$or": [{"reporter_id": uid}, {"accepted_by": uid}]},
@@ -1283,7 +1290,7 @@ async def cancel_backup(alert_id: str, payload: dict = Depends(get_current_user)
 
 
 @router.post("/{alert_id}/backup/offer", dependencies=[Depends(limit_write)])
-async def offer_backup(alert_id: str, body: BackupOffer, payload: dict = Depends(require_role("volunteer"))):
+async def offer_backup(alert_id: str, body: BackupOffer, payload: VolunteerPayload):
     uid = ObjectId(payload["sub"])
     user = await get_db().users.find_one({"_id": uid}, {"name": 1, "role": 1})
     if not user or user.get("role") != "volunteer":
@@ -1305,7 +1312,7 @@ async def offer_backup(alert_id: str, body: BackupOffer, payload: dict = Depends
 
 
 @router.post("/{alert_id}/handoff", dependencies=[Depends(limit_write)])
-async def offer_handoff(alert_id: str, body: HandoffRequest, payload: dict = Depends(require_role("volunteer"))):
+async def offer_handoff(alert_id: str, body: HandoffRequest, payload: VolunteerPayload):
     uid = ObjectId(payload["sub"])
     target = str(_oid(body.volunteer_id))
     if target == payload["sub"]:
@@ -1326,7 +1333,7 @@ async def offer_handoff(alert_id: str, body: HandoffRequest, payload: dict = Dep
 
 
 @router.post("/{alert_id}/handoff/accept", dependencies=[Depends(limit_write)])
-async def accept_handoff(alert_id: str, body: HandoffAccept, payload: dict = Depends(require_role("volunteer"))):
+async def accept_handoff(alert_id: str, body: HandoffAccept, payload: VolunteerPayload):
     now = now_utc()
     return await _workflow_write(
         {
@@ -1344,7 +1351,7 @@ async def accept_handoff(alert_id: str, body: HandoffAccept, payload: dict = Dep
 
 
 @router.patch("/{alert_id}/progress", dependencies=[Depends(limit_write)])
-async def update_progress(alert_id: str, body: ProgressUpdate, payload: dict = Depends(require_role("volunteer"))):
+async def update_progress(alert_id: str, body: ProgressUpdate, payload: VolunteerPayload):
     eligible = [None, "accepted"] if body.progress.value == "on_the_way" else [None, "accepted", "on_the_way"]
     return await _workflow_write(
         {"_id": _oid(alert_id), "status": "accepted", "accepted_by": ObjectId(payload["sub"]), "response_progress": {"$in": eligible}},
@@ -1355,7 +1362,7 @@ async def update_progress(alert_id: str, body: ProgressUpdate, payload: dict = D
 
 
 @router.delete("/{alert_id}/handoff", dependencies=[Depends(limit_write)])
-async def cancel_handoff(alert_id: str, payload: dict = Depends(require_role("volunteer"))):
+async def cancel_handoff(alert_id: str, payload: VolunteerPayload):
     return await _workflow_write(
         {"_id": _oid(alert_id), "status": "accepted", "accepted_by": ObjectId(payload["sub"]), "handoff": {"$ne": None}},
         {"$set": {"handoff": None}, "$push": {"workflow_events": event_update("handoff_cancelled", payload["sub"])}},
@@ -1364,7 +1371,7 @@ async def cancel_handoff(alert_id: str, payload: dict = Depends(require_role("vo
 
 
 @router.post("/{alert_id}/handoff/decline", dependencies=[Depends(limit_write)])
-async def decline_handoff(alert_id: str, body: HandoffAccept, payload: dict = Depends(require_role("volunteer"))):
+async def decline_handoff(alert_id: str, body: HandoffAccept, payload: VolunteerPayload):
     now = now_utc()
     result = await get_db().alerts.find_one_and_update(
         {"_id": _oid(alert_id), "status": "accepted", "handoff.id": str(body.handoff_id),
@@ -1378,7 +1385,7 @@ async def decline_handoff(alert_id: str, body: HandoffAccept, payload: dict = De
 
 
 @router.patch("/{alert_id}/confirm-safe", dependencies=[Depends(limit_write)])
-async def confirm_safe(alert_id: str, payload: dict = Depends(require_role("reporter"))):
+async def confirm_safe(alert_id: str, payload: ReporterPayload):
     now = now_utc()
     return await _workflow_write(
         {"_id": _oid(alert_id), "reporter_id": ObjectId(payload["sub"]), "is_anonymous": {"$ne": True}, "is_drill": {"$ne": True}, "status": {"$in": ["accepted", "resolved"]}, "outcome": {"$ne": "reporter_confirmed_safe"}},

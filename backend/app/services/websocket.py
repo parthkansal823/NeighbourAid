@@ -10,7 +10,7 @@ from .dispatch import eta_minutes
 from .alert_workflow import public_workflow
 from .notification_matching import CATEGORY_PREFERRED_SKILLS, matching
 
-__all__ = ["CATEGORY_PREFERRED_SKILLS", "ConnectionManager", "DEFAULT_RADIUS_KM", "SKILL_RADIUS_KM", "manager"]
+__all__ = ["CATEGORY_PREFERRED_SKILLS", "DEFAULT_RADIUS_KM", "SKILL_RADIUS_KM", "ConnectionManager", "manager"]
 
 log = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ class ConnectionManager:
         coordinates: List[float],
         skills: Optional[List[str]] = None,
         has_vehicle: bool = False,
-        notification_preferences: Optional[dict] = None,
+        notification_preferences: dict | None = None,
     ):
         self._active[volunteer_id] = (
             ws,
@@ -134,7 +134,7 @@ class ConnectionManager:
             return None
         return list(entry[1])
 
-    def position_for(self, volunteer_id: str) -> Optional[dict]:
+    def position_for(self, volunteer_id: str) -> dict | None:
         """Observed socket position only; never substitutes profile/home data."""
         position = self._positions.get(volunteer_id)
         if volunteer_id not in self._active or not position:
