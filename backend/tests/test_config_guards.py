@@ -125,6 +125,11 @@ class TestOptionalIntegrationsLine:
         import app.main as main
         from app.core.config import settings
 
+        # The suite disables heavyweight local model loading globally. These
+        # logging tests deliberately exercise the operator-facing config line
+        # instead, so start from a neutral kill-switch state unless a case
+        # explicitly supplies one below.
+        monkeypatch.delenv("NA_DISABLE_AI_MODEL", raising=False)
         for key, value in env.items():
             if key.startswith("NA_"):
                 monkeypatch.setenv(key, value)

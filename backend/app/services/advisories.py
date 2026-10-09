@@ -31,6 +31,11 @@ _partial = False
 _task: asyncio.Task | None = None
 
 
+def _monotonic() -> float:
+    """A local clock seam; don't mutate asyncio's process-wide clock in tests."""
+    return time.monotonic()
+
+
 def _xml(raw: bytes):
     # Normalize UTF-16/32 NULs too, so the declaration guard cannot be
     # bypassed just by changing the feed's character encoding.
@@ -164,8 +169,8 @@ async def _refresh() -> None:
 
 async def fetch_advisories() -> dict:
     global _task, _attempt
-    if (not _task or _task.done()) and (not _attempt or time.monotonic() - _attempt >= TTL):
-        _attempt = time.monotonic()
+    if (not _task or _task.done()) and (not _attempt or _monotonic() - _attempt >= TTL):
+        _attempt = _monotonic()
         _task = asyncio.create_task(_refresh())
     if _task and not _task.done():
         try:

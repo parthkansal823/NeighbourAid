@@ -73,7 +73,7 @@ def test_entity_declarations_are_rejected_in_other_encodings_too(encoding):
 async def test_first_request_fetches_even_on_a_recently_booted_machine(monkeypatch):
     refresh = AsyncMock()
     monkeypatch.setattr(service, "_refresh", refresh)
-    monkeypatch.setattr(service.time, "monotonic", lambda: 12.0)
+    monkeypatch.setattr(service, "_monotonic", lambda: 12.0)
     await asyncio.gather(service.fetch_advisories(), service.fetch_advisories())
     assert refresh.await_count == 1
 

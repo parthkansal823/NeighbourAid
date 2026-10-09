@@ -28,6 +28,11 @@ from ..services.enrich import enrich_alert
 from ..services.matching import MATCH_RADIUS_M, nearby_resources
 from ..services.photo import analyze_photos
 from ..services.ratelimit import anonymous_alert_limiter
+from ..services.review import (
+    initial_review_fields,
+    is_publicly_visible,
+    run_two_stage_review,
+)
 from ..services.submission_receipts import (
     begin_submission, complete_submission, insert_submission_alert, release_submission,
 )
@@ -82,6 +87,48 @@ def _schedule_creation_broadcast(alert: dict) -> None:
     task.add_done_callback(_background_tasks.discard)
 
 
+def _schedule_post_insert_processing(
+    db,
+    alert_id: ObjectId,
+    lat: float,
+    lng: float,
+    category: str,
+    witnesses: int,
+    corroborating_count: int,
+    photo_evidence_score: int,
+) -> None:
+    """Keep all optional post-insert work off the reporter's request path.
+
+    The review stage runs first so its fast local Gemma pass owns the model
+    admission before lower-priority enrichment asks it to improve a headline
+    or a fallback urgency.  Both failures are intentionally isolated: a saved
+    alert remains a saved alert even if a local model or third-party lookup is
+    unavailable.
+    """
+    async def process() -> None:
+        try:
+            await run_two_stage_review(db, alert_id)
+        except Exception:  # noqa: BLE001 -- no background error can undo a report
+            log.info("AI review processing skipped")
+        try:
+            await enrich_alert(
+                db,
+                alert_id,
+                lat,
+                lng,
+                category,
+                witnesses=witnesses,
+                corroborating_count=corroborating_count,
+                photo_evidence_score=photo_evidence_score,
+            )
+        except Exception:  # noqa: BLE001 -- enrich_alert is already defensive
+            log.info("Alert enrichment processing skipped")
+
+    task = asyncio.create_task(process())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 # Open alerts older than this with no volunteer accept are auto-resolved on
 # next /nearby read. Lazy cleanup avoids a cron/task runner for a single-op
 # chore and keeps the public feed from growing stale indefinitely.
@@ -105,6 +152,7 @@ FLAG_HIDE_THRESHOLD = 3
 # the card is expanded. This is the single biggest perf fix after adding
 # photo uploads.
 _LIST_PROJECTION = {"photos": 0, "photo_checks": 0, "flagged_by": 0, "witnessed_by": 0}
+_PUBLIC_REVIEW_QUERY = {"review_visibility": {"$nin": ["held", "restricted"]}}
 
 
 def _oid(alert_id: str) -> ObjectId:
@@ -175,6 +223,12 @@ def _serialize(doc: dict, include_photos: bool = True) -> dict:
     doc.pop("photo_checks", None)
     doc.pop("_submission_key", None)
     doc.pop("_submission_hash", None)
+    # Stage bookkeeping tells the server how to enforce visibility.  The
+    # public lifecycle label is intentionally retained as `review_status`,
+    # but clients never need the internal model availability/admission data.
+    doc.pop("review_visibility", None)
+    doc.pop("first_review_status", None)
+    doc.pop("second_review_status", None)
     return public_workflow(doc)
 
 
@@ -279,6 +333,18 @@ async def _auto_escalate_unaccepted(db) -> list[dict]:
                 }
             )
             async for doc in cursor:
+                # Legacy documents have no review field and stay eligible.
+                # New held/restricted documents must neither escalate in the
+                # background nor become urgency-public by accident. Carry an
+                # exact public field through the atomic write too, so a
+                # concurrent reviewer restriction wins over this stale read.
+                if not is_publicly_visible(doc):
+                    continue
+                review_guard = (
+                    {"review_visibility": doc["review_visibility"]}
+                    if "review_visibility" in doc
+                    else {}
+                )
                 updated = await db.alerts.find_one_and_update(
                     # Acceptance, resolution or an urgency-clock reset can
                     # happen after the cursor read. Recheck all eligibility
@@ -289,6 +355,7 @@ async def _auto_escalate_unaccepted(db) -> list[dict]:
                         "status": "open",
                         "accepted_by": None,
                         "urgency": from_u,
+                        **review_guard,
                         **stale_at_current_urgency,
                     },
                     {
@@ -383,8 +450,11 @@ async def get_nearby(request: Request, lat: float, lng: float, km: float = 5.0):
             },
             "status": {"$ne": "resolved"},
             # Hide heavily-flagged alerts from public reads
-            "flags": {"$lt": FLAG_HIDE_THRESHOLD},
-            # One card per incident. A report folded into an earlier one is
+                "flags": {"$lt": FLAG_HIDE_THRESHOLD},
+                # Held/restricted review states are server-side moderation
+                # decisions. Missing fields retain pre-review visibility.
+                **_PUBLIC_REVIEW_QUERY,
+                # One card per incident. A report folded into an earlier one is
             # already counted there as a witness, so showing it again would
             # split volunteers across duplicates of the same emergency and
             # double-count it in every total on the page. `None` also matches
@@ -447,6 +517,7 @@ async def heatmap(lat: float, lng: float, km: float = 25.0, hours: int = 72):
             },
             "created_at": {"$gte": since},
             "flags": {"$lt": FLAG_HIDE_THRESHOLD},
+            **_PUBLIC_REVIEW_QUERY,
             # Same reason as /nearby: five reports of one fire should not
             # render as five overlapping hotspots.
             "duplicate_of": None,
@@ -583,6 +654,7 @@ async def _create_signed_alert(alert, payload, claim):
         "eta_set_at": None,
         "flags": 0,
         "flagged_by": [],
+        **initial_review_fields(t.urgency),
     }
     doc["workflow_events"] = [workflow_event("posted", reporter_id, doc["created_at"])]
     doc, created = await insert_submission_alert(db, claim, doc)
@@ -606,31 +678,23 @@ async def _create_signed_alert(alert, payload, claim):
     broadcast_doc = {k: v for k, v in doc.items() if k not in ("photos", "photo_checks", "flagged_by", "witnessed_by")}
     broadcast_doc["_id"] = doc["_id"]
     serialized_light = _serialize(broadcast_doc, include_photos=False)
-    _schedule_creation_broadcast(serialized_light)
+    if is_publicly_visible(doc):
+        _schedule_creation_broadcast(serialized_light)
+        # Fan out to external automation only after a held report becomes
+        # volunteer-visible; otherwise an integration can accidentally turn
+        # an intentionally pending review into a public alert.
+        fire_alert_created(serialized_light)
 
-    # Fan out to any external automation (n8n / Zapier / etc.). Fire-and-forget.
-    # Address + weather run after the alert is live. `create_task` not
-    # `await`: the reporter's response must not wait on a third-party
-    # lookup, and the enricher re-broadcasts when it lands so open feeds
-    # update without a refresh.
-    task = asyncio.create_task(
-        enrich_alert(
-            db,
-            doc["_id"],
-            lat,
-            lng,
-            alert.category.value,
-            witnesses=doc["witnesses"],
-            corroborating_count=len(corroborating_ids),
-            photo_evidence_score=photo_analysis["photo_evidence_score"],
-        )
+    _schedule_post_insert_processing(
+        db,
+        doc["_id"],
+        lat,
+        lng,
+        alert.category.value,
+        witnesses=doc["witnesses"],
+        corroborating_count=len(corroborating_ids),
+        photo_evidence_score=photo_analysis["photo_evidence_score"],
     )
-    # asyncio holds only a weak reference to a task, so without this a
-    # running enrichment can be collected partway through and vanish.
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
-
-    fire_alert_created(serialized_light)
 
     # Return the full doc with photos so the reporter can see what they posted
     return response
@@ -748,6 +812,7 @@ async def _create_anonymous_alert(alert, request, claim):
         "eta_set_at": None,
         "flags": 0,
         "flagged_by": [],
+        **initial_review_fields(t.urgency),
     }
     doc["workflow_events"] = [workflow_event("posted", now=doc["created_at"])]
     doc, created = await insert_submission_alert(db, claim, doc)
@@ -756,29 +821,19 @@ async def _create_anonymous_alert(alert, request, claim):
         return response
 
     serialized_light = _serialize({**doc}, include_photos=False)
-    _schedule_creation_broadcast(serialized_light)
-    # Address + weather run after the alert is live. `create_task` not
-    # `await`: the reporter's response must not wait on a third-party
-    # lookup, and the enricher re-broadcasts when it lands so open feeds
-    # update without a refresh.
-    task = asyncio.create_task(
-        enrich_alert(
-            db,
-            doc["_id"],
-            lat,
-            lng,
-            alert.category.value,
-            witnesses=doc["witnesses"],
-            corroborating_count=len(corroborating_ids),
-            photo_evidence_score=photo_analysis["photo_evidence_score"],
-        )
+    if is_publicly_visible(doc):
+        _schedule_creation_broadcast(serialized_light)
+        fire_alert_created(serialized_light)
+    _schedule_post_insert_processing(
+        db,
+        doc["_id"],
+        lat,
+        lng,
+        alert.category.value,
+        witnesses=doc["witnesses"],
+        corroborating_count=len(corroborating_ids),
+        photo_evidence_score=photo_analysis["photo_evidence_score"],
     )
-    # asyncio holds only a weak reference to a task, so without this a
-    # running enrichment can be collected partway through and vanish.
-    _background_tasks.add(task)
-    task.add_done_callback(_background_tasks.discard)
-
-    fire_alert_created(serialized_light)
     return response
 
 
@@ -790,7 +845,7 @@ async def get_alert(alert_id: str, include_photos: bool = True):
     doc = await db.alerts.find_one({"_id": oid})
     if not doc:
         raise HTTPException(404, "Alert not found")
-    if (doc.get("flags") or 0) >= FLAG_HIDE_THRESHOLD:
+    if (doc.get("flags") or 0) >= FLAG_HIDE_THRESHOLD or not is_publicly_visible(doc):
         raise HTTPException(404, "Alert not found")
     return _serialize(doc, include_photos=include_photos)
 
@@ -801,10 +856,12 @@ async def get_photos(alert_id: str):
     size. Returned as a plain list of data URLs."""
     db = get_db()
     oid = _oid(alert_id)
-    doc = await db.alerts.find_one({"_id": oid}, {"photos": 1, "flags": 1})
+    doc = await db.alerts.find_one(
+        {"_id": oid}, {"photos": 1, "flags": 1, "review_visibility": 1}
+    )
     if not doc:
         raise HTTPException(404, "Alert not found")
-    if (doc.get("flags") or 0) >= FLAG_HIDE_THRESHOLD:
+    if (doc.get("flags") or 0) >= FLAG_HIDE_THRESHOLD or not is_publicly_visible(doc):
         raise HTTPException(404, "Alert not found")
     return {"photos": doc.get("photos") or []}
 
@@ -823,9 +880,10 @@ async def get_matching_resources(alert_id: str):
     """
     db = get_db()
     doc = await db.alerts.find_one(
-        {"_id": _oid(alert_id)}, {"category": 1, "location": 1, "flags": 1}
+        {"_id": _oid(alert_id)},
+        {"category": 1, "location": 1, "flags": 1, "review_visibility": 1},
     )
-    if not doc or (doc.get("flags") or 0) >= FLAG_HIDE_THRESHOLD:
+    if not doc or (doc.get("flags") or 0) >= FLAG_HIDE_THRESHOLD or not is_publicly_visible(doc):
         raise HTTPException(404, "Alert not found")
 
     coords = (doc.get("location") or {}).get("coordinates") or []
@@ -1044,6 +1102,8 @@ async def witness_alert(
     alert = await db.alerts.find_one({"_id": oid})
     if not alert:
         raise HTTPException(404, "Alert not found")
+    if not is_publicly_visible(alert):
+        raise HTTPException(404, "Alert not found")
     if alert["status"] == "resolved":
         raise HTTPException(409, "Alert already resolved")
     if str(alert["reporter_id"]) == user_id:
@@ -1096,8 +1156,12 @@ async def flag_alert(
     user_id = payload["sub"]
     oid = _oid(alert_id)
 
-    alert = await db.alerts.find_one({"_id": oid}, {"reporter_id": 1, "flagged_by": 1, "flags": 1})
+    alert = await db.alerts.find_one(
+        {"_id": oid}, {"reporter_id": 1, "flagged_by": 1, "flags": 1, "review_visibility": 1}
+    )
     if not alert:
+        raise HTTPException(404, "Alert not found")
+    if not is_publicly_visible(alert):
         raise HTTPException(404, "Alert not found")
     if str(alert["reporter_id"]) == user_id:
         raise HTTPException(400, "You cannot flag your own alert")
@@ -1146,7 +1210,7 @@ async def accept_alert(
     db = get_db()
     oid = _oid(alert_id)
     result = await db.alerts.find_one_and_update(
-        {"_id": oid, "status": "open"},
+        {"_id": oid, "status": "open", **_PUBLIC_REVIEW_QUERY},
         {
             "$set": {
                 "status": "accepted", "accepted_by": ObjectId(payload["sub"]),

@@ -1,3 +1,5 @@
+import { isCommunityVisibleAlert } from './alertReview'
+
 function searchText(value) {
   return String(value ?? '').normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim()
 }
@@ -24,6 +26,7 @@ export function filterVolunteerAlerts({
   const terms = searchText(query).split(' ').filter(Boolean)
 
   return alerts.filter((alert) => {
+    if (!isCommunityVisibleAlert(alert)) return false
     if (alert.status !== 'open' && alert.status !== 'accepted') return false
     if (alert.urgency === 'CRITICAL') return true
 

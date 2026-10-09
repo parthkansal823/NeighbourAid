@@ -53,6 +53,8 @@ frontend/dist-demo/
 frontend/native/**/build/
 frontend/native/**/.gradle/
 frontend/.vite/
+# Vitest/node compile cache created by the Windows test runner.
+frontend/.tmp-vitest-cache/
 frontend/test-results/
 frontend/audit-reports/
 backend/pip-audit.json
@@ -127,6 +129,7 @@ frontend/.wrangler/
 
 # Generated edge authentication shared by the Worker and laptop containers.
 deploy/laptop/edge.env
+deploy/laptop/ai.env
 deploy/laptop/app.env
 deploy/laptop/mongo.env
 deploy/laptop/runtime-secrets.json

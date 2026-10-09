@@ -76,6 +76,20 @@ class Settings(BaseSettings):
     # many layers.
     LLM_GPU_LAYERS: int = 0
 
+    # ---- Optional second-stage local verifier (see app/services/llm.py) ----
+    #
+    # The regular text model is the fast first pass (normally a small Gemma
+    # GGUF).  This is deliberately a separate path so an operator can mount a
+    # stronger Qwen-class GGUF in Docker for the slower, conservative review
+    # that follows it.  It is never a cloud/API integration: both models use
+    # llama.cpp in this process, and an unset/unreadable path leaves the
+    # deterministic alert flow unchanged.
+    LLM_VERIFIER_MODEL_PATH: str = ""
+    LLM_VERIFIER_TIMEOUT_SECONDS: float = Field(default=45.0, gt=0, le=300)
+    LLM_VERIFIER_THREADS: int = Field(default=4, ge=1, le=64)
+    LLM_VERIFIER_CONTEXT_TOKENS: int = Field(default=4096, ge=1024, le=16384)
+    LLM_VERIFIER_GPU_LAYERS: int = Field(default=0, ge=0)
+
     # ---- Optional vision model (see app/services/vision.py) ----
     #
     # Separate from LLM_MODEL_PATH on purpose: this is a different model with

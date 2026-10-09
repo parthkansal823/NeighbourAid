@@ -35,6 +35,12 @@ describe('truthful, text-first emergency cards', () => {
     expect(screen.getByText('Closed after expiry; safety not confirmed')).toBeVisible()
     expect(screen.queryByText('Reporter confirmed safe')).not.toBeInTheDocument()
   })
+  it('shows an honest, non-authoritative review state when the server supplies one', () => {
+    mount({ ...alert, review_status: 'provisional', urgency: 'HIGH' })
+    expect(screen.getByText('Provisional — review continuing')).toBeVisible()
+    expect(screen.getByText('Urgent alerts stay visible while automated safety review continues.')).toBeVisible()
+    expect(screen.queryByText(/verified alert/i)).not.toBeInTheDocument()
+  })
   it('requires explicit confirmation before a volunteer reports resolved', async () => {
     mocks.user = { id: 'lead', role: 'volunteer' }
     const onUpdate = vi.fn()

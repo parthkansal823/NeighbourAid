@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { runCompose } from './server-tools.mjs'
 
+// Kept as a CLI flag instead of a shell environment assignment so the same
+// `server:ai:test` command works from PowerShell, cmd, macOS and Linux.
+if (process.argv.includes('--ai')) process.env.NEIGHBOURAID_AI_PROFILE = '1'
+
 // Deliberately operates only inside the project's Docker API. No credentials
 // leave the container, and no public users/alerts are created by this probe.
 const probe = `

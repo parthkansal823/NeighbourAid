@@ -8,6 +8,12 @@ import { ensureRuntimeConfig, MONGO_VOLUME, SERVER_DIR } from './server-config.m
 import { rotateRuntimeConfig } from './server-rotate.mjs'
 
 const action = process.argv[2]
+const aiMode = process.argv.includes('--ai')
+
+// Read by runCompose at invocation time. Keep this process-local so a normal
+// `server:*` command can never accidentally select the heavier image/mount.
+if (aiMode) process.env.NEIGHBOURAID_AI_PROFILE = '1'
+const command = (name) => `npm run server:${aiMode ? 'ai:' : ''}${name}`
 
 export async function edgeSecret({ create = false, file = EDGE_FILE } = {}) {
   try {
@@ -17,7 +23,7 @@ export async function edgeSecret({ create = false, file = EDGE_FILE } = {}) {
     return secret
   } catch (error) {
     if (error.code !== 'ENOENT') throw error
-    if (!create) throw new Error('Run npm run server:setup once before connecting.')
+    if (!create) throw new Error(`Run ${command('setup')} once before connecting.`)
     const secret = randomBytes(32).toString('hex')
     await writeFile(file, `EDGE_SECRET=${secret}\n`, { flag: 'wx', mode: 0o600 })
     return secret
@@ -37,7 +43,7 @@ const pendingRotation = () => access(resolve(SERVER_DIR, 'rotation.private.json'
 async function prepare({ allowRotation = false } = {}) {
   requireDocker()
   if (!allowRotation && await pendingRotation()) {
-    throw new Error('A credential rotation is unfinished. Keep the private journal and run server:rotate before connecting.')
+    throw new Error(`A credential rotation is unfinished. Keep the private journal and run ${command('rotate')} before connecting.`)
   }
   let existingData = false
   try {
@@ -60,7 +66,7 @@ async function setup() {
     input: `${secret}\n`,
     stdio: ['pipe', 'inherit', 'inherit'],
   })
-  console.log('Docker database/JWT credentials and edge authentication configured. All local secrets are gitignored.\nRun npm run server:connect. Keep the generated secrets and MongoDB volumes for subsequent starts.')
+  console.log(`Docker database/JWT credentials and edge authentication configured. All local secrets are gitignored.\nRun ${command('connect')}. Keep the generated secrets and MongoDB volumes for subsequent starts.`)
 }
 
 async function connect() {
@@ -89,9 +95,9 @@ async function connect() {
   try {
     await setApiOrigin(origin)
   } catch {
-    throw new Error('Docker MongoDB/API/tunnel are running, but Cloudflare routing was NOT updated. If Wrangler reports authentication error 10000, run npx wrangler login in frontend/, approve your own account in the browser, then retry npm run server:connect. Check CONFIG/account permissions if login does not help. Do not delete database volumes or run server:setup again.')
+    throw new Error(`Docker MongoDB/API/tunnel are running, but Cloudflare routing was NOT updated. If Wrangler reports authentication error 10000, run npx wrangler login in frontend/, approve your own account in the browser, then retry ${command('connect')}. Check CONFIG/account permissions if login does not help. Do not delete database volumes or run ${command('setup')} again.`)
   }
-  console.log('Docker MongoDB, API and tunnel are running. The real web app and Android APK use the same Worker URL.\nKV routing can take about a minute to propagate. Stop the stack with npm run server:stop; database volumes are preserved.')
+  console.log(`Docker MongoDB, API and tunnel are running. The real web app and Android APK use the same Worker URL.\nKV routing can take about a minute to propagate. Stop the stack with ${command('stop')}; database volumes are preserved.`)
 }
 
 async function backup() {
@@ -131,7 +137,7 @@ try {
     runCompose(['down'])
     console.log('MongoDB, API and tunnel stopped. Database volumes are preserved; the Cloudflare website is still available.')
   } else if (action === 'status') runCompose(['ps'])
-  else throw new Error('Use npm run server:init, server:setup, server:connect, server:stop, server:status, server:backup or server:rotate.')
+  else throw new Error(`Use ${command('init')}, ${command('setup')}, ${command('connect')}, ${command('stop')}, ${command('status')}, ${command('backup')} or ${command('rotate')}.`)
 } catch (error) {
   // execFile errors can embed captured stderr. Keep diagnostics to the
   // operation, not data from configuration files or command input.

@@ -100,6 +100,7 @@ def _log_optional_integrations() -> None:
             settings.VAPID_PUBLIC_KEY.strip() and settings.VAPID_PRIVATE_KEY.strip()
         ),
         "llm-text": bool(settings.LLM_MODEL_PATH.strip()),
+        "llm-verifier": bool(settings.LLM_VERIFIER_MODEL_PATH.strip()),
         "llm-vision": bool(
             settings.LLM_VISION_MODEL_PATH.strip()
             and settings.LLM_VISION_MMPROJ_PATH.strip()
@@ -108,7 +109,7 @@ def _log_optional_integrations() -> None:
     if os.getenv("NA_DISABLE_AI_MODEL") == "1":
         # The kill switch overrides the paths, so reporting the paths alone
         # would tell the operator the opposite of what is running.
-        wired["llm-text"] = wired["llm-vision"] = False
+        wired["llm-text"] = wired["llm-verifier"] = wired["llm-vision"] = False
 
     on = sorted(name for name, ok in wired.items() if ok)
     off = sorted(name for name, ok in wired.items() if not ok)

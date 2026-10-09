@@ -1,0 +1,23 @@
+# Opt-in extension for the completely local two-stage AI review path.
+#
+# Use this only through `npm run server:ai:*`, which adds this file after the
+# ordinary laptop Compose file. The normal stack stays on its small `runtime`
+# target and does not see this mount, the extra llama.cpp dependency, or these
+# model paths.
+#
+# `ai.env` is deliberately machine-local (copied from ai.env.example). It
+# contains container paths and performance settings, never credentials. The
+# model bytes remain in gitignored ../../models and are mounted read-only; no
+# Docker build or application startup downloads weights or calls a model API.
+services:
+  api:
+    build:
+      target: ai
+    env_file:
+      - path: ./ai.env
+        required: true
+    volumes:
+      - type: bind
+        source: ../../models
+        target: /models
+        read_only: true

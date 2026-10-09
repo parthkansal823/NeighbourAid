@@ -190,6 +190,16 @@ export default function VolunteerFeed() {
 
   const onAlert = useCallback(
     (incoming) => {
+      // A review restriction is intentionally a small control frame rather
+      // than an alert-shaped upsert. Remove the card immediately so a live
+      // volunteer view agrees with the server's filtered REST feed; never
+      // notify, speak, or treat this as a newly reported incident.
+      if (incoming?.type === 'alert_restricted' && typeof incoming.id === 'string') {
+        knownIds.current.delete(incoming.id)
+        setAlerts((prev) => prev.filter((alert) => alert.id !== incoming.id))
+        return
+      }
+      if (!incoming || typeof incoming.id !== 'string') return
       const isNew = !knownIds.current.has(incoming.id)
       knownIds.current.add(incoming.id)
       setAlerts((prev) => {

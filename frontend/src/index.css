@@ -838,9 +838,25 @@ html[data-keyboard-open='true'] .native-toasts { bottom: calc(var(--app-keyboard
 
 .native-emergency-button { color: var(--app-danger); }
 .native-emergency-button:hover { background: color-mix(in srgb, var(--app-danger) 7%, var(--color-surface)); }
-.native-tab > svg { width: 3rem; height: 1.75rem; padding: .25rem .875rem; border-radius: 999px; }
-.native-tab-active > svg, .native-tab-action > svg { background: var(--color-accent-soft); }
-.native-tab-active { font-weight: 600; }
+/* Checked-in Figma navigation reference: each active icon sits in one opaque
+   48 × 32 px brand pill. The icon must switch to the surface contrast colour;
+   using an accent tint here was too subtle on a bright phone outdoors and
+   made the selected state look like a hover. All five tabs retain equal flex
+   slots and 64 px minimum height, so the visual emphasis never shrinks the
+   hit target. */
+.native-tab > svg {
+  box-sizing: border-box;
+  width: 3rem;
+  height: 2rem;
+  padding: .375rem .875rem;
+  border-radius: 999px;
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.native-tab-active > svg {
+  background: var(--color-accent);
+  color: var(--app-on-accent);
+}
+.native-tab-active { color: var(--app-ink); font-weight: 700; }
 .native-more-menu { max-width: 40rem; margin-left: auto; }
 
 .native-app .page-panel,

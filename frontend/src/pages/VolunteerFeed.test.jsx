@@ -284,6 +284,17 @@ describe('VolunteerFeed discovery controls', () => {
     expect(mocks.toast).not.toHaveBeenCalled()
   })
 
+  it('removes a live card when the server sends a review restriction frame', async () => {
+    mount()
+    await loaded()
+    expect(screen.getByTestId('card-open')).toBeInTheDocument()
+    const onAlert = socketOptions().onAlert
+    await act(async () => onAlert({ type: 'alert_restricted', id: 'open', review_status: 'restricted' }))
+    expect(screen.queryByTestId('card-open')).not.toBeInTheDocument()
+    expect(mocks.notify).not.toHaveBeenCalled()
+    expect(mocks.toast).not.toHaveBeenCalled()
+  })
+
   it('localizes controls, counts and category search through the real provider', async () => {
     localStorage.setItem('lang', 'hi')
     mocks.get.mockResolvedValue({ data: [{ ...rows[0], category: 'medical' }] })

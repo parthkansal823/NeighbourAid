@@ -7,7 +7,7 @@ import useKeyboardInsets from '../hooks/useKeyboardInsets'
 
 const itemClass = (native) => ({ isActive }) =>
   `${native ? 'native-tab min-h-16 text-xs leading-tight' : 'text-[11px]'} flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-lg px-1 py-2 font-medium transition-colors ${
-    isActive ? (native ? 'native-tab-active text-accent' : 'text-orange-400') : 'text-app-muted hover:text-app-ink'
+    isActive ? (native ? 'native-tab-active text-app-ink' : 'text-orange-400') : 'text-app-muted hover:text-app-ink'
   }`
 
 /**

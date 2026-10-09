@@ -227,6 +227,65 @@ class ConnectionManager:
         finally:
             _schedule_push(alert_dict, radius_km, reached_live)
 
+    async def broadcast_restriction(
+        self,
+        alert_dict: dict,
+        radius_km: float = DEFAULT_RADIUS_KM,
+    ) -> None:
+        """Remove a non-emergency card which server review just restricted.
+
+        A normal alert update is an upsert on clients, so it cannot retract a
+        card that a volunteer has already received.  This explicit, tiny
+        frame lets connected clients remove that card immediately; REST feed
+        filtering remains the authority for reconnects and older clients.
+        CRITICAL/HIGH alerts are never sent through this method.
+        """
+        if alert_dict.get("urgency") in {"CRITICAL", "HIGH"}:
+            return
+        alert_id = alert_dict.get("_id") or alert_dict.get("id")
+        coords = (alert_dict.get("location") or {}).get("coordinates") or []
+        if alert_id is None or len(coords) != 2:
+            return
+        a_lng, a_lat = coords
+
+        async def send(vid, ws, lock):
+            try:
+                async with lock:
+                    current = self._active.get(vid)
+                    if current is None or current[0] is not ws:
+                        return
+                    await asyncio.wait_for(
+                        ws.send_text(json.dumps({
+                            "type": "alert_restricted",
+                            "id": str(alert_id),
+                            "review_status": "restricted",
+                        })),
+                        timeout=SOCKET_SEND_TIMEOUT_SECONDS,
+                    )
+            except Exception:
+                self.disconnect(vid, ws)
+                try:
+                    await asyncio.wait_for(ws.close(code=1011), timeout=SOCKET_CLOSE_TIMEOUT_SECONDS)
+                except Exception:
+                    pass
+
+        deliveries = []
+        for vid, (ws, volunteer_coords, skills, has_vehicle) in list(self._active.items()):
+            v_lng, v_lat = volunteer_coords
+            distance = _haversine(a_lat, a_lng, v_lat, v_lng)
+            eligible, _skill_match, _prefs = matching(
+                alert_dict,
+                distance_km=distance,
+                skills=skills,
+                has_vehicle=has_vehicle,
+                raw_preferences=self._preferences.get(vid),
+                base_radius=radius_km,
+            )
+            if eligible:
+                deliveries.append((vid, ws, self._send_locks[vid]))
+        if deliveries:
+            await asyncio.gather(*(send(*recipient) for recipient in deliveries))
+
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371

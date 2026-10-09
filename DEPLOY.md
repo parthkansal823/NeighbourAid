@@ -108,6 +108,47 @@ This stops/removes the stack's containers but **retains its MongoDB volumes**.
 The static Cloudflare website remains available and reports the server offline.
 Next time, use `server:connect` with the same generated secrets.
 
+### Optional offline Gemma + Qwen review
+
+The default laptop image intentionally has no llama.cpp runtime, model download
+or model mount. It is the normal lightweight choice. To enable the optional,
+server-side two-stage review, download the GGUF files yourself under the
+gitignored `models/` directory, then create the local model configuration:
+
+```powershell
+Copy-Item deploy/laptop/ai.env.example deploy/laptop/ai.env
+```
+
+The supplied `ai.env.example` selects Gemma 1B for the fast first pass and
+Qwen 2.5 3B for the stronger verifier. Its paths are **inside** the container
+(`/models/...`), not Windows paths. It also documents the 7B Qwen override for
+a laptop with measured RAM headroom. Do not put credentials, tunnel addresses
+or an API key in this file.
+
+From `frontend/`, use the separate AI commands:
+
+```powershell
+npm run server:ai:connect
+npm run server:ai:status
+npm run server:ai:test
+# Later:
+npm run server:ai:stop
+```
+
+They add a Compose override which builds the optional `ai` target and mounts
+only `../../models` at `/models` read-only. No model is copied into an image,
+downloaded at startup, or called over a network. Keep using the matching
+`server:ai:*` commands for backup/rotation/status while that variant is active;
+ordinary `server:*` commands intentionally select the no-model image again.
+
+This is automated server-side review, not training or factual verification.
+The server is authoritative; a future phone-local Gemma may assist a draft but
+is not implemented and cannot approve, restrict, resolve or otherwise control
+an alert. Model errors/timeouts fall back to deterministic handling rather
+than suppressing a possible emergency. See [models/README.md](models/README.md)
+for review states, evaluation limits and privacy requirements for any future
+fine-tuning work.
+
 The database is new and local to Docker. Existing Atlas data is untouched and
 is not automatically migrated. Sleep/shutdown or loss of Internet stops live
 requests. Quick Tunnels are intended for testing; they have no uptime guarantee.

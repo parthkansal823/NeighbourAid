@@ -39,6 +39,13 @@ describe('Android shell', () => {
     expect(screen.getByRole('link', { name: 'Profile' })).toHaveAttribute('href', '/profile')
   })
 
+  it('marks the selected native tab for the opaque Figma navigation pill', () => {
+    render(wrap(<MobileNav native />))
+    const home = screen.getByRole('link', { name: 'Home' })
+    expect(home).toHaveClass('native-tab-active', 'text-app-ink')
+    expect(home.querySelector('svg')).not.toBeNull()
+  })
+
   it('hides tabs only while an app form is editing with a resized viewport', () => {
     const viewport = new EventTarget()
     viewport.height = 800

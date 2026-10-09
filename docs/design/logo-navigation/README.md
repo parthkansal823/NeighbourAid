@@ -1,6 +1,8 @@
 # Logo and navigation refinement 02
 
-Design-only review bundle. Application code and the original `frontend/assets/logo.png` were not changed by this revision.
+Design review bundle plus the corresponding Capacitor-shell navigation
+implementation. The original logo source file was not changed by this
+revision.
 
 - `figma-import-board.svg`: layered static SVG review board, with two launch-theme treatments and eight selected-tab states. Vector navigation icons and surfaces; logos remain raster images. It is not a `.fig` file, component library, auto-layout layout, or clickable prototype. Actual Figma import has not been verified.
 - `figma-import-board.png`: visual reference rendered locally from the SVG.
@@ -8,7 +10,7 @@ Design-only review bundle. Application code and the original `frontend/assets/lo
 - `logo-{light,dark}-{full,left,right}.png`: transparent 512×512 logo assets preserving the original shape through source masks, rather than a new drawing.
 - `navigation-{light,dark}.png`: selected-Home button references.
 
-The 48×32 active-icon pill is now opaque brand colour, with a contrasting icon, bold active label, and equal touch slots. Contrast checks: active icon 4.63:1 light / 7.19:1 dark; active label 4.63:1 / 6.92:1; inactive label 5.70:1 / 7.34:1. No faded active-label opacity.
+The 48×32 active-icon pill is now opaque brand colour, with a contrasting icon, bold active label, and equal touch slots. The same treatment is implemented in `frontend/src/components/MobileNav.jsx` and `frontend/src/index.css` for the compact Capacitor shell. Contrast checks: active icon 4.63:1 light / 7.19:1 dark; active label 4.63:1 / 6.92:1; inactive label 5.70:1 / 7.34:1. No faded active-label opacity.
 
 The two logo figures move inward with small opposing rotations, settling without bounce. The name and helper line follow. Completion is approximately 1.04 seconds, once only; reduced-motion rendering is static. Future integration must never block an in-progress emergency report behind this motion.
 

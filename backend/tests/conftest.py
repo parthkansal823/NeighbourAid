@@ -5,6 +5,13 @@ import os
 # JWT secret, both of which those checks reject on purpose, so tests opt out
 # explicitly here. Must be set before app imports.
 os.environ.setdefault("ENVIRONMENT", "development")
+# A developer may have Gemma/Qwen enabled in backend/.env while running the
+# suite.  Route tests create many alerts and only exercise mocked storage, so
+# allowing those background tasks to load real multi-gigabyte weights makes
+# the suite slow, nondeterministic, and capable of exhausting the machine.
+# Dedicated model contract tests explicitly stub the model boundary; the
+# opt-in eval modules run outside pytest when real weights are intended.
+os.environ["NA_DISABLE_AI_MODEL"] = "1"
 # The normal ASGI client fixture exercises application routes directly. In a
 # deployed laptop-as-server setup those routes are reached only through the
 # Worker, which adds X-Edge-Secret; adding that header to hundreds of route

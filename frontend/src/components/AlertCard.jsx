@@ -28,6 +28,7 @@ import {
   MessageCircle,
   RefreshCw,
   Send,
+  ShieldCheck,
   Sparkles,
   Tag,
   Users,
@@ -38,6 +39,7 @@ import Button from './Button'
 import HelpRelay from './HelpRelay'
 import OutcomeSummary from './OutcomeSummary'
 import useTextFirst from '../hooks/useTextFirst'
+import { reviewPresentation } from '../utils/alertReview'
 
 /**
  * Urgency shows as a 4px bar down the left edge, not as a tint across the
@@ -550,6 +552,7 @@ export default function AlertCard({ alert, onUpdate }) {
 
   const score = Math.max(0, Math.min(100, Number(alert.verified_score) || 0))
   const band = scoreBand(score, t)
+  const review = reviewPresentation(alert)
   const witnesses = evidenceFor(alert).witnesses
   const isOwn = user?.id && alert.reporter_id === user.id
   const [lng, lat] = alert.location?.coordinates ?? [0, 0]
@@ -663,6 +666,27 @@ export default function AlertCard({ alert, onUpdate }) {
           )}
           <span className="tabular-nums">{createdAgo}</span>
       </div>
+
+      {review && (
+        <div
+          className={`mb-3 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-relaxed ${
+            review.tone === 'approved'
+              ? 'border-emerald-500/35 bg-emerald-950/20 text-app-ink'
+              : review.tone === 'reviewed'
+                ? 'border-blue-500/35 bg-blue-950/20 text-app-ink'
+                : review.tone === 'restricted'
+                  ? 'border-orange-500/40 bg-orange-950/20 text-app-ink'
+                  : 'border-amber-500/40 bg-amber-950/20 text-app-ink'
+          }`}
+          aria-label={`Review status: ${review.label}. ${review.detail}`}
+        >
+          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-semibold">{review.label}</p>
+            <p className="mt-0.5 text-app-muted">{review.detail}</p>
+          </div>
+        </div>
+      )}
 
       <div className="mb-3">
         <OutcomeSummary alert={alert} />

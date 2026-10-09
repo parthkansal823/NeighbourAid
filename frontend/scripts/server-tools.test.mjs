@@ -1,6 +1,29 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { test } from 'node:test'
-import { checkApi, extractTunnelOrigin, parseApiOrigin } from './server-tools.mjs'
+import { AI_COMPOSE_FILE, COMPOSE_FILE, REPO_DIR, checkApi, composeCommand, extractTunnelOrigin, parseApiOrigin } from './server-tools.mjs'
+
+test('normal and AI server commands select only their intended Compose files', () => {
+  assert.deepEqual(composeCommand(['config', '--quiet'], false), ['compose', '--file', COMPOSE_FILE, 'config', '--quiet'])
+  assert.deepEqual(composeCommand(['config', '--quiet'], true), ['compose', '--file', COMPOSE_FILE, '--file', AI_COMPOSE_FILE, 'config', '--quiet'])
+})
+
+test('AI Docker extension is opt-in, read-only and points only at local model files', () => {
+  const normal = readFileSync(COMPOSE_FILE, 'utf8')
+  const ai = readFileSync(AI_COMPOSE_FILE, 'utf8')
+  const env = readFileSync(resolve(REPO_DIR, 'deploy/laptop/ai.env.example'), 'utf8')
+  const dockerfile = readFileSync(resolve(REPO_DIR, 'backend/Dockerfile'), 'utf8')
+  assert.doesNotMatch(normal, /ai\.env|target:\s*ai/)
+  assert.match(ai, /target:\s*ai/)
+  assert.match(ai, /path:\s*\.\/ai\.env\s*\n\s*required:\s*true/)
+  assert.match(ai, /target:\s*\/models\s*\n\s*read_only:\s*true/)
+  assert.match(env, /^LLM_MODEL_PATH=\/models\/gemma-/m)
+  assert.match(env, /^LLM_VERIFIER_MODEL_PATH=\/models\/qwen2\.5-3b-/m)
+  assert.match(dockerfile, /FROM base AS ai/)
+  assert.match(dockerfile, /FROM base AS runtime/)
+  assert.doesNotMatch(dockerfile, /curl|wget|huggingface/i)
+})
 
 test('accepts a real HTTPS origin and normalises its trailing slash', () => {
   assert.equal(parseApiOrigin('https://winter-flower-1234.trycloudflare.com/'), 'https://winter-flower-1234.trycloudflare.com')

@@ -106,9 +106,38 @@ Reporter. Create an alert.
 }
 ```
 
-Returns the full alert doc with photos inlined (just for the
-reporter's confirmation view). Triage + reverse-geocoding + weather +
-photo analysis run **concurrently** via `asyncio.gather`.
+Returns the full alert doc with photos inlined (just for the reporter's
+confirmation view). Deterministic triage runs before the insert; reverse
+geocoding, weather and photo analysis enrich it afterward. Optional local AI
+review is detached from the HTTP response, so submitting an alert never waits
+for a model.
+
+#### Optional server-side AI review visibility
+
+When no readable `LLM_MODEL_PATH` is configured, alerts retain the normal
+deterministic visibility behavior and no AI review status is required. With
+the optional model enabled, the server adds `review_status` to affected alert
+documents. This is an automated workflow signal, not an authenticity claim:
+
+| Status | Meaning and visibility |
+|---|---|
+| `provisional` | Deterministic CRITICAL/HIGH report; broadcast immediately while review continues. |
+| `pending_first_review` | Saved MEDIUM/LOW report waiting briefly for the server-side Gemma first pass; not yet sent to volunteer/public feeds. |
+| `approved` | Gemma explicitly approved it; public while the stronger verifier is pending or unconfigured. |
+| `pending_second_review` | Gemma was uncertain about a MEDIUM/LOW report; it remains held only while configured local Qwen performs the stronger review. |
+| `unreviewed` | Model unavailable, timed out, saturated or malformed; normal deterministic visibility resumes. |
+| `reviewed` | Qwen found the report plausibly actionable after the first review path. |
+| `needs_review` | An automated stage found uncertainty. It is public for human/community review; no model result is proof that the event is true. |
+| `restricted` | Only a clearly non-emergency, noncritical/nonhigh spam-like report; the server removes it from public feeds and share endpoints. |
+
+The client never supplies or authorizes any of these states. Gemma uncertainty
+is escalated to local Qwen when available; an unavailable model cannot
+black-hole a report. AI review never lowers urgency, resolves or deletes an
+alert; corroboration and human incident handling remain needed to establish
+real-world facts. The server also keeps its own internal
+visibility state, which is deliberately not exposed as a client-controllable
+field; public visibility is determined by the server, not by a status label
+alone.
 
 ### `POST /api/alerts/anonymous`
 Public, rate-limited 10/h per IP. Same body shape as the

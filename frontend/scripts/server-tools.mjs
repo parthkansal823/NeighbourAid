@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url)
 export const FRONTEND_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const REPO_DIR = resolve(FRONTEND_DIR, '..')
 export const COMPOSE_FILE = resolve(REPO_DIR, 'deploy/laptop/docker-compose.yml')
+export const AI_COMPOSE_FILE = resolve(REPO_DIR, 'deploy/laptop/docker-compose.ai.yml')
 export const EDGE_FILE = resolve(REPO_DIR, 'deploy/laptop/edge.env')
 
 export function runWrangler(args, options = {}) {
@@ -41,8 +42,13 @@ export function runDocker(args, options = {}) {
   throw new Error('Docker Desktop is not installed or its CLI could not be found.')
 }
 
+export function composeCommand(args, ai = process.env.NEIGHBOURAID_AI_PROFILE === '1') {
+  const files = ai ? [COMPOSE_FILE, AI_COMPOSE_FILE] : [COMPOSE_FILE]
+  return ['compose', ...files.flatMap((file) => ['--file', file]), ...args]
+}
+
 export function runCompose(args, options = {}) {
-  return runDocker(['compose', '--file', COMPOSE_FILE, ...args], {
+  return runDocker(composeCommand(args), {
     cwd: REPO_DIR,
     windowsHide: true,
     stdio: 'inherit',

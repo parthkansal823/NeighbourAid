@@ -45,7 +45,11 @@ support—have their own board.
   Headline suggestions reject invented numeric values and unsafe negation
   changes. Doubtful or mixed photo captions do not reduce evidence scores;
   a photo cannot disprove a gas leak, power outage or medical symptoms.
-  Models run on the backend, not on the phone. See [setup and limitations](models/README.md).
+  Models run on the backend, not on the phone. The optional offline Docker
+  stack can pair Gemma with a stronger Qwen review model; the server retains
+  authority and model output is not real-world verification. Phone-local
+  Gemma is not currently shipped or trusted for alert decisions. See
+  [setup and limitations](models/README.md).
 - Android release notices with a download button. Installation still needs the
   phone owner's confirmation.
 - Guided voice reporting: choose one of 11 languages, answer spoken/on-screen
