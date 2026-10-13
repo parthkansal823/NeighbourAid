@@ -5,7 +5,7 @@ uvicorn[standard]>=0.38.0
 # Motor is gone: MongoDB deprecated it in May 2025 (EOL May 2026) in favour
 # of PyMongo's built-in async driver, which 4.9 introduced. app/db/client.py
 # uses AsyncMongoClient directly.
-pymongo>=4.17.0
+pymongo>=4.18.3
 # PyJWT replaces python-jose: the pinned jose 3.3.0 had 5 CVEs and drags in
 # `ecdsa`, whose timing-attack advisory has no fixed release.
 pyjwt>=2.10.1
