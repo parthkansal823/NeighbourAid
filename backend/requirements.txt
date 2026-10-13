@@ -1,7 +1,7 @@
 # Minimum versions are floors chosen to clear known CVEs (pip-audit clean as
 # of this pin). Keep them at `>=` so security patches land without a bump.
 fastapi>=0.121.0
-uvicorn[standard]>=0.38.0
+uvicorn[standard]>=0.54.0
 # Motor is gone: MongoDB deprecated it in May 2025 (EOL May 2026) in favour
 # of PyMongo's built-in async driver, which 4.9 introduced. app/db/client.py
 # uses AsyncMongoClient directly.
