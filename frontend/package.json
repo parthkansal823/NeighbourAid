@@ -94,7 +94,7 @@
     "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.3.3",
+    "vite": "^8.3.4",
     "vitest": "^4.1.11",
     "vitest-axe": "^0.1.0",
     "wrangler": "^4.131.0"
